@@ -1,0 +1,17 @@
+# Core Data Libraries
+requests==2.31.0
+pandas==2.2.1
+duckdb==0.10.0
+
+# Visualization
+streamlit==1.32.2
+plotly==5.20.0
+
+# Resilience & Retries
+tenacity==8.2.3
+
+# Testing & Quality (DevOps)
+pytest==8.1.1
+black==24.3.0
+flake8==7.0.0
+isort==5.13.2
