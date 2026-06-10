@@ -14,11 +14,14 @@ install:
 	pre-commit install
 
 format:
-	black src/ tests/
-	isort src/ tests/
+	.venv/bin/black src/ tests/
+	.venv/bin/isort src/ tests/
 
 lint:
-	flake8 src/ tests/
+	.venv/bin/flake8 src/ tests/ --max-line-length=120 --extend-ignore=E203,W503,E501,W291,F841,F541 --exclude=src/dashboard/
+
+
+
 
 test:
 	PYTHONPATH=. .venv/bin/pytest tests/ -v

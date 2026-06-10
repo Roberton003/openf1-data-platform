@@ -174,19 +174,23 @@ document.addEventListener("DOMContentLoaded", function() {
         });
 
         Promise.all(telemetryPromises).then(() => {
+            telemetryDiv.classList.remove("fade-in-chart");
             if (telemetryTraces.length === 0) {
                 telemetryDiv.innerHTML = '<div class="placeholder-text">Nenhum registro de telemetria a 3.7Hz disponível para os pilotos selecionados nesta sessão.</div>';
             } else {
+                telemetryDiv.innerHTML = ''; // Limpeza limpa prévia
                 Plotly.newPlot(telemetryDiv, telemetryTraces, {
-                    margin: { t: 15, b: 40, l: 50, r: 15 },
+                    height: 320,
+                    margin: { t: 30, b: 40, l: 50, r: 15 },
                     paper_bgcolor: 'rgba(0,0,0,0)',
                     plot_bgcolor: 'rgba(0,0,0,0)',
                     font: { color: '#e0e6ed', family: 'Inter, sans-serif' },
-                    xaxis: { title: 'Amostras de Telemetria (3.7Hz)', gridcolor: 'rgba(255,255,255,0.05)', zeroline: false },
-                    yaxis: { title: 'Velocidade (km/h)', gridcolor: 'rgba(255,255,255,0.05)', zeroline: false },
+                    xaxis: { title: 'Amostras de Telemetria (3.7Hz)', gridcolor: 'rgba(255,255,255,0.03)', zeroline: false },
+                    yaxis: { title: 'Velocidade (km/h)', gridcolor: 'rgba(255,255,255,0.03)', zeroline: false },
                     template: 'plotly_dark',
                     legend: { orientation: 'h', y: -0.2 }
                 }, { responsive: true });
+                telemetryDiv.classList.add("fade-in-chart");
             }
         });
 
@@ -245,15 +249,19 @@ document.addEventListener("DOMContentLoaded", function() {
                     textposition: 'auto'
                 };
 
+                intervalsDiv.classList.remove("fade-in-chart");
+                intervalsDiv.innerHTML = ''; // Limpeza atômica prévia
                 Plotly.newPlot(intervalsDiv, [gapTrace], {
-                    margin: { t: 15, b: 40, l: 50, r: 15 },
+                    height: 320,
+                    margin: { t: 30, b: 40, l: 50, r: 15 },
                     paper_bgcolor: 'rgba(0,0,0,0)',
                     plot_bgcolor: 'rgba(0,0,0,0)',
                     font: { color: '#e0e6ed', family: 'Inter, sans-serif' },
-                    xaxis: { title: 'Piloto', gridcolor: 'rgba(255,255,255,0.05)', zeroline: false },
-                    yaxis: { title: 'Gap para o Líder (segundos)', gridcolor: 'rgba(255,255,255,0.05)', zeroline: false },
+                    xaxis: { title: 'Piloto', gridcolor: 'rgba(255,255,255,0.03)', zeroline: false },
+                    yaxis: { title: 'Gap para o Líder (segundos)', gridcolor: 'rgba(255,255,255,0.03)', zeroline: false },
                     template: 'plotly_dark'
                 }, { responsive: true });
+                intervalsDiv.classList.add("fade-in-chart");
             })
             .catch(err => {
                 console.error("Erro ao carregar intervalos:", err);
@@ -298,20 +306,34 @@ document.addEventListener("DOMContentLoaded", function() {
                     return;
                 }
 
+                pitstopsDiv.classList.remove("fade-in-chart");
+                pitstopsDiv.innerHTML = ''; // Limpeza atômica prévia
                 Plotly.newPlot(pitstopsDiv, traces, {
-                    margin: { t: 15, b: 40, l: 50, r: 15 },
+                    height: 320,
+                    margin: { t: 30, b: 40, l: 50, r: 15 },
                     paper_bgcolor: 'rgba(0,0,0,0)',
                     plot_bgcolor: 'rgba(0,0,0,0)',
                     font: { color: '#e0e6ed', family: 'Inter, sans-serif' },
-                    xaxis: { title: 'Volta do Pit Stop', gridcolor: 'rgba(255,255,255,0.05)', zeroline: false },
-                    yaxis: { title: 'Duração da Parada (segundos)', gridcolor: 'rgba(255,255,255,0.05)', zeroline: false },
+                    xaxis: { title: 'Volta do Pit Stop', gridcolor: 'rgba(255,255,255,0.03)', zeroline: false },
+                    yaxis: { title: 'Duração da Parada (segundos)', gridcolor: 'rgba(255,255,255,0.03)', zeroline: false },
                     template: 'plotly_dark',
                     barmode: 'group'
                 }, { responsive: true });
+                pitstopsDiv.classList.add("fade-in-chart");
             })
             .catch(err => {
                 console.error("Erro ao carregar pit stops:", err);
                 pitstopsDiv.innerHTML = '<div class="placeholder-text text-danger">Erro ao obter dados de boxes.</div>';
             });
     }
+
+    // Ouvinte dinâmico global para o redimensionamento fluido dos gráficos Plotly
+    window.addEventListener("resize", function() {
+        const activeCharts = [telemetryDiv, intervalsDiv, pitstopsDiv];
+        activeCharts.forEach(div => {
+            if (div.querySelector(".js-plotly-plot")) {
+                Plotly.Plots.resize(div);
+            }
+        });
+    });
 });
