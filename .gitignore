@@ -37,6 +37,7 @@ data/
 
 # Documentation & Markdown
 *.md
+!README.md
 docs/
 
 # Temporary and Lock Files
