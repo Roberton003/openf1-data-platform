@@ -32,11 +32,18 @@ ENV/
 .pytest_cache/
 
 # Data
-data/*.parquet
-data/*.duckdb
-data/*.csv
-data/*.json
+data/
 !data/.gitkeep
+
+# Documentation & Markdown
+*.md
+docs/
+
+# Temporary and Lock Files
+*~lock.*
+*.lock
+*.odt
+.~lock.*#
 
 # IDEs
 .idea/

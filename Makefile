@@ -1,7 +1,7 @@
 .PHONY: setup install test lint clean ingest run
 
 # Variáveis do Projeto
-PYTHON = python3
+PYTHON = .venv/bin/python
 VENV = .venv
 
 setup:
@@ -11,23 +11,31 @@ setup:
 install:
 	$(PYTHON) -m pip install --upgrade pip
 	$(PYTHON) -m pip install -r requirements.txt
+	pre-commit install
 
-lint:
+format:
 	black src/ tests/
 	isort src/ tests/
+
+lint:
 	flake8 src/ tests/
 
 test:
-	pytest tests/ -v
+	PYTHONPATH=. pytest tests/ -v
 
 ingest:
-	$(PYTHON) src/ingestion/extract.py
-
-run:
-	streamlit run src/dashboard/app.py
+	PYTHONPATH=. $(PYTHON) src/ingestion/extract.py --year 2025 --gp "Bahrain" --session "Race"
+	PYTHONPATH=. $(PYTHON) src/ingestion/process.py --year 2025 --gp "Bahrain" --session "Race"
 
 clean:
 	rm -rf __pycache__
 	rm -rf .pytest_cache
-	rm -rf data/*.parquet
-	rm -rf data/*.duckdb
+	rm -rf .pre-commit-config.yaml.cache
+	rm -rf data/bronze/*
+	rm -rf data/silver/*
+	rm -rf data/gold/*
+	rm -rf data/quarantine/*
+
+run:
+	PYTHONPATH=. .venv/bin/uvicorn src.web.main:app --reload --host 0.0.0.0 --port 8001
+

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏎️ OpenF1 Data Platform - Dashboard Scuderia Ferrari</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/style.css">
+    <!-- Plotly.js CDN -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-brand">
+                <i class="fa-solid fa-gauge-high brand-icon"></i>
+                <div class="brand-text">
+                    <h1>OpenF1 <span class="highlight-yellow">Data Platform</span></h1>
+                    <span class="sub-text">Scuderia Ferrari Analytica</span>
+                </div>
+            </div>
+            <nav class="header-nav">
+                <a href="/" class="nav-link active"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
+                <a href="/observabilidade" class="nav-link"><i class="fa-solid fa-network-wired"></i> Observabilidade</a>
+            </nav>
+            <div class="header-meta">
+                <span class="badge badge-ferrari"><i class="fa-solid fa-circle-play"></i> LIVE DATA</span>
+            </div>
+        </header>
+
+        <!-- Main Body -->
+        <div class="app-body">
+            <!-- Sidebar for Selectors -->
+            <aside class="app-sidebar">
+                <div class="sidebar-section">
+                    <h3><i class="fa-solid fa-map-location-dot"></i> Corrida & GP</h3>
+                    <div class="form-group">
+                        <label for="select-session">Selecione o GP / Sessão</label>
+                        <select id="select-session" class="form-select">
+                            <option value="">Carregando sessões...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="sidebar-section">
+                    <h3><i class="fa-solid fa-helmet-safety"></i> Pilotos Foco</h3>
+                    <div class="driver-checkbox-list" id="driver-list-container">
+                        <p class="placeholder-text">Selecione uma sessão primeiro.</p>
+                    </div>
+                </div>
+
+                <div class="sidebar-info-card">
+                    <h4><i class="fa-solid fa-circle-info"></i> Informações do Sistema</h4>
+                    <p><strong>Motor:</strong> DuckDB Local OLAP</p>
+                    <p><strong>Frequência:</strong> Bruto a 3.7Hz</p>
+                    <p><strong>Validação:</strong> Data Contracts (Pydantic)</p>
+                </div>
+            </aside>
+
+            <!-- Main Content Area -->
+            <main class="app-content">
+                <!-- Session Info Alert banner -->
+                <div class="session-info-banner" id="session-info-banner" style="display: none;">
+                    <div class="banner-icon"><i class="fa-solid fa-flag-checkered"></i></div>
+                    <div class="banner-details">
+                        <h2 id="resolved-gp-name">Bahrain Grand Prix</h2>
+                        <p id="resolved-session-details">Temporada 2025 | Circuit Sakhir | Session Race</p>
+                    </div>
+                </div>
+
+                <!-- Dashboard Cards Grid -->
+                <div class="dashboard-grid">
+                    <!-- Telemetry Line Charts -->
+                    <div class="dashboard-card card-full">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-bolt"></i> Comparação de Telemetria Física (Últimos 1000 Pontos)</h3>
+                            <span class="card-subtitle">Velocidade, Marcha e RPM em tempo real</span>
+                        </div>
+                        <div class="card-body">
+                            <div id="chart-telemetry" class="plotly-chart">
+                                <div class="chart-loader"><i class="fa-solid fa-circle-notch fa-spin"></i> Selecione GP e Pilotos para carregar a telemetria...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Race Intervals Gaps -->
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-stopwatch"></i> Race Gaps (Distância para o Líder)</h3>
+                            <span class="card-subtitle">Diferença em segundos e status de ultrapassagem</span>
+                        </div>
+                        <div class="card-body">
+                            <div id="chart-intervals" class="plotly-chart">
+                                <div class="chart-loader"><i class="fa-solid fa-circle-notch fa-spin"></i> Aguardando seleção...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pit Stops Durations -->
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-box-open"></i> Duração das Paradas nos Boxes (Pit Stops)</h3>
+                            <span class="card-subtitle">Performance das escuderias em segundos</span>
+                        </div>
+                        <div class="card-body">
+                            <div id="chart-pitstops" class="plotly-chart">
+                                <div class="chart-loader"><i class="fa-solid fa-circle-notch fa-spin"></i> Aguardando seleção...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+        
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>&copy; 2026 OpenF1 Data Platform. Desenvolvido com <i class="fa-solid fa-heart highlight-red"></i> sob o Gemini Protocol v12.0</p>
+        </footer>
+    </div>
+
+    <!-- Dashboard Core JS -->
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>
