@@ -669,10 +669,50 @@ if __name__ == "__main__":
     )
     parser.add_argument("--year", type=int, default=2025, help="Ano da temporada F1")
     parser.add_argument(
-        "--gp", type=str, required=True, help="Nome do GP ou País da corrida"
+        "--gp",
+        type=str,
+        required=True,
+        help="Nome do GP ou País da corrida (ou 'all' para todos)",
     )
     parser.add_argument("--session", type=str, default="Race", help="Nome da sessão")
 
     args = parser.parse_args()
 
-    process_medallion_pipeline(args.year, args.gp, args.session)
+    if args.gp == "all":
+        import glob
+
+        search_pattern = os.path.join(
+            DATA_DIR, "bronze", f"year={args.year}", "gp=*", f"session={args.session}"
+        )
+        partitions = glob.glob(search_pattern)
+        if not partitions:
+            # Fallback para 2024 se não achar partições em 2025
+            if args.year == 2025:
+                print(
+                    "Nenhuma partição de 2025 encontrada. Buscando partições de 2024..."
+                )
+                search_pattern = os.path.join(
+                    DATA_DIR, "bronze", "year=2024", "gp=*", f"session={args.session}"
+                )
+                partitions = glob.glob(search_pattern)
+                args.year = 2024
+
+        if not partitions:
+            print(
+                f"Nenhuma partição encontrada para year={args.year} e session={args.session} na Bronze."
+            )
+        else:
+            print(f"Iniciando processamento em lote de {len(partitions)} partições.")
+            # Ordenar para manter ordem lógica
+            for p in sorted(partitions):
+                # Extrair o gp do caminho
+                parts = p.split(os.sep)
+                gp_folder = [x for x in parts if x.startswith("gp=")][0]
+                gp_val = gp_folder.split("=")[1].replace("_", " ")
+                print(f"\n--- Processando GP em lote: {gp_val} ---")
+                try:
+                    process_medallion_pipeline(args.year, gp_val, args.session)
+                except Exception as e:
+                    print(f"Erro ao processar {gp_val}: {e}")
+    else:
+        process_medallion_pipeline(args.year, args.gp, args.session)

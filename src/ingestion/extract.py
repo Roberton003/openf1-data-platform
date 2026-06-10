@@ -1,6 +1,7 @@
 import argparse
 import os
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
 
@@ -25,7 +26,7 @@ PILOTOS_FOCO = {
 api_semaphore = threading.Semaphore(2)
 
 
-@retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, min=2, max=10))
+@retry(stop=stop_after_attempt(10), wait=wait_exponential(multiplier=2, min=4, max=60))
 def fetch_endpoint(endpoint: str, params: dict = None) -> list:
     """
     Consome um endpoint da API OpenF1 com retry resilience e tratamento HTTP 404/429.
@@ -98,6 +99,46 @@ def get_session_info(year: int, gp_name: Optional[str], session_name: str) -> di
     return latest_session
 
 
+def get_all_sessions(year: int, session_name: str) -> list:
+    """
+    Retorna a lista de todas as sessões do tipo especificado (ex: Race) para o ano informado.
+    Aplica fallback para 2024 se não encontrar sessões em 2025.
+    """
+    sessions = fetch_endpoint("sessions", {"year": year})
+
+    if not sessions and year == 2025:
+        print(
+            f"Nenhum dado encontrado para a temporada de 2025. Executando fallback para 2024..."
+        )
+        year = 2024
+        sessions = fetch_endpoint("sessions", {"year": year})
+
+    if not sessions:
+        raise ValueError(f"Nenhuma sessão encontrada para a temporada {year}.")
+
+    df = pd.DataFrame(sessions)
+
+    # Filtrar por tipo de sessão
+    session_mask = df["session_name"].str.contains(session_name, case=False, na=False)
+    df_session = df[session_mask]
+
+    if df_session.empty:
+        # Se não houver correspondência exata, retornar tudo ordenado por data
+        print(
+            f"Nenhuma sessão contendo '{session_name}' encontrada. Retornando todas as sessões."
+        )
+        df_session = df.sort_values("date_start", ascending=False)
+    else:
+        df_session = df_session.sort_values("date_start", ascending=True)
+
+    # Adicionar o ano real
+    sessions_list = df_session.to_dict(orient="records")
+    for s in sessions_list:
+        s["year_actual"] = year
+
+    return sessions_list
+
+
 def extract_driver_telemetry(
     session_key: int, driver_number: int, driver_name: str
 ) -> tuple:
@@ -127,22 +168,17 @@ def extract_driver_telemetry(
     return (driver_number, telemetry, intervals)
 
 
-def run_extraction(year: int, gp_name: Optional[str], session_name: str):
+def run_extraction_for_session(session_info: dict) -> str:
     """
-    Pipeline de Ingestão da Camada Bronze.
+    Executa a extração para uma única sessão específica.
     """
-    print(f"=== 🏎️ OpenF1 Data Ingestion: Bronze Layer ===")
-    print(f"Temporada: {year} | GP: {gp_name or 'Último'} | Sessão: {session_name}")
-
-    # 1. Resolução da Sessão
-    session_info = get_session_info(year, gp_name, session_name)
     session_key = int(session_info["session_key"])
     actual_year = session_info["year_actual"]
     gp_resolved = session_info["country_name"].replace(" ", "_")
     session_resolved = session_info["session_name"].replace(" ", "_")
 
     print(
-        f"Sessão Resolvida: {session_info['session_name']} - Key: {session_key} (Ano: {actual_year})"
+        f"\n--- Ingerindo: {session_info['session_name']} de {session_info['country_name']} (Key: {session_key}, Ano: {actual_year}) ---"
     )
 
     # 2. Definir caminho de salvamento baseado em partições Lakehouse (Bronze)
@@ -179,6 +215,9 @@ def run_extraction(year: int, gp_name: Optional[str], session_name: str):
             print(f" -> Salvo {len(df)} linhas em {output_file}")
         else:
             print(f" -> Nenhum registro retornado para {ep_filename}")
+
+        # Delay suave entre chamadas de endpoints diferentes para evitar HTTP 429
+        time.sleep(1.5)
 
     # Salvar metadado da própria sessão para dim_sessions
     df_sess = pd.DataFrame([session_info])
@@ -241,8 +280,29 @@ def run_extraction(year: int, gp_name: Optional[str], session_name: str):
     else:
         print("Aviso: Nenhum dado de intervalo extraído para esta sessão.")
 
-    print(f"Ingestão da Bronze finalizada com sucesso em: {partition_path}\n")
+    print(f"Ingestão da Bronze finalizada com sucesso para a sessão {session_key}.\n")
     return partition_path
+
+
+def run_extraction(year: int, gp_name: Optional[str], session_name: str):
+    """
+    Pipeline de Ingestão da Camada Bronze.
+    """
+    print(f"=== 🏎️ OpenF1 Data Ingestion: Bronze Layer ===")
+    print(f"Temporada: {year} | GP: {gp_name or 'Último'} | Sessão: {session_name}")
+
+    if gp_name == "all":
+        sessions = get_all_sessions(year, session_name)
+        print(f"Encontrados {len(sessions)} GPs para ingestão em lote.")
+        for s in sessions:
+            run_extraction_for_session(s)
+            # Delay de cooldown maior entre sessões diferentes (GPs)
+            print("Aguardando cooldown de 5s antes do próximo GP...")
+            time.sleep(5)
+    else:
+        # 1. Resolução da Sessão
+        session_info = get_session_info(year, gp_name, session_name)
+        run_extraction_for_session(session_info)
 
 
 if __name__ == "__main__":

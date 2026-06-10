@@ -21,11 +21,17 @@ lint:
 	flake8 src/ tests/
 
 test:
-	PYTHONPATH=. pytest tests/ -v
+	PYTHONPATH=. .venv/bin/pytest tests/ -v
+
 
 ingest:
 	PYTHONPATH=. $(PYTHON) src/ingestion/extract.py --year 2025 --gp "Bahrain" --session "Race"
 	PYTHONPATH=. $(PYTHON) src/ingestion/process.py --year 2025 --gp "Bahrain" --session "Race"
+
+ingest-all:
+	PYTHONPATH=. $(PYTHON) src/ingestion/extract.py --year 2025 --gp "all" --session "Race"
+	PYTHONPATH=. $(PYTHON) src/ingestion/process.py --year 2025 --gp "all" --session "Race"
+
 
 clean:
 	rm -rf __pycache__
