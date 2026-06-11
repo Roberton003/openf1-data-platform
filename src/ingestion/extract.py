@@ -148,14 +148,12 @@ def extract_driver_telemetry(
     print(f" -> [{driver_name} - #{driver_number}] Iniciando extração de telemetria...")
 
     # 1. Extração de car_data (telemetria 3.7Hz)
-    telemetry = fetch_endpoint(
-        "car_data",
-        {
-            "session_key": session_key,
-            "driver_number": driver_number,
-            "limit": 30000,  # Limite realista de amostragem por piloto para testes de pipeline
-        },
-    )
+    params = {
+        "session_key": session_key,
+        "driver_number": driver_number,
+    }
+
+    telemetry = fetch_endpoint("car_data", params)
 
     # 2. Extração de intervalos (intervals)
     intervals = fetch_endpoint(
@@ -227,15 +225,16 @@ def run_extraction_for_session(session_info: dict) -> str:
     all_telemetry = []
     all_intervals = []
 
-    print(
-        f"Iniciando extração de telemetria dos pilotos foco com ThreadPoolExecutor..."
-    )
-
     with ThreadPoolExecutor(max_workers=3) as executor:
         futures = []
         for d_num, d_name in PILOTOS_FOCO.items():
             futures.append(
-                executor.submit(extract_driver_telemetry, session_key, d_num, d_name)
+                executor.submit(
+                    extract_driver_telemetry,
+                    session_key,
+                    d_num,
+                    d_name,
+                )
             )
 
         for fut in as_completed(futures):
