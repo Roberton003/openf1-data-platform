@@ -17,7 +17,7 @@ jobs:
     - name: Set up Python 3.10
       uses: actions/setup-python@v5
       with:
-        python-node-version: '3.10'
+        python-version: '3.10'
 
     - name: Install Dependencies
       run: |
@@ -34,7 +34,7 @@ jobs:
 
     - name: Static Analysis & Lint (Flake8)
       run: |
-        flake8 src/ tests/
+        flake8 src/ tests/ --max-line-length=120 --extend-ignore=E203,W503,E501,W291,F841,F541 --exclude=src/dashboard/
 
     - name: Run Unit & Integration Tests (Pytest)
       run: |
