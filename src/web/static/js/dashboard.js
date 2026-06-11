@@ -140,13 +140,16 @@ document.addEventListener("DOMContentLoaded", function() {
             resolvedSessionDetails.textContent = `Temporada ${session.year} | Sessão: ${session.session_name} (${session.session_type}) | Chave: ${session.session_key}`;
             infoBanner.style.display = "flex";
 
-            // 1.1 Fetch and display session winner (Grill-Me Outcome)
+            // 1.1 Fetch and display session winner — reset imediato antes da consulta async
+            const winnerBanner = document.getElementById("banner-winner");
+            const winnerAcronym = document.getElementById("winner-name-acronym");
+            winnerBanner.style.display = "none";
+            winnerAcronym.textContent = "...";
+
             fetch(`/api/winner?session_key=${sessionKey}`)
                 .then(res => res.json())
                 .then(winnerData => {
-                    const winnerBanner = document.getElementById("banner-winner");
-                    const winnerAcronym = document.getElementById("winner-name-acronym");
-                    if (winnerData.length > 0) {
+                    if (winnerData && winnerData.length > 0) {
                         winnerAcronym.textContent = `${winnerData[0].driver} (${winnerData[0].team})`;
                         winnerBanner.style.display = "block";
                     } else {
@@ -155,7 +158,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 })
                 .catch(err => {
                     console.error("Erro ao buscar vencedor:", err);
-                    document.getElementById("banner-winner").style.display = "none";
+                    winnerBanner.style.display = "none";
                 });
         }
 
