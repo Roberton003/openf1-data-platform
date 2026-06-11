@@ -52,17 +52,16 @@ class SessionResultContract(BaseModel):
     session_key: int = Field(..., description="Chave da sessão")
     driver_number: int = Field(..., description="Número do piloto")
     position: Optional[int] = Field(None, description="Posição final obtida")
+    number_of_laps: Optional[int] = Field(
+        None, description="Número de voltas completadas"
+    )
+    points: Optional[float] = Field(None, description="Pontos obtidos")
+    dnf: Optional[bool] = Field(None, description="Did Not Finish")
+    dns: Optional[bool] = Field(None, description="Did Not Start")
+    dsq: Optional[bool] = Field(None, description="Disqualified")
+    duration: Optional[float] = Field(None, description="Tempo total de corrida")
     gap_to_leader: Optional[str] = Field(
         None, description="Tempo de gap para o líder da prova"
-    )
-    interval: Optional[str] = Field(
-        None, description="Intervalo para o piloto da frente"
-    )
-    laps_completed: Optional[int] = Field(
-        None, description="Número total de voltas completadas"
-    )
-    status: str = Field(
-        ..., description="Status final do piloto (ex: Finished, DNF, DNS)"
     )
 
 
@@ -124,4 +123,14 @@ WEATHER_SCHEMA = {
     "humidity": "float64",
     "wind_speed": "float64",
     "rainfall": "int64",
+}
+
+# Localização Espacial (location)
+LOCATION_SCHEMA = {
+    "session_key": "int64",
+    "driver_number": "int64",
+    "date": "datetime64[ns]",
+    "x": "int64",
+    "y": "int64",
+    "z": "int64",
 }

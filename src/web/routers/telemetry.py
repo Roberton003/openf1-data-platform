@@ -15,6 +15,13 @@ def fetch_telemetry_from_db(
     try:
         # Convert timestamp to ISO string format for clean JSON serialization
         query = """
+            WITH numbered AS (
+                SELECT 
+                    date, speed, rpm, n_gear, throttle, brake, drs,
+                    ROW_NUMBER() OVER(ORDER BY date ASC) as row_num
+                FROM fact_car_telemetry
+                WHERE session_key = ? AND driver_number = ?
+            )
             SELECT 
                 strftime(date, '%Y-%m-%dT%H:%M:%S.%f') as date, 
                 speed, 
@@ -23,8 +30,12 @@ def fetch_telemetry_from_db(
                 throttle, 
                 brake, 
                 drs
-            FROM fact_car_telemetry
-            WHERE session_key = ? AND driver_number = ?
+            FROM numbered
+            WHERE row_num % CASE 
+                WHEN (SELECT COUNT(*) FROM numbered) > 1000 
+                THEN CAST((SELECT COUNT(*) FROM numbered) / 1000 AS INTEGER) 
+                ELSE 1 
+            END = 0
             ORDER BY date ASC
             LIMIT 1000
         """

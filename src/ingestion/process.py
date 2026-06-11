@@ -11,6 +11,7 @@ from pydantic import ValidationError
 
 from src.ingestion.schemas import (
     INTERVALS_SCHEMA,
+    LOCATION_SCHEMA,
     PIT_STOP_SCHEMA,
     STINTS_SCHEMA,
     TELEMETRY_SCHEMA,
@@ -18,6 +19,7 @@ from src.ingestion.schemas import (
     DriverContract,
     RaceControlContract,
     SessionContract,
+    SessionResultContract,
 )
 
 DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data"))
@@ -123,6 +125,20 @@ def init_duckdb_schema(conn: duckdb.DuckDBPyConnection):
 
     conn.execute(
         """
+        CREATE TABLE IF NOT EXISTS fact_car_location (
+            session_key INTEGER,
+            driver_number INTEGER,
+            date TIMESTAMP,
+            x INTEGER,
+            y INTEGER,
+            z INTEGER,
+            PRIMARY KEY (session_key, driver_number, date)
+        )
+    """
+    )
+
+    conn.execute(
+        """
         CREATE TABLE IF NOT EXISTS fact_pit_stops (
             session_key INTEGER,
             driver_number INTEGER,
@@ -158,6 +174,24 @@ def init_duckdb_schema(conn: duckdb.DuckDBPyConnection):
             interval VARCHAR,
             date TIMESTAMP,
             PRIMARY KEY (session_key, driver_number, date)
+        )
+    """
+    )
+
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS fact_session_results (
+            session_key INTEGER,
+            driver_number INTEGER,
+            position INTEGER,
+            number_of_laps INTEGER,
+            points DOUBLE,
+            dnf BOOLEAN,
+            dns BOOLEAN,
+            dsq BOOLEAN,
+            duration DOUBLE,
+            gap_to_leader VARCHAR,
+            PRIMARY KEY (session_key, driver_number)
         )
     """
     )
@@ -400,6 +434,14 @@ def process_medallion_pipeline(year: int, gp_name: str, session_name: str):
                 conn.execute(
                     "DELETE FROM fact_intervals WHERE session_key = ?", (session_key,)
                 )
+                conn.execute(
+                    "DELETE FROM fact_session_results WHERE session_key = ?",
+                    (session_key,),
+                )
+                conn.execute(
+                    "DELETE FROM fact_car_location WHERE session_key = ?",
+                    (session_key,),
+                )
 
                 # Iniciar transação atômica (AUDIT-001) para inserção de dados limpos
                 conn.execute("BEGIN TRANSACTION")
@@ -564,6 +606,29 @@ def process_medallion_pipeline(year: int, gp_name: str, session_name: str):
                 )
                 total_rows_silver += len(df_valid)
 
+        # 9.1 Processar fact_car_location (Validação Vetorizada)
+        loc_file = os.path.join(partition_path, "location.parquet")
+        if os.path.exists(loc_file):
+            df = pd.read_parquet(loc_file)
+            total_rows_bronze += len(df)
+            df_valid, df_invalid = validate_vectorized_batch(
+                df, LOCATION_SCHEMA, ["session_key", "driver_number", "date"]
+            )
+            if not df_invalid.empty:
+                quarantine_invalid_rows(
+                    df_invalid,
+                    "location",
+                    "Campos nulos ou incompatibilidade em coordenadas",
+                    partition_quarantine_path,
+                )
+                total_rows_quarantine += len(df_invalid)
+
+            if not df_valid.empty:
+                conn.execute(
+                    "INSERT INTO fact_car_location SELECT session_key, driver_number, date, x, y, z FROM df_valid"
+                )
+                total_rows_silver += len(df_valid)
+
         # 10. Processar fact_intervals (Validação Vetorizada)
         intervals_file = os.path.join(partition_path, "intervals.parquet")
         if os.path.exists(intervals_file):
@@ -584,6 +649,33 @@ def process_medallion_pipeline(year: int, gp_name: str, session_name: str):
             if not df_valid.empty:
                 conn.execute(
                     "INSERT INTO fact_intervals SELECT session_key, driver_number, gap_to_leader, interval, date FROM df_valid"
+                )
+                total_rows_silver += len(df_valid)
+
+        # 11. Processar fact_session_results (Pydantic validation)
+        res_file = os.path.join(partition_path, "session_result.parquet")
+        if os.path.exists(res_file):
+            df = pd.read_parquet(res_file)
+            total_rows_bronze += len(df)
+            df_valid, df_invalid = validate_pydantic_batch(
+                df, SessionResultContract, "session_result"
+            )
+            if not df_invalid.empty:
+                quarantine_invalid_rows(
+                    df_invalid,
+                    "session_result",
+                    "Falha de validação do contrato SessionResultContract",
+                    partition_quarantine_path,
+                )
+                total_rows_quarantine += len(df_invalid)
+
+            if not df_valid.empty:
+                conn.execute(
+                    """
+                    INSERT INTO fact_session_results 
+                    SELECT session_key, driver_number, position, number_of_laps, points, dnf, dns, dsq, duration, gap_to_leader 
+                    FROM df_valid
+                """
                 )
                 total_rows_silver += len(df_valid)
 

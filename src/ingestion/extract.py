@@ -143,16 +143,18 @@ def extract_driver_telemetry(
     session_key: int, driver_number: int, driver_name: str
 ) -> tuple:
     """
-    Worker para extração paralela de telemetria física (car_data) e intervalos por piloto.
+    Worker para extração paralela de telemetria física (car_data), intervalos e localização por piloto.
     """
-    print(f" -> [{driver_name} - #{driver_number}] Iniciando extração de telemetria...")
+    print(
+        f" -> [{driver_name} - #{driver_number}] Iniciando extração de telemetria e localização..."
+    )
 
-    # 1. Extração de car_data (telemetria 3.7Hz)
     params = {
         "session_key": session_key,
         "driver_number": driver_number,
     }
 
+    # 1. Extração de car_data (telemetria 3.7Hz)
     telemetry = fetch_endpoint("car_data", params)
 
     # 2. Extração de intervalos (intervals)
@@ -160,10 +162,13 @@ def extract_driver_telemetry(
         "intervals", {"session_key": session_key, "driver_number": driver_number}
     )
 
+    # 3. Extração de localização espacial (location)
+    location = fetch_endpoint("location", params)
+
     print(
-        f" -> [{driver_name} - #{driver_number}] Concluído. Tel: {len(telemetry)} linhas | Gaps: {len(intervals)} linhas"
+        f" -> [{driver_name} - #{driver_number}] Concluído. Tel: {len(telemetry)} | Gaps: {len(intervals)} | Loc: {len(location)} linhas"
     )
-    return (driver_number, telemetry, intervals)
+    return (driver_number, telemetry, intervals, location)
 
 
 def run_extraction_for_session(session_info: dict) -> str:
@@ -224,6 +229,7 @@ def run_extraction_for_session(session_info: dict) -> str:
     # 4. Extração concorrente de telemetria dos pilotos selecionados
     all_telemetry = []
     all_intervals = []
+    all_location = []
 
     with ThreadPoolExecutor(max_workers=3) as executor:
         futures = []
@@ -239,11 +245,13 @@ def run_extraction_for_session(session_info: dict) -> str:
 
         for fut in as_completed(futures):
             try:
-                d_num, tel, inter = fut.result()
+                d_num, tel, inter, loc = fut.result()
                 if tel:
                     all_telemetry.extend(tel)
                 if inter:
                     all_intervals.extend(inter)
+                if loc:
+                    all_location.extend(loc)
             except Exception as e:
                 print(f"Erro na extração paralela do piloto: {e}")
 
@@ -260,6 +268,27 @@ def run_extraction_for_session(session_info: dict) -> str:
     else:
         print(
             "Aviso: Nenhuma telemetria extraída para os pilotos focados nesta sessão."
+        )
+
+    # 5.1 Salvar localização espacial consolidada
+    if all_location:
+        df_loc = pd.DataFrame(all_location)
+        df_loc["driver_number"] = df_loc["driver_number"].astype(int)
+        df_loc["session_key"] = df_loc["session_key"].astype(int)
+
+        # Tratar e garantir tipo numérico inteiro para coordenadas espaciais
+        for col in ["x", "y", "z"]:
+            if col in df_loc.columns:
+                df_loc[col] = (
+                    pd.to_numeric(df_loc[col], errors="coerce").fillna(0).astype(int)
+                )
+
+        output_loc = os.path.join(partition_path, "location.parquet")
+        df_loc.to_parquet(output_loc, index=False)
+        print(f"Consolidado location: {len(df_loc)} linhas salvas em {output_loc}")
+    else:
+        print(
+            "Aviso: Nenhuma localização extraída para os pilotos focados nesta sessão."
         )
 
     # 6. Salvar intervalos consolidados da sessão

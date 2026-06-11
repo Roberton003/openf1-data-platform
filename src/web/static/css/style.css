@@ -481,6 +481,176 @@ h1, h2, h3, h4, h5, h6 {
     color: var(--text-muted);
 }
 
+/* Tabs Navigation */
+.tabs-nav {
+    display: flex;
+    gap: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.tab-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    font-weight: 600;
+    padding: 0.75rem 1.5rem;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: var(--transition-fast);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.tab-btn:hover {
+    color: var(--text-white);
+    background-color: rgba(255, 255, 255, 0.04);
+}
+
+.tab-btn.active {
+    color: var(--text-white);
+    background-color: rgba(229, 9, 20, 0.12);
+    border-bottom: 3px solid var(--red-ferrari);
+    border-radius: 6px 6px 0 0;
+}
+
+/* Tab Content Visibility */
+.tab-pane {
+    display: none;
+    opacity: 0;
+    transition: opacity var(--transition-smooth);
+}
+
+.tab-pane.active {
+    display: block;
+    opacity: 1;
+}
+
+/* Custom Grid Distributions */
+.telemetry-grid {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.env-grid {
+    grid-template-columns: 1.1fr 0.9fr;
+}
+
+/* Terminal Log Window styling */
+.terminal-log {
+    background-color: #08090c;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 1.25rem;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.85rem;
+    height: 320px;
+    min-height: 320px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.8);
+    scroll-behavior: smooth;
+}
+
+/* Custom Scrollbar for Terminal */
+.terminal-log::-webkit-scrollbar {
+    width: 6px;
+}
+
+.terminal-log::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.terminal-log::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+.terminal-log::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.terminal-placeholder {
+    color: var(--text-muted);
+    font-style: italic;
+    text-align: center;
+    margin-top: auto;
+    margin-bottom: auto;
+}
+
+.terminal-line {
+    border-left: 3px solid rgba(255, 255, 255, 0.15);
+    padding-left: 0.75rem;
+    margin-bottom: 0.4rem;
+    animation: terminalFadeIn 0.3s ease-out;
+}
+
+@keyframes terminalFadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.terminal-time {
+    color: #4b6b94;
+    font-weight: bold;
+    margin-right: 0.5rem;
+}
+
+.terminal-driver {
+    color: var(--yellow-modena);
+    font-weight: bold;
+    margin-right: 0.5rem;
+}
+
+.terminal-msg {
+    color: #cbd5e1;
+}
+
+/* Flags Alerts styling inside terminal */
+.flag-line-yellow {
+    border-left-color: var(--yellow-modena);
+    background-color: rgba(254, 213, 0, 0.04);
+}
+.flag-line-yellow .terminal-msg {
+    color: #ffeb82;
+}
+
+.flag-line-red {
+    border-left-color: var(--red-ferrari);
+    background-color: rgba(229, 9, 20, 0.05);
+    animation: pulseBorderRed 2s infinite alternate;
+}
+.flag-line-red .terminal-msg {
+    color: #ffa3a3;
+    font-weight: bold;
+}
+
+@keyframes pulseBorderRed {
+    from { border-left-color: var(--red-ferrari); }
+    to { border-left-color: #ff5e67; }
+}
+
+.flag-line-green {
+    border-left-color: #22c55e;
+    background-color: rgba(34, 197, 94, 0.04);
+}
+.flag-line-green .terminal-msg {
+    color: #8ef7b1;
+}
+
+.flag-line-blue {
+    border-left-color: #3b82f6;
+    background-color: rgba(59, 130, 246, 0.04);
+}
+.flag-line-blue .terminal-msg {
+    color: #93c5fd;
+}
+
 /* Responsiveness */
 @media (max-width: 1024px) {
     .dashboard-grid {
@@ -501,3 +671,199 @@ h1, h2, h3, h4, h5, h6 {
         border-bottom: 1px solid var(--border-color);
     }
 }
+
+/* --- DUEL TAB STYLING --- */
+.duel-grid {
+    grid-template-columns: 1fr 1fr;
+}
+
+.duel-header-comparison {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--bg-panel);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem 3rem;
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(15px);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+.duel-header-comparison::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 100%;
+    background: linear-gradient(180deg, rgba(229, 9, 20, 0.3) 0%, rgba(229, 9, 20, 0) 100%);
+    z-index: 1;
+}
+
+.driver-card {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    width: 42%;
+    z-index: 2;
+}
+
+.driver-avatar {
+    font-size: 2.2rem;
+    color: var(--text-muted);
+    background-color: rgba(255, 255, 255, 0.03);
+    width: 4.5rem;
+    height: 4.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 2px solid var(--border-color);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    transition: var(--transition-fast);
+}
+
+.driver-card:hover .driver-avatar {
+    border-color: var(--red-ferrari);
+    color: var(--red-ferrari);
+    background-color: rgba(229, 9, 20, 0.05);
+}
+
+.driver-meta {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+.driver-name-label {
+    font-size: 1.6rem;
+    font-weight: 800;
+    font-family: var(--font-heading);
+    color: var(--text-white);
+}
+
+.driver-team-label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.driver-number-badge {
+    font-family: var(--font-heading);
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: var(--yellow-modena);
+    line-height: 1;
+    text-shadow: 0 0 10px rgba(254, 213, 0, 0.2);
+}
+
+.vs-badge {
+    font-family: var(--font-heading);
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--text-white);
+    background-color: var(--red-ferrari);
+    width: 3.5rem;
+    height: 3.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    z-index: 2;
+    box-shadow: 0 0 15px var(--red-ferrari);
+    border: 3px solid var(--bg-carbon);
+    transform: rotate(-10deg);
+}
+
+/* Metric Comparisons */
+.duel-metrics-card {
+    min-height: 450px;
+}
+
+.metric-comparison-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    padding: 0.5rem 0;
+}
+
+.metric-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.25rem;
+}
+
+.metric-val {
+    font-family: var(--font-heading);
+    font-size: 1.25rem;
+    font-weight: 700;
+    width: 90px;
+}
+
+.metric-val.text-right {
+    text-align: right;
+}
+
+.metric-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-align: center;
+    flex-grow: 1;
+}
+
+.metric-bar-container {
+    display: flex;
+    background-color: rgba(255, 255, 255, 0.03);
+    border-radius: 30px;
+    height: 10px;
+    width: 100%;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid var(--border-color);
+}
+
+.metric-bar-container::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 100%;
+    background-color: var(--bg-carbon);
+    z-index: 2;
+}
+
+.metric-bar-fill {
+    height: 100%;
+    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.d1-fill {
+    background: linear-gradient(90deg, rgba(229, 9, 20, 0.3) 0%, var(--red-ferrari) 100%);
+    width: 50%;
+    margin-left: auto;
+    border-radius: 5px 0 0 5px;
+}
+
+.d2-fill {
+    background: linear-gradient(90deg, var(--yellow-modena) 0%, rgba(254, 213, 0, 0.4) 100%);
+    width: 50%;
+    border-radius: 0 5px 5px 0;
+}
+
+.duel-map-card {
+    min-height: 450px;
+}
+
+@media (max-width: 1024px) {
+    .duel-grid {
+        grid-template-columns: 1fr;
+    }
+}
+

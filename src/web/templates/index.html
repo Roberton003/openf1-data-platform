@@ -31,7 +31,7 @@
                 <a href="/observabilidade" class="nav-link"><i class="fa-solid fa-network-wired"></i> Observabilidade</a>
             </nav>
             <div class="header-meta">
-                <span class="badge badge-ferrari"><i class="fa-solid fa-circle-play"></i> LIVE DATA</span>
+                <span class="badge badge-ferrari"><i class="fa-solid fa-database"></i> HISTORICAL ANALYTICS</span>
             </div>
         </header>
 
@@ -73,45 +73,266 @@
                         <h2 id="resolved-gp-name">Bahrain Grand Prix</h2>
                         <p id="resolved-session-details">Temporada 2025 | Circuit Sakhir | Session Race</p>
                     </div>
+                    <div class="banner-winner" id="banner-winner" style="display: none; margin-left: auto;">
+                        <span class="badge badge-ferrari" style="font-size: 0.85rem; padding: 0.4rem 1rem;"><i class="fa-solid fa-trophy"></i> VENCEDOR: <span id="winner-name-acronym" class="fw-bold highlight-yellow">VER</span></span>
+                    </div>
                 </div>
 
-                <!-- Dashboard Cards Grid -->
-                <div class="dashboard-grid">
-                    <!-- Telemetry Line Charts -->
-                    <div class="dashboard-card card-full">
-                        <div class="card-header">
-                            <h3><i class="fa-solid fa-bolt"></i> Comparação de Telemetria Física (Últimos 1000 Pontos)</h3>
-                            <span class="card-subtitle">Velocidade, Marcha e RPM em tempo real</span>
-                        </div>
-                        <div class="card-body">
-                            <div id="chart-telemetry" class="plotly-chart">
-                                <div class="chart-loader"><i class="fa-solid fa-circle-notch fa-spin"></i> Selecione GP e Pilotos para carregar a telemetria...</div>
+                <!-- Navigation Tabs Control -->
+                <div class="tabs-nav">
+                    <button class="tab-btn active" data-tab="tab-telemetry">
+                        <i class="fa-solid fa-bolt"></i> Telemetria Detalhada
+                    </button>
+                    <button class="tab-btn" data-tab="tab-strategy">
+                        <i class="fa-solid fa-stopwatch"></i> Estratégia & Boxes
+                    </button>
+                    <button class="tab-btn" data-tab="tab-environment">
+                        <i class="fa-solid fa-cloud-sun-rain"></i> Ambiente & Pista
+                    </button>
+                    <button class="tab-btn" data-tab="tab-duel">
+                        <i class="fa-solid fa-user-group"></i> Duelo de Pilotos
+                    </button>
+                </div>
+
+                <!-- Tabs Content Area -->
+                <div class="tabs-content">
+                    
+                    <!-- TAB 1: Telemetry -->
+                    <div class="tab-pane active" id="tab-telemetry">
+                        <div class="dashboard-grid telemetry-grid">
+                            <!-- Speed Chart -->
+                            <div class="dashboard-card">
+                                <div class="card-header">
+                                    <h3><i class="fa-solid fa-gauge"></i> Velocidade</h3>
+                                    <span class="card-subtitle">Curva de velocidade em km/h</span>
+                                </div>
+                                <div class="card-body">
+                                    <div id="chart-speed" class="plotly-chart">
+                                        <div class="chart-loader"><i class="fa-solid fa-circle-notch fa-spin"></i> Selecione GP e Pilotos...</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- RPM & Gear Chart -->
+                            <div class="dashboard-card">
+                                <div class="card-header">
+                                    <h3><i class="fa-solid fa-cogs"></i> Motor & Marcha</h3>
+                                    <span class="card-subtitle">Rotações por minuto (RPM) e marcha ativa</span>
+                                </div>
+                                <div class="card-body">
+                                    <div id="chart-rpm" class="plotly-chart">
+                                        <div class="chart-loader"><i class="fa-solid fa-circle-notch fa-spin"></i> Selecione GP e Pilotos...</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Pedals & DRS Chart -->
+                            <div class="dashboard-card card-full">
+                                <div class="card-header">
+                                    <h3><i class="fa-solid fa-sliders"></i> Pedais de Controle & DRS</h3>
+                                    <span class="card-subtitle">Acelerador (%), Freio (%) e abertura do DRS</span>
+                                </div>
+                                <div class="card-body">
+                                    <div id="chart-pedals" class="plotly-chart">
+                                        <div class="chart-loader"><i class="fa-solid fa-circle-notch fa-spin"></i> Selecione GP e Pilotos...</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Race Intervals Gaps -->
-                    <div class="dashboard-card">
-                        <div class="card-header">
-                            <h3><i class="fa-solid fa-stopwatch"></i> Race Gaps (Distância para o Líder)</h3>
-                            <span class="card-subtitle">Diferença em segundos e status de ultrapassagem</span>
-                        </div>
-                        <div class="card-body">
-                            <div id="chart-intervals" class="plotly-chart">
-                                <div class="chart-loader"><i class="fa-solid fa-circle-notch fa-spin"></i> Aguardando seleção...</div>
+                    <!-- TAB 2: Strategy -->
+                    <div class="tab-pane" id="tab-strategy">
+                        <div class="dashboard-grid">
+                            <!-- Stints Gantt Timeline -->
+                            <div class="dashboard-card card-full">
+                                <div class="card-header">
+                                    <h3><i class="fa-solid fa-route"></i> Estratégia de Pneus (Stints por Volta)</h3>
+                                    <span class="card-subtitle">Linha do tempo de composto de pneu e desgaste do jogo por volta</span>
+                                </div>
+                                <div class="card-body">
+                                    <div id="chart-stints" class="plotly-chart">
+                                        <div class="chart-loader"><i class="fa-solid fa-circle-notch fa-spin"></i> Aguardando seleção de GP e pilotos...</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Race Intervals Gaps -->
+                            <div class="dashboard-card">
+                                <div class="card-header">
+                                    <h3><i class="fa-solid fa-stopwatch"></i> Race Gaps (Distância para o Líder)</h3>
+                                    <span class="card-subtitle">Intervalos cronológicos ao longo da prova</span>
+                                </div>
+                                <div class="card-body">
+                                    <div id="chart-intervals" class="plotly-chart">
+                                        <div class="chart-loader"><i class="fa-solid fa-circle-notch fa-spin"></i> Aguardando seleção...</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Pit Stops Table / Chart -->
+                            <div class="dashboard-card">
+                                <div class="card-header">
+                                    <h3><i class="fa-solid fa-box-open"></i> Performance de Box (Pit Stops)</h3>
+                                    <span class="card-subtitle">Troca física vs tempo de pitlane (segundos)</span>
+                                </div>
+                                <div class="card-body">
+                                    <div id="chart-pitstops" class="plotly-chart" style="display: none;"></div>
+                                    <div id="pitstops-table-container" class="table-container">
+                                        <p class="placeholder-text">Selecione GP e pilotos para analisar os pit stops.</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Pit Stops Durations -->
-                    <div class="dashboard-card">
-                        <div class="card-header">
-                            <h3><i class="fa-solid fa-box-open"></i> Duração das Paradas nos Boxes (Pit Stops)</h3>
-                            <span class="card-subtitle">Performance das escuderias em segundos</span>
+                    <!-- TAB 3: Environment -->
+                    <div class="tab-pane" id="tab-environment">
+                        <div class="dashboard-grid env-grid">
+                            <!-- Weather Chart -->
+                            <div class="dashboard-card">
+                                <div class="card-header">
+                                    <h3><i class="fa-solid fa-cloud-sun-rain"></i> Condições Climáticas do Autódromo</h3>
+                                    <span class="card-subtitle">Evolução térmica (ar/pista) e umidade ao longo do GP</span>
+                                </div>
+                                <div class="card-body">
+                                    <div id="chart-weather" class="plotly-chart">
+                                        <div class="chart-loader"><i class="fa-solid fa-circle-notch fa-spin"></i> Selecione um GP para carregar dados de clima...</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Race Control FIA Terminal Log -->
+                            <div class="dashboard-card">
+                                <div class="card-header">
+                                    <h3><i class="fa-solid fa-bullhorn"></i> Registro do Controle de Corrida (FIA Event Feed)</h3>
+                                    <span class="card-subtitle">Incidentes, investigações e mensagens oficiais da prova</span>
+                                </div>
+                                <div class="card-body">
+                                    <div id="race-control-terminal" class="terminal-log">
+                                        <p class="terminal-placeholder">Aguardando dados da sessão de GP...</p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="card-body">
-                            <div id="chart-pitstops" class="plotly-chart">
-                                <div class="chart-loader"><i class="fa-solid fa-circle-notch fa-spin"></i> Aguardando seleção...</div>
+                    </div>
+
+                    <!-- TAB 4: Pilot Duel -->
+                    <div class="tab-pane" id="tab-duel">
+                        <div id="duel-placeholder" class="placeholder-text card-full" style="text-align: center; padding: 3rem;">
+                            <i class="fa-solid fa-user-group fa-3x mb-3" style="color: rgba(255,255,255,0.2);"></i>
+                            <h3>Duelo de Pilotos</h3>
+                            <p>Selecione exatamente <strong>dois pilotos</strong> no menu lateral para ativar o modo comparativo.</p>
+                        </div>
+                        
+                        <div id="duel-dashboard" class="dashboard-grid duel-grid" style="display: none;">
+                            <!-- Dueling Cards Lado a Lado -->
+                            <div class="duel-header-comparison card-full">
+                                <div class="driver-card" id="duel-driver-1">
+                                    <div class="driver-avatar"><i class="fa-solid fa-helmet-safety"></i></div>
+                                    <div class="driver-meta">
+                                        <h2 class="driver-name-label" id="d1-name">Piloto 1</h2>
+                                        <span class="driver-team-label" id="d1-team">Escuderia</span>
+                                    </div>
+                                    <div class="driver-number-badge highlight-yellow" id="d1-number">#0</div>
+                                </div>
+                                
+                                <div class="vs-badge">VS</div>
+                                
+                                <div class="driver-card" id="duel-driver-2">
+                                    <div class="driver-number-badge highlight-yellow" id="d2-number">#0</div>
+                                    <div class="driver-meta" style="text-align: right;">
+                                        <h2 class="driver-name-label" id="d2-name">Piloto 2</h2>
+                                        <span class="driver-team-label" id="d2-team">Escuderia</span>
+                                    </div>
+                                    <div class="driver-avatar"><i class="fa-solid fa-helmet-safety"></i></div>
+                                </div>
+                            </div>
+
+                            <!-- Comparativo de Métricas -->
+                            <div class="dashboard-card duel-metrics-card">
+                                <div class="card-header">
+                                    <h3><i class="fa-solid fa-gauge-high"></i> Telemetria de Confronto</h3>
+                                    <span class="card-subtitle">Métricas acumuladas ao longo de toda a corrida</span>
+                                </div>
+                                <div class="card-body">
+                                    <div class="metric-comparison-list">
+                                        <!-- Velocidade Máxima -->
+                                        <div class="metric-row">
+                                            <div class="metric-val" id="d1-speed">0 km/h</div>
+                                            <div class="metric-label">Velocidade Máxima</div>
+                                            <div class="metric-val text-right" id="d2-speed">0 km/h</div>
+                                        </div>
+                                        <div class="metric-bar-container">
+                                            <div class="metric-bar-fill d1-fill" id="d1-speed-bar" style="width: 50%;"></div>
+                                            <div class="metric-bar-fill d2-fill" id="d2-speed-bar" style="width: 50%;"></div>
+                                        </div>
+
+                                        <!-- RPM Máximo -->
+                                        <div class="metric-row">
+                                            <div class="metric-val" id="d1-rpm">0 RPM</div>
+                                            <div class="metric-label">RPM Máximo</div>
+                                            <div class="metric-val text-right" id="d2-rpm">0 RPM</div>
+                                        </div>
+                                        <div class="metric-bar-container">
+                                            <div class="metric-bar-fill d1-fill" id="d1-rpm-bar" style="width: 50%;"></div>
+                                            <div class="metric-bar-fill d2-fill" id="d2-rpm-bar" style="width: 50%;"></div>
+                                        </div>
+
+                                        <!-- Aceleração Plena -->
+                                        <div class="metric-row">
+                                            <div class="metric-val" id="d1-throttle">0%</div>
+                                            <div class="metric-label">Pé Embaixo (Throttle > 90%)</div>
+                                            <div class="metric-val text-right" id="d2-throttle">0%</div>
+                                        </div>
+                                        <div class="metric-bar-container">
+                                            <div class="metric-bar-fill d1-fill" id="d1-throttle-bar" style="width: 50%;"></div>
+                                            <div class="metric-bar-fill d2-fill" id="d2-throttle-bar" style="width: 50%;"></div>
+                                        </div>
+
+                                        <!-- Frenagem Pesada -->
+                                        <div class="metric-row">
+                                            <div class="metric-val" id="d1-brake">0%</div>
+                                            <div class="metric-label">Frenagem Forte (Brake > 50%)</div>
+                                            <div class="metric-val text-right" id="d2-brake">0%</div>
+                                        </div>
+                                        <div class="metric-bar-container">
+                                            <div class="metric-bar-fill d1-fill" id="d1-brake-bar" style="width: 50%;"></div>
+                                            <div class="metric-bar-fill d2-fill" id="d2-brake-bar" style="width: 50%;"></div>
+                                        </div>
+
+                                        <!-- Uso do DRS -->
+                                        <div class="metric-row">
+                                            <div class="metric-val" id="d1-drs">0%</div>
+                                            <div class="metric-label">Tempo de Asa Aberta (DRS)</div>
+                                            <div class="metric-val text-right" id="d2-drs">0%</div>
+                                        </div>
+                                        <div class="metric-bar-container">
+                                            <div class="metric-bar-fill d1-fill" id="d1-drs-bar" style="width: 50%;"></div>
+                                            <div class="metric-bar-fill d2-fill" id="d2-drs-bar" style="width: 50%;"></div>
+                                        </div>
+
+                                        <!-- Melhor Pitstop -->
+                                        <div class="metric-row">
+                                            <div class="metric-val highlight-yellow" id="d1-pit">-</div>
+                                            <div class="metric-label">Melhor Pit Stop</div>
+                                            <div class="metric-val text-right highlight-yellow" id="d2-pit">-</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Mapa 2D de Trajetória / Velocidade -->
+                            <div class="dashboard-card duel-map-card">
+                                <div class="card-header">
+                                    <h3><i class="fa-solid fa-map"></i> Speed Corner Map (Trajetória & Velocidade)</h3>
+                                    <span class="card-subtitle">Mapa térmico de velocidade ao longo do traçado físico do circuito</span>
+                                </div>
+                                <div class="card-body">
+                                    <div id="chart-duel-map" class="plotly-chart">
+                                        <div class="chart-loader"><i class="fa-solid fa-circle-notch fa-spin"></i> Carregando mapa de corner...</div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
