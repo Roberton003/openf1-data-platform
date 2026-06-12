@@ -447,7 +447,7 @@ def silver_telemetry_location_aligned(context: AssetExecutionContext) -> None:
                         l.z,
                         t.speed,
                         t.rpm,
-                        t.n_gear,
+                        CASE WHEN t.n_gear BETWEEN -1 AND 8 THEN t.n_gear ELSE 0 END as n_gear,
                         t.throttle,
                         t.brake,
                         t.drs
@@ -491,8 +491,10 @@ def silver_telemetry_location_aligned(context: AssetExecutionContext) -> None:
 )
 def gold_feature_engineering_lap_data(context: AssetExecutionContext) -> None:
     """
-    Agrega a telemetria física Silver em nível de volta para criar o Feature Store de treinamento de IA.
+    Agrega a telemetria física Silver em nível de volta simulada para criar o Feature Store de treinamento de IA.
     """
+    import numpy as np
+
     os.makedirs(os.path.join(DATA_DIR, "gold"), exist_ok=True)
 
     stints_file = os.path.join(DATA_DIR, "silver", "dim_stints.parquet")
@@ -505,46 +507,134 @@ def gold_feature_engineering_lap_data(context: AssetExecutionContext) -> None:
     df_stints = pd.read_parquet(stints_file)
     conn = duckdb.connect(database=":memory:", read_only=False)
 
-    # Vamos compilar agregações de telemetria por volta física usando as posições e o tempo das voltas
-    # O DuckDB varre os Parquets particionados de telemetria de forma direta (Globbing / Predicate Pushdown)
+    # Obter agregação de telemetria base por piloto e GP
     query = """
         SELECT 
             session_key,
             driver_number,
-            -- Agrupamos aproximado por lote temporal ou volta calculada (usando stint do piloto)
             MAX(speed) as max_speed,
             MAX(rpm) as max_rpm,
             AVG(CASE WHEN throttle > 90 THEN 1.0 ELSE 0.0 END) * 100 as throttle_intensity_pct,
-            AVG(CASE WHEN brake > 50 THEN 1.0 ELSE 0.0 END) * 100 as brake_intensity_pct,
-            COUNT(*) / 3.7 as lap_duration_est_seconds
+            AVG(CASE WHEN brake > 50 THEN 1.0 ELSE 0.0 END) * 100 as brake_intensity_pct
         FROM read_parquet('data/silver/fact_car_telemetry/session_key=*/driver_number=*/*.parquet')
         GROUP BY session_key, driver_number
     """
-    df_features = conn.execute(query).df()
+    df_features_base = conn.execute(query).df()
 
-    # Associar ao composto de pneu do stint correspondente
-    # Uma junção simples no pandas
-    merged = pd.merge(
-        df_features, df_stints, on=["session_key", "driver_number"], how="inner"
-    )
-
-    # Criar features numéricas para composto de pneu
+    # Mapeamento de composto de pneu
     compound_mapping = {"SOFT": 1, "MEDIUM": 2, "HARD": 3, "INTERMEDIATE": 4, "WET": 5}
-    merged["compound_num"] = (
-        merged["compound"].str.upper().map(compound_mapping).fillna(2)
+    df_stints["compound_num"] = (
+        df_stints["compound"].str.upper().map(compound_mapping).fillna(2)
     )
 
-    # Renomear label target real simulado do tempo de volta analítico
-    # Adicionamos uma variação física realista para o regressor predizer
-    merged["lap_duration_seconds"] = merged["lap_duration_est_seconds"] + (
-        merged["tyre_age_at_start"] * 0.18
-    )
+    # Tempos base de voltas por session_key (Bahrain 10014 = 92s, Monaco 9979 = 76s, Australia 9693 = 84s)
+    gp_base_times = {10014: 92.0, 9979: 76.0, 9693: 84.0}
 
-    output_file = os.path.join(DATA_DIR, "gold", "features_lap_data.parquet")
-    merged.to_parquet(output_file, index=False)
-    context.log.info(
-        f"Criadas {len(merged)} linhas de features para a IA em {output_file}"
-    )
+    # Expandir cada stint em voltas individuais para preencher o Feature Store
+    expanded_rows = []
+    np.random.seed(42)  # Garantir reprodutibilidade
+
+    for _, stint in df_stints.iterrows():
+        skey = int(stint["session_key"])
+        dnum = int(stint["driver_number"])
+
+        # Encontrar telemetria base para o piloto e sessão
+        base_tel = df_features_base[
+            (df_features_base["session_key"] == skey)
+            & (df_features_base["driver_number"] == dnum)
+        ]
+
+        if base_tel.empty:
+            continue
+
+        base_row = base_tel.iloc[0]
+
+        # Stint range de voltas
+        lap_start = int(stint["lap_start"])
+        lap_end = (
+            int(stint["lap_end"])
+            if not pd.isna(stint["lap_end"])
+            else int(lap_start + 10)
+        )
+
+        # Forçar limite realista se o número de voltas for muito alto ou inconsistente
+        if lap_end < lap_start:
+            lap_end = lap_start + 5
+
+        num_laps = lap_end - lap_start + 1
+
+        # Tempo base da pista
+        pista_base = gp_base_times.get(skey, 85.0)
+
+        # Diferenças de velocidade do piloto afetam o tempo de volta
+        # Piloto com maior velocidade máxima tende a ser ligeiramente mais rápido
+        speed_factor = (330.0 - base_row["max_speed"]) * 0.05
+
+        for lap_idx in range(num_laps):
+            lap_num = lap_start + lap_idx
+            tyre_age = int(stint["tyre_age_at_start"]) + lap_idx
+
+            # Penalidade de composto: SOFT é mais rápido que MEDIUM (+0.8s), que é mais rápido que HARD (+1.8s)
+            comp_penalty = 0.0
+            if stint["compound"] == "MEDIUM":
+                comp_penalty = 0.8
+            elif stint["compound"] == "HARD":
+                comp_penalty = 1.8
+            elif stint["compound"] in ["INTERMEDIATE", "WET"]:
+                comp_penalty = 5.0
+
+            # Efeito do desgaste do pneu (+0.12 segundos por volta de idade)
+            wear_penalty = tyre_age * 0.12
+
+            # Adicionar pequenas flutuações nas features por volta
+            lap_max_speed = base_row["max_speed"] + np.random.normal(0, 3.0)
+            lap_max_rpm = base_row["max_rpm"] + np.random.normal(0, 100.0)
+            lap_throttle = max(
+                0.0,
+                min(
+                    100.0, base_row["throttle_intensity_pct"] + np.random.normal(0, 2.0)
+                ),
+            )
+            lap_brake = max(
+                0.0,
+                min(100.0, base_row["brake_intensity_pct"] + np.random.normal(0, 1.0)),
+            )
+
+            # Cálculo final do tempo da volta real simulado
+            lap_time = (
+                pista_base
+                + comp_penalty
+                + wear_penalty
+                + speed_factor
+                + np.random.normal(0, 0.4)
+            )
+
+            expanded_rows.append(
+                {
+                    "session_key": skey,
+                    "driver_number": dnum,
+                    "stint_number": int(stint["stint_number"]),
+                    "lap_number": lap_num,
+                    "compound": stint["compound"],
+                    "compound_num": stint["compound_num"],
+                    "tyre_age_at_start": tyre_age,
+                    "max_speed": lap_max_speed,
+                    "max_rpm": lap_max_rpm,
+                    "throttle_intensity_pct": lap_throttle,
+                    "brake_intensity_pct": lap_brake,
+                    "lap_duration_seconds": lap_time,
+                }
+            )
+
+    if expanded_rows:
+        merged = pd.DataFrame(expanded_rows)
+        output_file = os.path.join(DATA_DIR, "gold", "features_lap_data.parquet")
+        merged.to_parquet(output_file, index=False)
+        context.log.info(
+            f"Criadas {len(merged)} linhas de features para a IA em {output_file}"
+        )
+    else:
+        context.log.warn("Nenhuma linha de feature expandida gerada.")
 
 
 @asset(group_name="Camada_Gold", deps=[gold_feature_engineering_lap_data])
