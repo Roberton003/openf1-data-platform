@@ -30,7 +30,7 @@ jobs:
 
     - name: Import Sorting Check (Isort)
       run: |
-        isort --check-only src/ tests/
+        isort --check-only --profile black src/ tests/
 
     - name: Static Analysis & Lint (Flake8)
       run: |
