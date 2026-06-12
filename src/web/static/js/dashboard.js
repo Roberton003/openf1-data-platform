@@ -21,6 +21,164 @@ document.addEventListener("DOMContentLoaded", function() {
     const pitstopsTableContainer = document.getElementById("pitstops-table-container");
     const chartDuelMapDiv = document.getElementById("chart-duel-map");
 
+    // Animation Playback state variables (Fase 6)
+    let duelLoc1 = [];
+    let duelLoc2 = [];
+    let duelPlaybackInterval = null;
+    let duelCurrentFrame = 0;
+    let duelIsPlaying = false;
+    let resumeDuelAfterDrag = false;
+
+    const duelPlaybackControls = document.getElementById("duel-playback-controls");
+    const btnDuelPlay = document.getElementById("btn-duel-play");
+    const btnDuelReset = document.getElementById("btn-duel-reset");
+    const sliderDuelProgress = document.getElementById("slider-duel-progress");
+    const lblDuelPercent = document.getElementById("lbl-duel-percent");
+    const selectDuelSpeed = document.getElementById("select-duel-speed");
+    const duelPlaybackKpis = document.getElementById("duel-playback-kpis");
+
+    const d1KpiName = document.getElementById("d1-kpi-name");
+    const d1KpiSpeed = document.getElementById("d1-kpi-speed");
+    const d1KpiGear = document.getElementById("d1-kpi-gear");
+    const d2KpiName = document.getElementById("d2-kpi-name");
+    const d2KpiSpeed = document.getElementById("d2-kpi-speed");
+    const d2KpiGear = document.getElementById("d2-kpi-gear");
+
+    function updateDuelFrame(index) {
+        if (!chartDuelMapDiv || !chartDuelMapDiv.layout) return;
+
+        duelCurrentFrame = index;
+        if (sliderDuelProgress) {
+            sliderDuelProgress.value = index;
+        }
+        
+        const maxLen = Math.max(duelLoc1.length, duelLoc2.length);
+        const percent = maxLen > 1 ? Math.round((index / (maxLen - 1)) * 100) : 0;
+        if (lblDuelPercent) {
+            lblDuelPercent.textContent = `${percent}%`;
+        }
+
+        const restyleData = { x: [], y: [] };
+        
+        const pt1 = duelLoc1[index] !== undefined ? duelLoc1[index] : (duelLoc1.length > 0 ? duelLoc1[duelLoc1.length - 1] : null);
+        if (pt1) {
+            restyleData.x.push([pt1.x]);
+            restyleData.y.push([pt1.y]);
+            if (d1KpiSpeed) d1KpiSpeed.textContent = `${pt1.speed} km/h`;
+            if (d1KpiGear) d1KpiGear.textContent = `M${pt1.gear || 0}`;
+        } else {
+            restyleData.x.push([]);
+            restyleData.y.push([]);
+            if (d1KpiSpeed) d1KpiSpeed.textContent = `- km/h`;
+            if (d1KpiGear) d1KpiGear.textContent = `M-`;
+        }
+
+        const pt2 = duelLoc2[index] !== undefined ? duelLoc2[index] : (duelLoc2.length > 0 ? duelLoc2[duelLoc2.length - 1] : null);
+        if (pt2) {
+            restyleData.x.push([pt2.x]);
+            restyleData.y.push([pt2.y]);
+            if (d2KpiSpeed) d2KpiSpeed.textContent = `${pt2.speed} km/h`;
+            if (d2KpiGear) d2KpiGear.textContent = `M${pt2.gear || 0}`;
+        } else {
+            restyleData.x.push([]);
+            restyleData.y.push([]);
+            if (d2KpiSpeed) d2KpiSpeed.textContent = `- km/h`;
+            if (d2KpiGear) d2KpiGear.textContent = `M-`;
+        }
+
+        Plotly.restyle(chartDuelMapDiv, restyleData, [2, 3]);
+    }
+
+    function playDuelAnimation() {
+        if (duelPlaybackInterval) {
+            clearInterval(duelPlaybackInterval);
+        }
+        
+        const delay = parseInt(selectDuelSpeed.value) || 80;
+        const maxLen = Math.max(duelLoc1.length, duelLoc2.length);
+
+        duelPlaybackInterval = setInterval(() => {
+            if (duelCurrentFrame >= maxLen - 1) {
+                pauseDuelAnimation();
+                return;
+            }
+            updateDuelFrame(duelCurrentFrame + 1);
+        }, delay);
+
+        if (btnDuelPlay) {
+            btnDuelPlay.innerHTML = '<i class="fa-solid fa-pause"></i>';
+        }
+        duelIsPlaying = true;
+    }
+
+    function pauseDuelAnimation() {
+        if (duelPlaybackInterval) {
+            clearInterval(duelPlaybackInterval);
+            duelPlaybackInterval = null;
+        }
+        if (btnDuelPlay) {
+            btnDuelPlay.innerHTML = '<i class="fa-solid fa-play"></i>';
+        }
+        duelIsPlaying = false;
+    }
+
+    function resetDuelAnimation() {
+        pauseDuelAnimation();
+        updateDuelFrame(0);
+    }
+
+    // Playback control event listeners (setup once)
+    if (btnDuelPlay) {
+        btnDuelPlay.addEventListener("click", () => {
+            if (duelIsPlaying) {
+                pauseDuelAnimation();
+            } else {
+                playDuelAnimation();
+            }
+        });
+    }
+
+    if (btnDuelReset) {
+        btnDuelReset.addEventListener("click", () => {
+            resetDuelAnimation();
+        });
+    }
+
+    if (sliderDuelProgress) {
+        sliderDuelProgress.addEventListener("input", (e) => {
+            const val = parseInt(e.target.value);
+            updateDuelFrame(val);
+        });
+
+        const handleStart = () => {
+            if (duelIsPlaying) {
+                pauseDuelAnimation();
+                resumeDuelAfterDrag = true;
+            } else {
+                resumeDuelAfterDrag = false;
+            }
+        };
+
+        const handleEnd = () => {
+            if (resumeDuelAfterDrag) {
+                playDuelAnimation();
+            }
+        };
+
+        sliderDuelProgress.addEventListener("mousedown", handleStart);
+        sliderDuelProgress.addEventListener("mouseup", handleEnd);
+        sliderDuelProgress.addEventListener("touchstart", handleStart);
+        sliderDuelProgress.addEventListener("touchend", handleEnd);
+    }
+
+    if (selectDuelSpeed) {
+        selectDuelSpeed.addEventListener("change", () => {
+            if (duelIsPlaying) {
+                playDuelAnimation();
+            }
+        });
+    }
+
     // Colors mapping for drivers teams (Scuderia Ferrari inspired palette)
     const teamColors = {
         "Ferrari": "#e50914",
@@ -242,6 +400,20 @@ document.addEventListener("DOMContentLoaded", function() {
         pitstopsTableContainer.innerHTML = '<p class="placeholder-text">Selecione GP e pilotos para analisar os pit stops.</p>';
         document.getElementById("duel-placeholder").style.display = "block";
         document.getElementById("duel-dashboard").style.display = "none";
+        if (duelPlaybackInterval) {
+            clearInterval(duelPlaybackInterval);
+            duelPlaybackInterval = null;
+        }
+        duelIsPlaying = false;
+        if (btnDuelPlay) {
+            btnDuelPlay.innerHTML = '<i class="fa-solid fa-play"></i>';
+        }
+        if (duelPlaybackControls) {
+            duelPlaybackControls.style.display = "none";
+        }
+        if (duelPlaybackKpis) {
+            duelPlaybackKpis.style.display = "none";
+        }
         if (chartDuelMapDiv) {
             chartDuelMapDiv.innerHTML = '<div class="chart-loader"><i class="fa-solid fa-circle-notch fa-spin"></i> Carregando mapa de corner...</div>';
         }
@@ -753,7 +925,10 @@ document.addEventListener("DOMContentLoaded", function() {
 
         // Aplicar cores da escuderia nos cards
         const color1 = teamColors[drv1.team] || "#fed500";
-        const color2 = teamColors[drv2.team] || "#fed500";
+        let color2 = teamColors[drv2.team] || "#fed500";
+        if (drv1.team === drv2.team) {
+            color2 = teamColorsSec[drv2.team] || color2;
+        }
         
         document.getElementById("duel-driver-1").style.borderLeft = `5px solid ${color1}`;
         document.getElementById("duel-driver-2").style.borderRight = `5px solid ${color2}`;
@@ -800,57 +975,128 @@ document.addEventListener("DOMContentLoaded", function() {
             ]).then(([loc1, loc2]) => {
                 chartDuelMapDiv.innerHTML = '';
 
-                const traces = [];
-
-                // Adicionar trajetória do Piloto 1 (linha cheia)
-                if (loc1.length > 0) {
-                    const xs = loc1.map(pt => pt.x);
-                    const ys = loc1.map(pt => pt.y);
-                    const speeds = loc1.map(pt => pt.speed);
-                    const gears = loc1.map(pt => pt.gear);
-
-                    traces.push({
-                        x: xs,
-                        y: ys,
-                        mode: 'lines',
-                        name: `${drv1.acronym} - Trajetória`,
-                        line: {
-                            width: 5,
-                            color: color1,
-                            shape: 'spline'
-                        },
-                        text: gears.map((g, idx) => `Velocidade: ${speeds[idx]} km/h<br>Marcha: M${g || 0}`),
-                        hovertemplate: '%{name}<br>%{text}<extra></extra>'
-                    });
+                // Reset state
+                if (duelPlaybackInterval) {
+                    clearInterval(duelPlaybackInterval);
+                    duelPlaybackInterval = null;
+                }
+                duelIsPlaying = false;
+                if (btnDuelPlay) {
+                    btnDuelPlay.innerHTML = '<i class="fa-solid fa-play"></i>';
                 }
 
-                // Adicionar trajetória do Piloto 2 (linha pontilhada)
-                if (loc2.length > 0) {
-                    const xs = loc2.map(pt => pt.x);
-                    const ys = loc2.map(pt => pt.y);
-                    const speeds = loc2.map(pt => pt.speed);
-                    const gears = loc2.map(pt => pt.gear);
+                duelLoc1 = loc1;
+                duelLoc2 = loc2;
+                duelCurrentFrame = 0;
 
-                    traces.push({
-                        x: xs,
-                        y: ys,
-                        mode: 'lines',
-                        name: `${drv2.acronym} - Trajetória`,
-                        line: {
-                            width: 3.5,
-                            color: color2,
-                            dash: 'dot',
-                            shape: 'spline'
-                        },
-                        text: gears.map((g, idx) => `Velocidade: ${speeds[idx]} km/h<br>Marcha: M${g || 0}`),
-                        hovertemplate: '%{name}<br>%{text}<extra></extra>'
-                    });
-                }
+                const maxLen = Math.max(loc1.length, loc2.length);
 
-                if (traces.length === 0) {
+                if (maxLen === 0) {
                     chartDuelMapDiv.innerHTML = '<div class="placeholder-text">Sem dados de localização nesta sessão.</div>';
+                    if (duelPlaybackControls) duelPlaybackControls.style.display = "none";
+                    if (duelPlaybackKpis) duelPlaybackKpis.style.display = "none";
                     return;
                 }
+
+                // Show control panel and update KPI drivers details
+                if (duelPlaybackControls) {
+                    duelPlaybackControls.style.display = "flex";
+                    sliderDuelProgress.max = Math.max(0, maxLen - 1);
+                    sliderDuelProgress.value = 0;
+                    lblDuelPercent.textContent = "0%";
+                }
+                if (duelPlaybackKpis) {
+                    duelPlaybackKpis.style.display = "flex";
+                    d1KpiName.textContent = drv1.acronym;
+                    d1KpiName.style.borderLeftColor = color1;
+                    d2KpiName.textContent = drv2.acronym;
+                    d2KpiName.style.borderRightColor = color2;
+                }
+
+                // Initialize KPIs text
+                if (d1KpiSpeed) d1KpiSpeed.textContent = "0 km/h";
+                if (d1KpiGear) d1KpiGear.textContent = "M0";
+                if (d2KpiSpeed) d2KpiSpeed.textContent = "0 km/h";
+                if (d2KpiGear) d2KpiGear.textContent = "M0";
+
+                const traces = [];
+
+                // Trace 0: Driver 1 Trajectory
+                traces.push({
+                    x: loc1.map(pt => pt.x),
+                    y: loc1.map(pt => pt.y),
+                    mode: 'lines',
+                    name: `${drv1.acronym} - Trajetória`,
+                    line: {
+                        width: 5,
+                        color: color1,
+                        shape: 'spline'
+                    },
+                    hoverinfo: 'skip'
+                });
+
+                // Trace 1: Driver 2 Trajectory
+                traces.push({
+                    x: loc2.map(pt => pt.x),
+                    y: loc2.map(pt => pt.y),
+                    mode: 'lines',
+                    name: `${drv2.acronym} - Trajetória`,
+                    line: {
+                        width: 3.5,
+                        color: color2,
+                        dash: 'dot',
+                        shape: 'spline'
+                    },
+                    hoverinfo: 'skip'
+                });
+
+                // Trace 2: Driver 1 Position Marker
+                traces.push({
+                    x: loc1.length > 0 ? [loc1[0].x] : [],
+                    y: loc1.length > 0 ? [loc1[0].y] : [],
+                    mode: 'markers+text',
+                    name: drv1.acronym,
+                    text: [drv1.acronym],
+                    textposition: 'top center',
+                    textfont: {
+                        family: 'Inter, sans-serif',
+                        size: 11,
+                        color: '#ffffff'
+                    },
+                    marker: {
+                        size: 14,
+                        color: color1,
+                        line: {
+                            color: '#ffffff',
+                            width: 2
+                        }
+                    },
+                    hovertemplate: '%{name}<extra></extra>'
+                });
+
+                // Trace 3: Driver 2 Position Marker
+                traces.push({
+                    x: loc2.length > 0 ? [loc2[0].x] : [],
+                    y: loc2.length > 0 ? [loc2[0].y] : [],
+                    mode: 'markers+text',
+                    name: drv2.acronym,
+                    text: [drv2.acronym],
+                    textposition: 'top center',
+                    textfont: {
+                        family: 'Inter, sans-serif',
+                        size: 11,
+                        color: '#ffffff'
+                    },
+                    marker: {
+                        size: 14,
+                        color: color2,
+                        line: {
+                            color: '#ffffff',
+                            width: 2
+                        }
+                    },
+                    hovertemplate: '%{name}<extra></extra>'
+                });
 
                 Plotly.newPlot(chartDuelMapDiv, traces, {
                     height: 400,
@@ -873,9 +1119,14 @@ document.addEventListener("DOMContentLoaded", function() {
                     template: 'plotly_dark',
                     legend: { orientation: 'h', y: -0.05 }
                 }, { responsive: true });
+
+                // Set initial frame KPI values
+                updateDuelFrame(0);
             }).catch(err => {
                 console.error("Erro ao carregar trajetórias:", err);
                 chartDuelMapDiv.innerHTML = '<div class="placeholder-text text-danger">Erro ao obter localização.</div>';
+                if (duelPlaybackControls) duelPlaybackControls.style.display = "none";
+                if (duelPlaybackKpis) duelPlaybackKpis.style.display = "none";
             });
         }
     }

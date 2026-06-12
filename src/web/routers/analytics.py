@@ -366,39 +366,61 @@ def fetch_duel_location_from_db(
     conn: duckdb.DuckDBPyConnection, session_key: int, driver_number: int
 ) -> list[dict]:
     try:
-        # 1. Achar o primeiro timestamp onde o carro está na pista (speed > 100)
+        # 1. Achar o primeiro timestamp unificado da sessão (speed > 100 para qualquer piloto)
         t_query = """
             SELECT min(date) 
             FROM fact_car_telemetry 
-            WHERE session_key = ? AND driver_number = ? AND speed > 100
+            WHERE session_key = ? AND speed > 100
         """
-        t_res = conn.execute(t_query, (session_key, driver_number)).fetchone()
+        t_res = conn.execute(t_query, (session_key,)).fetchone()
         if not t_res or not t_res[0]:
             return []
         start_date = t_res[0]
 
-        # 2. Extrair coordenadas consecutivas para desenhar uma volta representativa
+        # 2. Obter a contagem total de registros do piloto para calcular a amostragem
+        count_query = """
+            SELECT COUNT(*) 
+            FROM fact_car_location 
+            WHERE session_key = ? AND driver_number = ? AND date >= ?
+        """
+        count_res = conn.execute(
+            count_query, (session_key, driver_number, start_date)
+        ).fetchone()
+        total_records = count_res[0] if count_res else 0
+        if total_records == 0:
+            return []
+
+        # Determinar o tamanho do passo (step) para obter cerca de 1500 pontos de amostragem
+        target_points = 1500
+        step = max(1, total_records // target_points)
+
+        # 3. Extrair coordenadas com ASOF JOIN e amostragem sistemática
         query = """
-            SELECT 
-                l.x, 
-                l.y, 
-                t.speed,
-                t.n_gear,
-                t.throttle,
-                t.brake
-            FROM fact_car_location l
-            ASOF JOIN fact_car_telemetry t 
-                ON l.session_key = t.session_key 
-               AND l.driver_number = t.driver_number 
-               AND l.date >= t.date
-            WHERE l.session_key = ? 
-              AND l.driver_number = ? 
-              AND l.date >= ?
-            ORDER BY l.date ASC
-            LIMIT 400
+            WITH numbered_locations AS (
+                SELECT 
+                    l.x, 
+                    l.y, 
+                    t.speed,
+                    t.n_gear,
+                    t.throttle,
+                    t.brake,
+                    ROW_NUMBER() OVER(ORDER BY l.date ASC) as rn
+                FROM fact_car_location l
+                ASOF JOIN fact_car_telemetry t 
+                    ON l.session_key = t.session_key 
+                   AND l.driver_number = t.driver_number 
+                   AND l.date >= t.date
+                WHERE l.session_key = ? 
+                  AND l.driver_number = ? 
+                  AND l.date >= ?
+            )
+            SELECT x, y, speed, n_gear, throttle, brake 
+            FROM numbered_locations 
+            WHERE rn % ? = 0
+            ORDER BY rn ASC
         """
         results = conn.execute(
-            query, (session_key, driver_number, start_date)
+            query, (session_key, driver_number, start_date, step)
         ).fetchall()
         return [
             {
@@ -493,4 +515,52 @@ async def get_duel_metrics(
     """
     return await run_query_async(
         fetch_duel_metrics_from_db, db, session_key, driver_1, driver_2
+    )
+
+
+def fetch_lap_predictions_from_db(
+    conn: duckdb.DuckDBPyConnection, session_key: int, driver_number: int
+) -> list[dict]:
+    try:
+        # Consulta as predições de IA gravadas na camada Gold
+        query = """
+            SELECT 
+                stint_number,
+                compound,
+                tyre_age_at_start,
+                lap_duration_seconds,
+                predicted_lap_duration_seconds,
+                delta_performance_seconds
+            FROM gold_lap_predictions
+            WHERE session_key = ? AND driver_number = ?
+            ORDER BY stint_number ASC
+        """
+        results = conn.execute(query, (session_key, driver_number)).fetchall()
+        return [
+            {
+                "stint_number": r[0],
+                "compound": r[1],
+                "tyre_age": r[2],
+                "actual_lap_time": round(r[3], 3) if r[3] is not None else None,
+                "predicted_lap_time": round(r[4], 3) if r[4] is not None else None,
+                "delta": round(r[5], 3) if r[5] is not None else None,
+            }
+            for r in results
+        ]
+    except Exception:
+        # Retorna lista vazia caso a tabela Gold ainda não exista ou esteja vazia
+        return []
+
+
+@router.get("/predictions/lap_time")
+async def get_lap_predictions(
+    session_key: int = Query(..., description="Chave da sessão"),
+    driver_number: int = Query(..., description="Número do piloto"),
+    db: duckdb.DuckDBPyConnection = Depends(get_db),
+):
+    """
+    Retorna os tempos de volta reais vs preditos pela IA na camada Gold para a sessão.
+    """
+    return await run_query_async(
+        fetch_lap_predictions_from_db, db, session_key, driver_number
     )

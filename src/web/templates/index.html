@@ -332,6 +332,40 @@
                                     <div id="chart-duel-map" class="plotly-chart">
                                         <div class="chart-loader"><i class="fa-solid fa-circle-notch fa-spin"></i> Carregando mapa de corner...</div>
                                     </div>
+                                    <!-- Controles de Playback -->
+                                    <div class="playback-controls" id="duel-playback-controls" style="display: none;">
+                                        <button class="btn-control" id="btn-duel-play" title="Iniciar/Pausar Animação">
+                                            <i class="fa-solid fa-play"></i>
+                                        </button>
+                                        <button class="btn-control btn-secondary" id="btn-duel-reset" title="Reiniciar">
+                                            <i class="fa-solid fa-rotate-left"></i>
+                                        </button>
+                                        <div class="slider-container">
+                                            <input type="range" id="slider-duel-progress" class="progress-slider" min="0" max="1499" value="0">
+                                            <span class="progress-percentage" id="lbl-duel-percent">0%</span>
+                                        </div>
+                                        <div class="playback-speed-container">
+                                            <select id="select-duel-speed" class="speed-select">
+                                                <option value="150">Velocidade: 0.5x</option>
+                                                <option value="80" selected>Velocidade: 1x</option>
+                                                <option value="40">Velocidade: 2x</option>
+                                                <option value="15">Velocidade: 5x</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="playback-kpis" id="duel-playback-kpis" style="display: none;">
+                                        <div class="kpi-block d1-kpi">
+                                            <span class="driver-name" id="d1-kpi-name">PIL 1</span>:
+                                            <span class="kpi-val" id="d1-kpi-speed">0 km/h</span> |
+                                            <span class="kpi-val" id="d1-kpi-gear">M0</span>
+                                        </div>
+                                        <div class="kpi-divider">VS</div>
+                                        <div class="kpi-block d2-kpi">
+                                            <span class="driver-name" id="d2-kpi-name">PIL 2</span>:
+                                            <span class="kpi-val" id="d2-kpi-speed">0 km/h</span> |
+                                            <span class="kpi-val" id="d2-kpi-gear">M0</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
