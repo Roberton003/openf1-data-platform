@@ -1,4 +1,4 @@
-.PHONY: setup install test lint clean ingest run
+.PHONY: setup install test lint clean ingest run ci-check ci-heal
 
 # Variáveis do Projeto
 PYTHON = .venv/bin/python
@@ -47,4 +47,10 @@ clean:
 
 run:
 	PYTHONPATH=. .venv/bin/uvicorn src.web.main:app --reload --host 0.0.0.0 --port 8001
+
+ci-check:
+	PYTHONPATH=. $(PYTHON) -c "from src.web.ci_monitor import check_and_heal_ci; check_and_heal_ci()"
+
+ci-heal:
+	PYTHONPATH=. $(PYTHON) -c "from src.web.ci_monitor import execute_healing_action; execute_healing_action([], 0)"
 

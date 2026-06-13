@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from src.web.routers import analytics, observabilidade, pages, telemetry
+from src.web.routers import analytics, ci_alerts, observabilidade, pages, telemetry
 
 app = FastAPI(
     title="OpenF1 Telemetry Dashboard API",
@@ -36,6 +36,7 @@ app.include_router(pages.router)
 app.include_router(telemetry.router)
 app.include_router(analytics.router)
 app.include_router(observabilidade.router)
+app.include_router(ci_alerts.router)
 
 if __name__ == "__main__":
     import uvicorn
