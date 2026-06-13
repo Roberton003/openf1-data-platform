@@ -19,7 +19,7 @@ Uma plataforma de engenharia de dados e MLOps de alto desempenho (FAANG-level) p
   - **Camada Silver (Dimensões e Fatos):** Validação estrita de tipos via contratos **Pydantic**, limpeza de ruídos físicos (ex: tratamento de picos espúrios de marchas na telemetria) e ASOF JOIN analítico executado no DuckDB em memória para alinhar espacialmente coordenadas físicas de localização (~1.5Hz) com parâmetros de telemetria (~3.7Hz).
   - **Camada Gold (Feature Store e IA):** Consolidação analítica e expansão de stints Pirelli em voltas físicas individuais para treinar modelos preditivos.
 - **Serverless DuckDB (Zero Writes Locks):** O webserver FastAPI abre conexões ao DuckDB totalmente em memória (`:memory:`) mapeando as tabelas Parquet locais como Views dinâmicas sob demanda com *Predicate Pushdown*. Isso elimina travamentos concorrentes de banco e garante respostas analíticas na casa de milissegundos.
-- **IA e MLOps Físico:** Treinamento local e serialização automática de um regressor `RandomForestRegressor` (`models/lap_regressor.joblib`) no final da esteira do Dagster, utilizado pelo FastAPI para estimar o tempo ideal físico de volta e calcular o delta de desgaste de pneus.
+- **IA e MLOps Físico:** Treinamento local e serialização automática de um regressor `RandomForestRegressor` (`models/lap_regressor.joblib`) no final da esteira do Dagster para gerar predições em lote persistidas na camada Gold, servidas via DuckDB pelo FastAPI para calcular o tempo ideal de volta e o delta de desgaste de pneus.
 - **Data Gateway SQL Seguro:** Endpoint `/api/analytics/query` para analistas e ferramentas de BI executarem consultas SQL nativas no DuckDB sobre o Lakehouse, blindado contra comandos destrutivos (`DROP`, `DELETE`, `INSERT`).
 - **IA Conversacional Híbrida Local (RAG + SQL):** Endpoint `/api/analytics/chat` de custo zero integrando similaridade semântica local via Scikit-Learn (TF-IDF) e DuckDB SQL, com respostas dinâmicas em Markdown correlacionando mensagens de rádio com o comportamento físico da telemetria.
 - **Gestão da Bronze (Compaction):** Script de arquivamento pós-processamento que move JSONs brutos antigos para `.tar.gz` organizados por GP em `data/bronze/archive/`, limpando o disco sem comprometer a reprodutibilidade.
@@ -32,28 +32,36 @@ Uma plataforma de engenharia de dados e MLOps de alto desempenho (FAANG-level) p
 
 ```mermaid
 flowchart TD
-    API[OpenF1 API] -->|Dagster Ingestão Resiliente| Bronze[(Bronze Layer: data/bronze/)]
-    Bronze -->|ASOF JOIN Analítico + Validação Pydantic| Silver[(Silver Layer: data/silver/)]
-    Silver -->|Feature Engineering & Expansão de Voltas| Gold[(Gold Layer: data/gold/)]
-    Gold -->|Treinamento RandomForest| ML[models/lap_regressor.joblib]
+    API[OpenF1 API] -->|Ingestão Resiliente via Dagster| Bronze[(Bronze Layer: data/bronze/)]
+    Bronze -->|Compressão compress_bronze.py| Archive[(Archive Bronze: data/bronze/archive/)]
     
-    subgraph LSP ["Lakehouse Storage Parquet"]
-        telemetry[fact_car_telemetry]
-        location[fact_car_location]
-        metadata["dim_drivers, dim_sessions, dim_stints, dim_weather"]
-        predictions[lap_predictions.parquet]
+    subgraph LSP ["Lakehouse Storage (Apache Parquet)"]
+        subgraph SilverLayer ["Silver Layer (data/silver/)"]
+            telemetry[fact_car_telemetry: Particionado]
+            location[fact_car_location: Particionado]
+            metadata["dim_drivers, dim_sessions, dim_stints, dim_weather"]
+            fatos["fact_pit_stops, fact_race_control, fact_session_results, fact_overtakes"]
+        end
+        
+        subgraph GoldLayer ["Gold Layer (data/gold/)"]
+            predictions[lap_predictions.parquet: Predições IA]
+            features[features_lap_data.parquet: Feature Store]
+        end
     end
+
+    Bronze -->|ASOF JOIN + Validação Pydantic (Dagster)| SilverLayer
+    SilverLayer -->|Feature Engineering (Dagster)| features
+    features -->|Treinamento RandomForest (Dagster)| ML[models/lap_regressor.joblib]
+    ML -->|Inferência em Lote (Dagster)| predictions
     
-    Silver -->|Particionado por GP e Piloto| telemetry
-    Silver -->|Particionado por GP e Piloto| location
-    Silver -->|Metadados Consolidados| metadata
-    Gold -->|Feature Store & Predições| predictions
+    SilverLayer -.->|Mapeamento de Views Virtuais| DuckDB[(DuckDB :memory:)]
+    GoldLayer -.->|Mapeamento de Views Virtuais| DuckDB
     
-    LSP -.->|Mapeado como Views temporárias| DuckDB[(DuckDB :memory:)]
-    ML -.->|Predictor de Performance| FastAPI[FastAPI Backend - Porta 8001]
+    DuckDB -->|OLAP Engine asyncio.to_thread| FastAPI[FastAPI Backend - Porta 8001]
     
-    DuckDB -->|Leitura OLAP Concorrente asyncio.to_thread| FastAPI
-    FastAPI -->|Endpoints JSON /api/predictions/lap_time| UI[Ferrari Dashboard: HTML5 + Plotly.js]
+    FastAPI -->|POST /api/analytics/query| BI[BI & Analistas: Power BI / Tableau / Pandas]
+    FastAPI -->|POST /api/analytics/chat| Chat[IA Conversacional: RAG + SQL local]
+    FastAPI -->|GET /api/predictions/lap_time| CD[Cientistas de Dados / MLOps]
 ```
 
 ---
