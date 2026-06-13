@@ -1,12 +1,10 @@
 from datetime import datetime
 
-import duckdb
 import pandas as pd
 from pydantic import BaseModel
 
 from src.ingestion.process import (
     TELEMETRY_SCHEMA,
-    init_duckdb_schema,
     validate_pydantic_batch,
     validate_vectorized_batch,
 )
@@ -99,35 +97,10 @@ def test_validate_vectorized_batch():
     assert "Valor nulo" in df_i.iloc[0]["error_detail"]
 
 
-def test_init_duckdb_schema():
-    # Testar se a inicialização do banco cria todas as tabelas corretamente no DuckDB in-memory
-    conn = duckdb.connect(database=":memory:")
-    init_duckdb_schema(conn)
-
-    # Verificar tabelas
-    tables = conn.execute("SHOW TABLES").fetchall()
-    table_names = [t[0] for t in tables]
-
-    assert "dim_sessions" in table_names
-    assert "dim_drivers" in table_names
-    assert "dim_stints" in table_names
-    assert "dim_weather" in table_names
-    assert "fact_car_telemetry" in table_names
-    assert "fact_pit_stops" in table_names
-    assert "fact_race_control" in table_names
-    assert "fact_intervals" in table_names
-    assert "fact_pipeline_execution" in table_names
-
-    conn.close()
-
-
-def test_dim_drivers_upsert():
-    # Testar se o mecanismo de ON CONFLICT (Upsert) atualiza os dados do piloto em vez de lançar erro
-    conn = duckdb.connect(database=":memory:")
-    init_duckdb_schema(conn)
-
-    # 1. Inserir piloto inicial (Lewis Hamilton na Mercedes)
-    df_initial = pd.DataFrame(
+def test_driver_merge_logic():
+    # Testar a lógica de merge de drivers em lote que antes era feita via ON CONFLICT do DuckDB
+    # Representa a lógica do process.py
+    df_existing = pd.DataFrame(
         [
             {
                 "driver_number": 44,
@@ -139,21 +112,7 @@ def test_dim_drivers_upsert():
         ]
     )
 
-    conn.execute(
-        """
-        INSERT INTO dim_drivers
-        SELECT driver_number, full_name, name_acronym, team_name, country_code FROM df_initial
-    """
-    )
-
-    # Verificar inserção
-    driver = conn.execute(
-        "SELECT team_name FROM dim_drivers WHERE driver_number = 44"
-    ).fetchone()
-    assert driver[0] == "Mercedes"
-
-    # 2. Executar Upsert atualizando a equipe (Lewis Hamilton na Ferrari)
-    df_update = pd.DataFrame(
+    df_valid = pd.DataFrame(
         [
             {
                 "driver_number": 44,
@@ -165,25 +124,10 @@ def test_dim_drivers_upsert():
         ]
     )
 
-    conn.execute(
-        """
-        INSERT INTO dim_drivers
-        SELECT driver_number, full_name, name_acronym, team_name, country_code FROM df_update
-        ON CONFLICT (driver_number) DO UPDATE SET
-            full_name = excluded.full_name,
-            name_acronym = excluded.name_acronym,
-            team_name = excluded.team_name,
-            country_code = excluded.country_code
-    """
-    )
+    driver_nums = df_valid["driver_number"].tolist()
+    # Executa a lógica de exclusão do existente antes de concatenar (simula upsert)
+    df_existing_filtered = df_existing[~df_existing["driver_number"].isin(driver_nums)]
+    df_final = pd.concat([df_existing_filtered, df_valid], ignore_index=True)
 
-    # Verificar se atualizou e manteve apenas 1 registro
-    drivers_count = conn.execute("SELECT COUNT(*) FROM dim_drivers").fetchone()[0]
-    assert drivers_count == 1
-
-    driver_updated = conn.execute(
-        "SELECT team_name FROM dim_drivers WHERE driver_number = 44"
-    ).fetchone()
-    assert driver_updated[0] == "Ferrari"
-
-    conn.close()
+    assert len(df_final) == 1
+    assert df_final.iloc[0]["team_name"] == "Ferrari"

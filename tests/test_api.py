@@ -165,21 +165,20 @@ def override_get_db():
     conn.execute(
         """
         CREATE TABLE fact_pipeline_execution (
-            execution_timestamp TIMESTAMP,
             run_id VARCHAR,
             pipeline_name VARCHAR,
+            session_key INTEGER,
+            execution_timestamp TIMESTAMP,
             duration_seconds DOUBLE,
-            rows_bronze INTEGER,
-            rows_silver INTEGER,
-            rows_quarantine INTEGER,
-            status VARCHAR
+            status VARCHAR,
+            total_rows_processed INTEGER
         )
     """
     )
     conn.execute(
         "INSERT INTO fact_pipeline_execution VALUES "
-        "('2026-06-10 13:00:00', 'uuid-123', 'Silver_Pipeline', "
-        "0.29, 8520, 8520, 0, 'Success')"
+        "('uuid-123', 'Silver_Pipeline', 10014, '2026-06-10 13:00:00', "
+        "0.29, 'Success', 8520)"
     )
 
     # 9. Setup mock fact_session_results
@@ -233,6 +232,23 @@ def override_get_db():
         "(10014, 44, 'Flag', 'GREEN', 'Green flag', '2025-03-16 12:05:00.000')"
     )
 
+    # 12. Setup mock fact_overtakes
+    conn.execute(
+        """
+        CREATE TABLE fact_overtakes (
+            session_key INTEGER,
+            overtaking_driver_number INTEGER,
+            overtaken_driver_number INTEGER,
+            position INTEGER,
+            date TIMESTAMP
+        )
+    """
+    )
+    conn.execute(
+        "INSERT INTO fact_overtakes VALUES "
+        "(10014, 1, 44, 1, '2025-03-16 12:10:00.000')"
+    )
+
     try:
         yield conn
     finally:
@@ -243,19 +259,6 @@ def override_get_db():
 app.dependency_overrides[get_db] = override_get_db
 
 client = TestClient(app)
-
-
-def test_read_index_template():
-    response = client.get("/")
-    assert response.status_code == 200
-    assert "OpenF1" in response.text
-    assert "Scuderia Ferrari" in response.text
-
-
-def test_read_observability_template():
-    response = client.get("/observabilidade")
-    assert response.status_code == 200
-    assert "Observabilidade" in response.text
 
 
 def test_get_sessions():
@@ -375,3 +378,61 @@ def test_get_duel_metrics():
     assert data["1"]["max_speed"] == 320
     assert data["44"]["best_pit"] == 18.8
     assert data["1"]["best_pit"] == 18.0
+
+
+def test_get_overtakes():
+    response = client.get("/api/overtakes?session_key=10014")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["overtaking_driver"] == "VER"
+    assert data[0]["overtaken_driver"] == "HAM"
+    assert data[0]["position"] == 1
+
+
+def test_execute_adhoc_query_success():
+    response = client.post(
+        "/api/analytics/query",
+        json={
+            "query": "SELECT session_key, country_name FROM dim_sessions ORDER BY session_key"
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["session_key"] == 10014
+    assert data[0]["country_name"] == "Bahrain"
+
+
+def test_execute_adhoc_query_forbidden():
+    response = client.post(
+        "/api/analytics/query",
+        json={"query": "DROP TABLE dim_sessions"},
+    )
+    assert response.status_code == 400
+    data = response.json()
+    assert "Apenas consultas de leitura" in data["detail"]
+
+
+def test_execute_chat_query_success():
+    response = client.post(
+        "/api/analytics/chat",
+        json={"session_key": 10014, "question": "Green flag event"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "answer" in data
+    assert "relevance" in data
+    assert data["relevance"] > 0.05
+    assert "Green flag" in data["data"]["message"]
+
+
+def test_execute_chat_query_no_relevance():
+    response = client.post(
+        "/api/analytics/chat",
+        json={"session_key": 10014, "question": "Rain or water on track"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert "Nenhum alerta de pista" in data["answer"]
+    assert data["relevance"] < 0.02

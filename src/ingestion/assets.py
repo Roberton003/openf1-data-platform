@@ -9,8 +9,16 @@ from dagster import AssetExecutionContext, asset
 from sklearn.ensemble import RandomForestRegressor
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+from src.ingestion.config import PILOTOS_FOCO
+
 # Reutilizar esquemas e contratos de validação
-from src.ingestion.schemas import DriverContract, RaceControlContract, SessionContract
+from src.ingestion.schemas import (
+    DriverContract,
+    OvertakeContract,
+    RaceControlContract,
+    SessionContract,
+    SessionResultContract,
+)
 
 BASE_URL = "https://api.openf1.org/v1"
 DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data"))
@@ -147,6 +155,32 @@ def bronze_race_control_and_stints(context: AssetExecutionContext) -> None:
                 index=False,
             )
 
+        # 5. Session Results
+        res = fetch_api("session_result", {"session_key": skey})
+        if res:
+            df_res = pd.DataFrame(res)
+            # Cast de colunas com tipos mistos para evitar inconsistências no PyArrow
+            for col in ["gap_to_leader", "interval"]:
+                if col in df_res.columns:
+                    df_res[col] = df_res[col].astype(str)
+            df_res.to_parquet(
+                os.path.join(
+                    DATA_DIR, "bronze", f"session_key={skey}", "session_result.parquet"
+                ),
+                index=False,
+            )
+
+        # 6. Overtakes
+        ov = fetch_api("overtakes", {"session_key": skey})
+        if ov:
+            df_ov = pd.DataFrame(ov)
+            df_ov.to_parquet(
+                os.path.join(
+                    DATA_DIR, "bronze", f"session_key={skey}", "overtakes.parquet"
+                ),
+                index=False,
+            )
+
         time.sleep(1.0)
 
 
@@ -174,7 +208,7 @@ def bronze_telemetry_spatial(context: AssetExecutionContext) -> None:
 
         # Para evitar estourar a API com requisições simultâneas de todos os 20 pilotos,
         # vamos limitar a telemetria aos 5 pilotos de foco histórico do projeto (reduz tempo e garante estabilidade)
-        foco_drivers = [1, 16, 44, 4, 81]
+        foco_drivers = list(PILOTOS_FOCO.keys())
         active_drivers = [d for d in drivers_in_session if d in foco_drivers]
 
         # Garante que criamos a pasta da partição
@@ -311,7 +345,7 @@ def silver_drivers(context: AssetExecutionContext) -> None:
 @asset(group_name="Camada_Silver", deps=[bronze_race_control_and_stints])
 def silver_metadata_tables(context: AssetExecutionContext) -> None:
     """
-    Valida e transiciona clima, pit stops, stints e race control para o Lakehouse Silver.
+    Valida e transiciona clima, pit stops, stints, race control, resultados e ultrapassagens para o Lakehouse Silver.
     """
     os.makedirs(os.path.join(DATA_DIR, "silver"), exist_ok=True)
 
@@ -319,6 +353,8 @@ def silver_metadata_tables(context: AssetExecutionContext) -> None:
     weather_all = []
     pits_all = []
     rc_all = []
+    res_all = []
+    ov_all = []
 
     for gp_cfg in SESSIONS_TO_PROCESS:
         skey = gp_cfg["session_key"]
@@ -358,7 +394,31 @@ def silver_metadata_tables(context: AssetExecutionContext) -> None:
             rc_df["date"] = pd.to_datetime(rc_df["date"], format="ISO8601")
             rc_all.append(rc_df)
 
-    # Salvar consolidados
+        # 5. Session Results
+        res_f = os.path.join(base_path, "session_result.parquet")
+        if os.path.exists(res_f):
+            res_df = pd.read_parquet(res_f)
+            res_df["session_key"] = res_df["session_key"].astype(int)
+            res_df["driver_number"] = res_df["driver_number"].astype(int)
+            res_all.append(res_df)
+
+        # 6. Overtakes
+        ov_f = os.path.join(base_path, "overtakes.parquet")
+        if os.path.exists(ov_f):
+            ov_df = pd.read_parquet(ov_f)
+            ov_df["session_key"] = ov_df["session_key"].astype(int)
+            ov_df["overtaking_driver_number"] = ov_df[
+                "overtaking_driver_number"
+            ].astype(int)
+            ov_df["overtaken_driver_number"] = ov_df["overtaken_driver_number"].astype(
+                int
+            )
+            ov_df["date"] = pd.to_datetime(ov_df["date"], format="ISO8601")
+            ov_all.append(ov_df)
+
+    import shutil
+
+    # Salvar consolidados (Dimensões)
     if stints_all:
         pd.concat(stints_all).to_parquet(
             os.path.join(DATA_DIR, "silver", "dim_stints.parquet"), index=False
@@ -367,10 +427,14 @@ def silver_metadata_tables(context: AssetExecutionContext) -> None:
         pd.concat(weather_all).to_parquet(
             os.path.join(DATA_DIR, "silver", "dim_weather.parquet"), index=False
         )
+
+    # Salvar particionados (Fatos)
     if pits_all:
-        pd.concat(pits_all).to_parquet(
-            os.path.join(DATA_DIR, "silver", "fact_pit_stops.parquet"), index=False
-        )
+        pits_df = pd.concat(pits_all)
+        target = os.path.join(DATA_DIR, "silver", "fact_pit_stops")
+        shutil.rmtree(target, ignore_errors=True)
+        pits_df.to_parquet(target, partition_cols=["session_key"], index=False)
+
     if rc_all:
         # Validar via contrato Pydantic para logs de race control
         df_rc = pd.concat(rc_all)
@@ -388,10 +452,79 @@ def silver_metadata_tables(context: AssetExecutionContext) -> None:
             except Exception:
                 pass
         if valid_rc:
-            pd.DataFrame(valid_rc).to_parquet(
-                os.path.join(DATA_DIR, "silver", "fact_race_control.parquet"),
-                index=False,
-            )
+            rc_df = pd.DataFrame(valid_rc)
+            target = os.path.join(DATA_DIR, "silver", "fact_race_control")
+            shutil.rmtree(target, ignore_errors=True)
+            rc_df.to_parquet(target, partition_cols=["session_key"], index=False)
+
+    if res_all:
+        # Validar via contrato Pydantic para resultados de sessão
+        df_res = pd.concat(res_all)
+        valid_res = []
+        for _, r in df_res.iterrows():
+            r_dict = r.to_dict()
+            if pd.isna(r_dict.get("position")):
+                r_dict["position"] = None
+            else:
+                r_dict["position"] = int(r_dict["position"])
+
+            r_dict["session_key"] = int(r_dict["session_key"])
+            r_dict["driver_number"] = int(r_dict["driver_number"])
+
+            for k in [
+                "number_of_laps",
+                "points",
+                "dnf",
+                "dns",
+                "dsq",
+                "duration",
+                "gap_to_leader",
+            ]:
+                if k in r_dict:
+                    if pd.isna(r_dict[k]):
+                        r_dict[k] = None
+                    elif k in ["dnf", "dns", "dsq"]:
+                        r_dict[k] = bool(r_dict[k])
+                    elif k in ["number_of_laps"]:
+                        r_dict[k] = int(r_dict[k])
+                    elif k in ["points", "duration"]:
+                        r_dict[k] = float(r_dict[k])
+            try:
+                SessionResultContract(**r_dict)
+                valid_res.append(r_dict)
+            except Exception:
+                pass
+        if valid_res:
+            res_df = pd.DataFrame(valid_res)
+            target = os.path.join(DATA_DIR, "silver", "fact_session_results")
+            shutil.rmtree(target, ignore_errors=True)
+            res_df.to_parquet(target, partition_cols=["session_key"], index=False)
+
+    if ov_all:
+        # Validar via contrato Pydantic para ultrapassagens
+        df_ov = pd.concat(ov_all)
+        valid_ov = []
+        for _, r in df_ov.iterrows():
+            r_dict = r.to_dict()
+            if isinstance(r_dict["date"], pd.Timestamp):
+                r_dict["date"] = r_dict["date"].to_pydatetime()
+            r_dict["session_key"] = int(r_dict["session_key"])
+            r_dict["overtaking_driver_number"] = int(r_dict["overtaking_driver_number"])
+            r_dict["overtaken_driver_number"] = int(r_dict["overtaken_driver_number"])
+            if pd.isna(r_dict.get("position")):
+                r_dict["position"] = 0
+            else:
+                r_dict["position"] = int(r_dict["position"])
+            try:
+                OvertakeContract(**r_dict)
+                valid_ov.append(r_dict)
+            except Exception:
+                pass
+        if valid_ov:
+            ov_df = pd.DataFrame(valid_ov)
+            target = os.path.join(DATA_DIR, "silver", "fact_overtakes")
+            shutil.rmtree(target, ignore_errors=True)
+            ov_df.to_parquet(target, partition_cols=["session_key"], index=False)
 
 
 @asset(group_name="Camada_Silver", deps=[bronze_telemetry_spatial])
@@ -400,6 +533,7 @@ def silver_telemetry_location_aligned(context: AssetExecutionContext) -> None:
     Lê a telemetria e localização espacial da Bronze, executa o ASOF JOIN analítico e
     salva os arquivos Parquet particionados na Silver (desacoplamento total de storage e compute).
     """
+    start_time = time.time()
     # Conexão DuckDB temporária na memória
     conn = duckdb.connect(database=":memory:", read_only=False)
 
@@ -409,7 +543,7 @@ def silver_telemetry_location_aligned(context: AssetExecutionContext) -> None:
     os.makedirs(telemetry_root, exist_ok=True)
     os.makedirs(location_root, exist_ok=True)
 
-    foco_drivers = [1, 16, 44, 4, 81]
+    foco_drivers = list(PILOTOS_FOCO.keys())
 
     for gp_cfg in SESSIONS_TO_PROCESS:
         skey = gp_cfg["session_key"]
@@ -478,6 +612,42 @@ def silver_telemetry_location_aligned(context: AssetExecutionContext) -> None:
                 )
 
     context.log.info("ASOF JOINs analíticos gravados na Silver com sucesso.")
+
+    # Registrar linhagem em fact_pipeline_execution
+    import uuid
+    from datetime import datetime
+
+    execution_root = os.path.join(DATA_DIR, "silver", "fact_pipeline_execution")
+    os.makedirs(execution_root, exist_ok=True)
+
+    for gp_cfg in SESSIONS_TO_PROCESS:
+        skey = gp_cfg["session_key"]
+        run_record = {
+            "run_id": str(uuid.uuid4()),
+            "pipeline_name": "dagster",
+            "session_key": int(skey),
+            "execution_timestamp": datetime.now().isoformat(),
+            "duration_seconds": float(time.time() - start_time),
+            "status": "SUCCESS",
+            "total_rows_processed": 0,
+        }
+
+        part_exec_path = os.path.join(execution_root, f"session_key={skey}")
+        os.makedirs(part_exec_path, exist_ok=True)
+        exec_file = os.path.join(part_exec_path, "data.parquet")
+
+        if os.path.exists(exec_file):
+            try:
+                existing_df = pd.read_parquet(exec_file)
+                new_df = pd.concat(
+                    [existing_df, pd.DataFrame([run_record])], ignore_index=True
+                )
+            except Exception:
+                new_df = pd.DataFrame([run_record])
+        else:
+            new_df = pd.DataFrame([run_record])
+
+        new_df.to_parquet(exec_file, index=False)
 
 
 # =====================================================================

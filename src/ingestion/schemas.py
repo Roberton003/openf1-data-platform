@@ -65,6 +65,18 @@ class SessionResultContract(BaseModel):
     )
 
 
+class OvertakeContract(BaseModel):
+    session_key: int = Field(..., description="Chave da sessão")
+    overtaking_driver_number: int = Field(
+        ..., description="Número do piloto que ultrapassou"
+    )
+    overtaken_driver_number: int = Field(
+        ..., description="Número do piloto ultrapassado"
+    )
+    date: datetime = Field(..., description="Timestamp da ultrapassagem")
+    position: int = Field(..., description="Posição no grid após ultrapassagem")
+
+
 # =====================================================================
 # 2. Contratos Vetoriais de Lote (Pandas/PyArrow Type Mappings)
 #    Utilizados para validação rápida vetorizada de alta volumetria.
@@ -133,4 +145,27 @@ LOCATION_SCHEMA = {
     "x": "int64",
     "y": "int64",
     "z": "int64",
+}
+
+# Resultados de Sessão (session_result)
+SESSION_RESULTS_SCHEMA = {
+    "session_key": "int64",
+    "driver_number": "int64",
+    "position": "int64",
+    "number_of_laps": "int64",
+    "points": "float64",
+    "dnf": "bool",
+    "dns": "bool",
+    "dsq": "bool",
+    "duration": "float64",
+    "gap_to_leader": "string",
+}
+
+# Ultrapassagens (overtakes)
+OVERTAKES_SCHEMA = {
+    "session_key": "int64",
+    "overtaking_driver_number": "int64",
+    "overtaken_driver_number": "int64",
+    "date": "datetime64[ns]",
+    "position": "int64",
 }

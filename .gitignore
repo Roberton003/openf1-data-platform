@@ -57,7 +57,4 @@ docs/
 # Dagster temporary homes
 .tmp_dagster_home*/
 
-# Markdown exceptions for data architecture docs
-!gemini.md
-!data_architecture_sizing.md
-!data_lineage_medallion.md
+# Markdown exceptions for data architecture docs (Excluídos para proteção de dados)

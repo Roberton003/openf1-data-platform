@@ -23,10 +23,17 @@ def get_db() -> Generator[duckdb.DuckDBPyConnection, None, None]:
         "dim_drivers": os.path.join(silver_dir, "dim_drivers.parquet"),
         "dim_stints": os.path.join(silver_dir, "dim_stints.parquet"),
         "dim_weather": os.path.join(silver_dir, "dim_weather.parquet"),
-        "fact_pit_stops": os.path.join(silver_dir, "fact_pit_stops.parquet"),
-        "fact_race_control": os.path.join(silver_dir, "fact_race_control.parquet"),
-        "fact_intervals": os.path.join(silver_dir, "fact_intervals.parquet"),
-        # Tabelas Fatos Particionadas
+        "fact_pit_stops": os.path.join(silver_dir, "fact_pit_stops/*/*.parquet"),
+        "fact_race_control": os.path.join(silver_dir, "fact_race_control/*/*.parquet"),
+        "fact_intervals": os.path.join(silver_dir, "fact_intervals/*/*.parquet"),
+        "fact_session_results": os.path.join(
+            silver_dir, "fact_session_results/*/*.parquet"
+        ),
+        "fact_overtakes": os.path.join(silver_dir, "fact_overtakes/*/*.parquet"),
+        "fact_pipeline_execution": os.path.join(
+            silver_dir, "fact_pipeline_execution/*/*.parquet"
+        ),
+        # Tabelas Fatos Particionadas por driver
         "fact_car_telemetry": os.path.join(
             silver_dir, "fact_car_telemetry/*/*/*.parquet"
         ),

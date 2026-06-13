@@ -9,17 +9,10 @@ import pandas as pd
 import requests
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+from src.ingestion.config import PILOTOS_FOCO
+
 BASE_URL = "https://api.openf1.org/v1"
 DATA_DIR = os.path.join(os.path.dirname(__file__), "../../data")
-
-# Grid de pilotos foco para análises comparativas (Temporada 2025)
-PILOTOS_FOCO = {
-    1: "Max Verstappen",
-    16: "Charles Leclerc",
-    44: "Lewis Hamilton",
-    4: "Lando Norris",
-    81: "Oscar Piastri",
-}
 
 # Semáforo para controlar concorrência de rede simultânea na API OpenF1 (DEC-008, §1)
 # Evita bloqueios por rate limiting (HTTP 429) e timeouts de rede na telemetria
@@ -202,6 +195,7 @@ def run_extraction_for_session(session_info: dict) -> str:
         "race_control": "race_control",
         "session_result": "session_result",
         "drivers": "drivers",
+        "overtakes": "overtakes",
     }
 
     for ep_filename, ep_route in metadata_endpoints.items():

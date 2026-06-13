@@ -35,6 +35,9 @@ ingest-all:
 	PYTHONPATH=. $(PYTHON) src/ingestion/extract.py --year 2025 --gp "all" --session "Race"
 	PYTHONPATH=. $(PYTHON) src/ingestion/process.py --year 2025 --gp "all" --session "Race"
 
+compact-bronze:
+	PYTHONPATH=. $(PYTHON) src/ingestion/compress_bronze.py
+
 
 clean:
 	rm -rf __pycache__

@@ -11,16 +11,18 @@ class Settings(BaseSettings):
     DATABASE_PATH: str = os.path.join(BASE_DIR, "data/silver/openf1_silver.duckdb")
 
     # GitHub API integration config
-    GITHUB_REPO: str = "Roberton003/openf1-data-platform"
-    GITHUB_TOKEN: str = ""
+    GITHUB_REPO: str = os.getenv(
+        "OPENF1_GITHUB_REPO", "Roberton003/openf1-data-platform"
+    )
+    GITHUB_TOKEN: str = os.getenv("OPENF1_GITHUB_TOKEN", "")
 
     # SMTP Server configurations for alerts
-    SMTP_HOST: str = ""
-    SMTP_PORT: int = 587
-    SMTP_USER: str = ""
-    SMTP_PASSWORD: str = ""
-    SMTP_FROM: str = ""
-    ALERT_EMAIL_RECEIVER: str = ""
+    SMTP_HOST: str = os.getenv("OPENF1_SMTP_HOST", "")
+    SMTP_PORT: int = int(os.getenv("OPENF1_SMTP_PORT", "587"))
+    SMTP_USER: str = os.getenv("OPENF1_SMTP_USER", "")
+    SMTP_PASSWORD: str = os.getenv("OPENF1_SMTP_PASSWORD", "")
+    SMTP_FROM: str = os.getenv("OPENF1_SMTP_FROM", "")
+    ALERT_EMAIL_RECEIVER: str = os.getenv("OPENF1_ALERT_EMAIL_RECEIVER", "")
 
     # Auto-Healing switch
     AUTO_HEAL_CI: bool = True
