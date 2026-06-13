@@ -116,21 +116,36 @@ Acesse [http://localhost:8001](http://localhost:8001) para ver a interface gráf
 
 ---
 
-## 🧪 Qualidade de Código & Testes
+## 🧪 Qualidade de Código, CI/CD & Auto-Healing (Fase 7)
 
-Garantimos a integridade do pipeline através de um loop rígido de qualidade estática e testes analíticos:
+Garantimos a integridade completa do pipeline através de testes analíticos locais e de um microsserviço inteligente de monitoramento do status da integração contínua (CI/CD) com autocura (Auto-Healing):
 
+### 1. Ferramentas de Qualidade Locais
 ```bash
-# Formatar estilos e ordenação de imports
+# Formatar estilos e ordenação de imports (Black + Isort)
 make format
 
-# Executar linting estático PEP 8
+# Executar linting estático PEP 8 (Flake8)
 make lint
 
-# Executar a suíte completa de testes (22 testes unitários e de qualidade analítica)
+# Executar a suíte completa de testes (27 testes unitários e de qualidade analítica)
 make test
 ```
-*A suíte de testes unitários valida os endpoints da API, contratos de ingestão do Pydantic, e a qualidade física dos dados Parquet (limites físicos reais de telemetria de F1).*
+*A suíte de testes unitários valida os contratos do Pydantic, a validação vetorizada da Silver, o Star Schema do DuckDB, e as lógicas de simulação de alertas do monitor de CI.*
+
+### 2. Monitoramento de CI/CD & Auto-Healing
+O módulo de monitoramento consulta a API do GitHub Actions de forma resiliente (com retries e backoff exponencial da biblioteca `tenacity`) para identificar falhas do pipeline de integração e agir de forma autônoma:
+* **Alerta Local Nativado:** Exibe uma notificação pop-up crítica na sua tela Linux desktop (`notify-send`) e registra os tracebacks em `data/alerts/ci_alerts.log`.
+* **Autocura (Auto-Healing) Atômica:** Corrige automaticamente problemas de formatação (`make format`) e gera relatórios diagnósticos de erros em arquivos de texto locais se a esteira quebrar por problemas de linter ou testes.
+
+Você pode orquestrar e testar essas rotinas diretamente do terminal:
+```bash
+# Verificar o status da última run remota do GitHub Actions
+make ci-check
+
+# Executar preventivamente todas as rotinas locais de autocura (format, lint, tests)
+make ci-heal
+```
 
 ---
 
