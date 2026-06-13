@@ -33,14 +33,19 @@ flowchart TD
     Silver -->|Feature Engineering & Expansão de Voltas| Gold[(Gold Layer: data/gold/)]
     Gold -->|Treinamento RandomForest| ML[models/lap_regressor.joblib]
     
-    subgraph Lakehouse Storage Parquet
-        Silver -->|Particionado por GP e Piloto| telemetry[fact_car_telemetry]
-        Silver -->|Particionado por GP e Piloto| location[fact_car_location]
-        Silver -->|Metadados Consolidados| metadata[dim_drivers, dim_sessions, dim_stints, dim_weather]
-        Gold -->|Feature Store & Predições| predictions[lap_predictions.parquet]
+    subgraph LSP ["Lakehouse Storage Parquet"]
+        telemetry[fact_car_telemetry]
+        location[fact_car_location]
+        metadata["dim_drivers, dim_sessions, dim_stints, dim_weather"]
+        predictions[lap_predictions.parquet]
     end
     
-    Lakehouse Storage Parquet -.->|Mapeado como Views temporárias| DuckDB[(DuckDB :memory:)]
+    Silver -->|Particionado por GP e Piloto| telemetry
+    Silver -->|Particionado por GP e Piloto| location
+    Silver -->|Metadados Consolidados| metadata
+    Gold -->|Feature Store & Predições| predictions
+    
+    LSP -.->|Mapeado como Views temporárias| DuckDB[(DuckDB :memory:)]
     ML -.->|Predictor de Performance| FastAPI[FastAPI Backend - Porta 8001]
     
     DuckDB -->|Leitura OLAP Concorrente asyncio.to_thread| FastAPI
