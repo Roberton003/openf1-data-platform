@@ -20,6 +20,10 @@ Uma plataforma de engenharia de dados e MLOps de alto desempenho (FAANG-level) p
   - **Camada Gold (Feature Store e IA):** Consolidação analítica e expansão de stints Pirelli em voltas físicas individuais para treinar modelos preditivos.
 - **Serverless DuckDB (Zero Writes Locks):** O webserver FastAPI abre conexões ao DuckDB totalmente em memória (`:memory:`) mapeando as tabelas Parquet locais como Views dinâmicas sob demanda com *Predicate Pushdown*. Isso elimina travamentos concorrentes de banco e garante respostas analíticas na casa de milissegundos.
 - **IA e MLOps Físico:** Treinamento local e serialização automática de um regressor `RandomForestRegressor` (`models/lap_regressor.joblib`) no final da esteira do Dagster, utilizado pelo FastAPI para estimar o tempo ideal físico de volta e calcular o delta de desgaste de pneus.
+- **Data Gateway SQL Seguro:** Endpoint `/api/analytics/query` para analistas e ferramentas de BI executarem consultas SQL nativas no DuckDB sobre o Lakehouse, blindado contra comandos destrutivos (`DROP`, `DELETE`, `INSERT`).
+- **IA Conversacional Híbrida Local (RAG + SQL):** Endpoint `/api/analytics/chat` de custo zero integrando similaridade semântica local via Scikit-Learn (TF-IDF) e DuckDB SQL, com respostas dinâmicas em Markdown correlacionando mensagens de rádio com o comportamento físico da telemetria.
+- **Gestão da Bronze (Compaction):** Script de arquivamento pós-processamento que move JSONs brutos antigos para `.tar.gz` organizados por GP em `data/bronze/archive/`, limpando o disco sem comprometer a reprodutibilidade.
+- **Configuração Dinâmica de Pilotos:** Extração parametrizável via variável de ambiente `FOCUS_DRIVERS` no `.env`, eliminando constantes hardcoded no código.
 - **Interface Visual Premium (Ferrari Theme):** Dashboard responsivo com estética *dark/carbon* Scuderia Ferrari, gráficos Plotly.js independentes de velocidade, RPM, marchas e pedais, timeline Gantt de stints Pirelli e um mapa 2D interativo com gradiente dinâmico de velocidade.
 
 ---
