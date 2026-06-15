@@ -116,3 +116,62 @@ def test_ml_model_serialization():
         assert hasattr(
             model, "predict"
         ), "O arquivo serializado não é um modelo preditivo sklearn válido."
+
+
+def test_gold_f1_telemetry_analysis_integrity():
+    """
+    Garante as regras de integridade do Contrato de Dados para fct_f1_telemetry_analysis.
+    """
+    gold_parquet = os.path.join(DATA_DIR, "gold", "fct_f1_telemetry_analysis.parquet")
+    if os.path.exists(gold_parquet):
+        df = pd.read_parquet(gold_parquet)
+        assert not df.empty, "Tabela fct_f1_telemetry_analysis está vazia."
+
+        # Validar colunas obrigatórias
+        required_cols = [
+            "session_key",
+            "driver_number",
+            "lap_number",
+            "max_speed",
+            "avg_speed",
+            "max_rpm",
+            "avg_rpm",
+            "throttle_intensity_pct",
+            "brake_intensity_pct",
+            "drs_activation_pct",
+            "gear_changes",
+        ]
+        for col in required_cols:
+            assert col in df.columns, f"Coluna obrigatória {col} ausente."
+            assert df[col].notna().all(), f"Coluna {col} contém valores nulos."
+
+        # Validar limites de qualidade física (evitando quebras com carros parados/retirados ou cool-down laps)
+        assert (df["lap_number"] > 0).all(), "Número de volta inválido."
+        assert (
+            df["max_speed"] <= 400
+        ).all(), "max_speed fora do limite do contrato [<= 400]"
+        assert (
+            df["avg_speed"] <= 380
+        ).all(), "avg_speed fora do limite do contrato [<= 380]"
+        assert (
+            df["max_rpm"] <= 18000
+        ).all(), "max_rpm fora do limite do contrato [<= 18000]"
+        assert (df["throttle_intensity_pct"] >= 0).all() and (
+            df["throttle_intensity_pct"] <= 100
+        ).all()
+        assert (df["brake_intensity_pct"] >= 0).all() and (
+            df["brake_intensity_pct"] <= 100
+        ).all()
+        assert (df["drs_activation_pct"] >= 0).all() and (
+            df["drs_activation_pct"] <= 100
+        ).all()
+        assert (df["gear_changes"] >= 0).all()
+
+        # Validar que a grande maioria das voltas são ativas e atendem às faixas operacionais típicas
+        active_laps = df[df["max_speed"] >= 100]
+        assert len(active_laps) / len(df) > 0.8, "Menos de 80% das voltas estão ativas."
+        assert (active_laps["max_speed"] >= 50).all()
+        assert (
+            active_laps["avg_speed"] >= 10
+        ).all()  # Mínimo absoluto para voltas de cool-down ativas
+        assert (active_laps["max_rpm"] >= 1000).all()

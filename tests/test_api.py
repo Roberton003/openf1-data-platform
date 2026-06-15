@@ -249,6 +249,29 @@ def override_get_db():
         "(10014, 1, 44, 1, '2025-03-16 12:10:00.000')"
     )
 
+    # 13. Setup mock fct_f1_telemetry_analysis
+    conn.execute(
+        """
+        CREATE TABLE fct_f1_telemetry_analysis (
+            session_key INTEGER,
+            driver_number INTEGER,
+            lap_number INTEGER,
+            max_speed INTEGER,
+            avg_speed DOUBLE,
+            max_rpm INTEGER,
+            avg_rpm DOUBLE,
+            throttle_intensity_pct DOUBLE,
+            brake_intensity_pct DOUBLE,
+            drs_activation_pct DOUBLE,
+            gear_changes INTEGER
+        )
+    """
+    )
+    conn.execute(
+        "INSERT INTO fct_f1_telemetry_analysis VALUES "
+        "(10014, 44, 1, 312, 280.5, 11800, 11000.0, 98.5, 0.0, 10.0, 15)"
+    )
+
     try:
         yield conn
     finally:
@@ -436,3 +459,17 @@ def test_execute_chat_query_no_relevance():
     data = response.json()
     assert "Nenhum alerta de pista" in data["answer"]
     assert data["relevance"] < 0.02
+
+
+def test_get_telemetry_analysis():
+    response = client.get(
+        "/api/analytics/telemetry_analysis?session_key=10014&driver_number=44"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["session_key"] == 10014
+    assert data[0]["driver_number"] == 44
+    assert data[0]["lap_number"] == 1
+    assert data[0]["max_speed"] == 312
+    assert data[0]["gear_changes"] == 15

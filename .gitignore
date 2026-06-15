@@ -39,6 +39,8 @@ data/
 *.md
 !README.md
 docs/
+!docs/plans/
+!docs/plans/*.md
 
 # Temporary and Lock Files
 *~lock.*

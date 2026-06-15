@@ -659,6 +659,97 @@ def silver_telemetry_location_aligned(context: AssetExecutionContext) -> None:
     group_name="Camada_Gold",
     deps=[silver_telemetry_location_aligned, silver_metadata_tables],
 )
+def gold_f1_telemetry_analysis(context: AssetExecutionContext) -> None:
+    """
+    Agrega a telemetria Silver alinhada para gerar a tabela de fatos Gold fct_f1_telemetry_analysis,
+    extraindo KPIs analíticos consolidados por volta (velocidades, RPM, intensidade de pedais e DRS).
+    """
+    context.log.info(
+        "Iniciando processamento da tabela Gold fct_f1_telemetry_analysis..."
+    )
+
+    os.makedirs(os.path.join(DATA_DIR, "gold"), exist_ok=True)
+
+    conn = duckdb.connect(database=":memory:", read_only=False)
+
+    query = """
+    WITH session_time AS (
+        SELECT 
+            session_key,
+            CAST(date_start AS TIMESTAMPTZ) AS start_time,
+            CAST(date_end AS TIMESTAMPTZ) AS end_time
+        FROM read_parquet('data/silver/dim_sessions.parquet')
+    ),
+    telemetry_filtered AS (
+        SELECT t.*
+        FROM read_parquet('data/silver/fact_car_telemetry/session_key=*/driver_number=*/*.parquet') t
+        JOIN session_time s ON t.session_key = s.session_key
+        WHERE CAST(t.date AS TIMESTAMPTZ) BETWEEN s.start_time AND s.end_time
+    ),
+    telemetry_with_row AS (
+        SELECT 
+            session_key,
+            driver_number,
+            date,
+            speed,
+            rpm,
+            n_gear,
+            throttle,
+            brake,
+            drs,
+            LAG(n_gear) OVER (PARTITION BY session_key, driver_number ORDER BY date ASC) as prev_gear,
+            ROW_NUMBER() OVER (PARTITION BY session_key, driver_number ORDER BY date ASC) - 1 AS row_idx,
+            COUNT(*) OVER (PARTITION BY session_key, driver_number) AS N
+        FROM telemetry_filtered
+    ),
+    stint_summary AS (
+        SELECT 
+            session_key,
+            driver_number,
+            CAST(MAX(lap_end) AS INTEGER) AS total_laps
+        FROM read_parquet('data/silver/dim_stints.parquet')
+        GROUP BY session_key, driver_number
+    ),
+    telemetry_with_lap AS (
+        SELECT 
+            t.*,
+            s.total_laps,
+            1 + CAST(FLOOR(t.row_idx * s.total_laps / t.N) AS INTEGER) AS lap_number
+        FROM telemetry_with_row t
+        JOIN stint_summary s 
+          ON t.session_key = s.session_key 
+         AND t.driver_number = s.driver_number
+    )
+    SELECT 
+        session_key,
+        driver_number,
+        lap_number,
+        MAX(speed) AS max_speed,
+        AVG(speed) AS avg_speed,
+        MAX(rpm) AS max_rpm,
+        AVG(rpm) AS avg_rpm,
+        AVG(CASE WHEN throttle > 90 THEN 1.0 ELSE 0.0 END) * 100 AS throttle_intensity_pct,
+        AVG(CASE WHEN brake > 50 THEN 1.0 ELSE 0.0 END) * 100 AS brake_intensity_pct,
+        AVG(CASE WHEN drs % 2 = 0 AND drs > 0 THEN 1.0 ELSE 0.0 END) * 100 AS drs_activation_pct,
+        SUM(CASE WHEN prev_gear IS NOT NULL AND n_gear <> prev_gear THEN 1 ELSE 0 END) AS gear_changes
+    FROM telemetry_with_lap
+    GROUP BY session_key, driver_number, lap_number
+    ORDER BY session_key, driver_number, lap_number ASC
+    """
+
+    res_df = conn.execute(query).arrow().to_pandas()
+
+    target_path = os.path.join(DATA_DIR, "gold", "fct_f1_telemetry_analysis.parquet")
+    res_df.to_parquet(target_path, index=False)
+    context.log.info(
+        f"Tabela Gold gravada em {target_path} com {len(res_df)} registros."
+    )
+
+
+@asset(
+    group_name="Camada_Gold",
+    deps=[silver_telemetry_location_aligned, silver_metadata_tables],
+)
 def gold_feature_engineering_lap_data(context: AssetExecutionContext) -> None:
     """
     Agrega a telemetria física Silver em nível de volta simulada para criar o Feature Store de treinamento de IA.

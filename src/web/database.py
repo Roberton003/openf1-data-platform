@@ -42,6 +42,9 @@ def get_db() -> Generator[duckdb.DuckDBPyConnection, None, None]:
         ),
         # Camada Gold (Predições da IA)
         "gold_lap_predictions": os.path.join(gold_dir, "lap_predictions.parquet"),
+        "fct_f1_telemetry_analysis": os.path.join(
+            gold_dir, "fct_f1_telemetry_analysis.parquet"
+        ),
     }
 
     for table_name, file_pattern in views_map.items():

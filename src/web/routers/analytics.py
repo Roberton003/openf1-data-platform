@@ -900,3 +900,62 @@ async def execute_chat_query(
     return await run_query_async(
         execute_hybrid_semantic_search, db, request.session_key, request.question
     )
+
+
+def fetch_telemetry_analysis_from_db(
+    conn: duckdb.DuckDBPyConnection, session_key: int, driver_number: int
+) -> list[dict]:
+    try:
+        query = """
+            SELECT 
+                session_key,
+                driver_number,
+                lap_number,
+                max_speed,
+                avg_speed,
+                max_rpm,
+                avg_rpm,
+                throttle_intensity_pct,
+                brake_intensity_pct,
+                drs_activation_pct,
+                gear_changes
+            FROM fct_f1_telemetry_analysis
+            WHERE session_key = ? AND driver_number = ?
+            ORDER BY lap_number ASC
+        """
+        results = conn.execute(query, (session_key, driver_number)).fetchall()
+        return [
+            {
+                "session_key": r[0],
+                "driver_number": r[1],
+                "lap_number": r[2],
+                "max_speed": r[3],
+                "avg_speed": r[4],
+                "max_rpm": r[5],
+                "avg_rpm": r[6],
+                "throttle_intensity_pct": r[7],
+                "brake_intensity_pct": r[8],
+                "drs_activation_pct": r[9],
+                "gear_changes": r[10],
+            }
+            for r in results
+        ]
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erro ao buscar análise de telemetria Gold: {str(e)}",
+        )
+
+
+@router.get("/analytics/telemetry_analysis")
+async def get_telemetry_analysis(
+    session_key: int = Query(..., description="Chave da sessão da corrida"),
+    driver_number: int = Query(..., description="Número do piloto"),
+    db: duckdb.DuckDBPyConnection = Depends(get_db),
+):
+    """
+    Retorna os KPIs agregados de telemetria (Gold) por piloto, GP e volta.
+    """
+    return await run_query_async(
+        fetch_telemetry_analysis_from_db, db, session_key, driver_number
+    )

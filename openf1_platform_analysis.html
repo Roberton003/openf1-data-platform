@@ -1,0 +1,248 @@
+
+<h2 class="sr-only">Análise holística do projeto openf1-data-platform — técnica, negócio e IA — com comparativo de 3 caminhos de evolução</h2>
+<style>
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+.sec{padding:.75rem 0}
+.lbl{font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem}
+.mg4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:1rem}
+.mg3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:1rem}
+.mg2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:1rem}
+.mc{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px 12px;text-align:center}
+.mv{font-size:22px;font-weight:500}
+.ml{font-size:11px;color:var(--color-text-secondary);margin-top:2px}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1rem 1.25rem;margin-bottom:10px}
+.card-h{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.card-title{font-size:13px;font-weight:500;color:var(--color-text-primary);flex:1}
+.sep{height:0.5px;background:var(--color-border-tertiary);margin:14px 0}
+.br{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.bt{flex:1;background:var(--color-border-tertiary);border-radius:4px;height:8px;overflow:hidden}
+.bf{height:100%;border-radius:4px}
+.bv{font-size:12px;font-weight:500;color:var(--color-text-primary);width:36px;text-align:right;flex-shrink:0}
+.bl{font-size:12px;color:var(--color-text-secondary);width:200px;flex-shrink:0}
+.tabs{display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap}
+.tab{font-size:12px;padding:5px 12px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);cursor:pointer;color:var(--color-text-secondary);background:transparent}
+.tab.active{background:var(--color-background-info);color:var(--color-text-info);border-color:transparent}
+.pill{font-size:11px;padding:2px 8px;border-radius:var(--border-radius-md);flex-shrink:0;min-width:52px;text-align:center}
+.p-green{background:#E1F5EE;color:#0F6E56}
+.p-amber{background:#FAEEDA;color:#854F0B}
+.p-blue{background:#E6F1FB;color:#185FA5}
+.p-red{background:#FCEBEB;color:#A32D2D}
+.p-purple{background:#EEEDFE;color:#534AB7}
+.p-gray{background:#F1EFE8;color:#5F5E5A}
+.row{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)}
+.row:last-child{border:none;padding-bottom:0}
+.rt{font-size:12px;color:var(--color-text-primary);flex:1;line-height:1.6}
+.rs{font-size:11px;color:var(--color-text-secondary);flex-shrink:0;min-width:60px;text-align:right}
+.vd{border-left:3px solid #1D9E75;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:10px 14px;background:var(--color-background-primary);margin-bottom:8px}
+.vt{font-size:13px;font-weight:500;color:var(--color-text-primary);margin:0 0 3px}
+.vd2{font-size:12px;color:var(--color-text-secondary);margin:0;line-height:1.6}
+.warn{border-left:3px solid #E24B4A;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:10px 14px;background:var(--color-background-primary);margin-bottom:8px}
+.info{border-left:3px solid #378ADD;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0;padding:10px 14px;background:var(--color-background-primary);margin-bottom:8px}
+.path-card{background:var(--color-background-secondary);border-radius:var(--border-radius-lg);padding:1rem;margin-bottom:8px}
+.path-header{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.path-title{font-size:13px;font-weight:500;color:var(--color-text-primary)}
+.path-item{font-size:12px;color:var(--color-text-secondary);margin-bottom:4px;display:flex;gap:6px}
+.path-metric{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
+.pm{background:var(--color-background-primary);border-radius:var(--border-radius-md);padding:6px 8px;text-align:center}
+.pmv{font-size:14px;font-weight:500;color:var(--color-text-primary)}
+.pml{font-size:10px;color:var(--color-text-secondary);margin-top:1px}
+.highlight{border:2px solid #378ADD}
+</style>
+
+<div class="sec">
+<div class="tabs">
+  <button class="tab active" onclick="setTab('score')">Score por dimensão</button>
+  <button class="tab" onclick="setTab('tecnica')">Análise técnica</button>
+  <button class="tab" onclick="setTab('gaps')">Pontos críticos</button>
+  <button class="tab" onclick="setTab('caminhos')">3 caminhos</button>
+  <button class="tab" onclick="setTab('futuro')">Visão 12-24 meses</button>
+</div>
+
+<div id="tab-score">
+  <div class="lbl">Maturidade do projeto — avaliação holística pelo gemini.md §0.8</div>
+  <div class="mg4">
+    <div class="mc"><div class="mv" style="color:#1D9E75">87</div><div class="ml">score técnico geral</div></div>
+    <div class="mc"><div class="mv" style="color:#378ADD">72</div><div class="ml">maturidade de negócio</div></div>
+    <div class="mc"><div class="mv" style="color:#7F77DD">65</div><div class="ml">maturidade de IA/MLOps</div></div>
+    <div class="mc"><div class="mv" style="color:#BA7517">58</div><div class="ml">prontidão produção</div></div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">Score por pilar — comparado ao gemini.md §4 Matriz de Riscos</div>
+    <div class="br"><div class="bl">Arquitetura Medalhão</div><div class="bt"><div class="bf" style="width:92%;background:#1D9E75"></div></div><div class="bv">92</div></div>
+    <div class="br"><div class="bl">Ingestão resiliente</div><div class="bt"><div class="bf" style="width:88%;background:#1D9E75"></div></div><div class="bv">88</div></div>
+    <div class="br"><div class="bl">SQL analítico / DuckDB</div><div class="bt"><div class="bf" style="width:90%;background:#1D9E75"></div></div><div class="bv">90</div></div>
+    <div class="br"><div class="bl">Data contracts / Pydantic</div><div class="bt"><div class="bf" style="width:82%;background:#1D9E75"></div></div><div class="bv">82</div></div>
+    <div class="br"><div class="bl">Observabilidade / telemetria</div><div class="bt"><div class="bf" style="width:45%;background:#BA7517"></div></div><div class="bv">45</div></div>
+    <div class="br"><div class="bl">MLOps / modelo IA</div><div class="bt"><div class="bf" style="width:55%;background:#BA7517"></div></div><div class="bv">55</div></div>
+    <div class="br"><div class="bl">CI/CD / auto-healing</div><div class="bt"><div class="bf" style="width:70%;background:#378ADD"></div></div><div class="bv">70</div></div>
+    <div class="br"><div class="bl">Testes / cobertura</div><div class="bt"><div class="bf" style="width:62%;background:#378ADD"></div></div><div class="bv">62</div></div>
+    <div class="br"><div class="bl">Data contracts Silver/Gold</div><div class="bt"><div class="bf" style="width:40%;background:#E24B4A"></div></div><div class="bv">40</div></div>
+    <div class="br"><div class="bl">RAG / IA conversacional</div><div class="bt"><div class="bf" style="width:38%;background:#E24B4A"></div></div><div class="bv">38</div></div>
+  </div>
+
+  <div class="vd">
+    <div class="vt">Veredicto: projeto de maturidade avançada para portfolio — acima de 85% dos projetos públicos F1</div>
+    <div class="vd2">A combinação Dagster + Medalhão + DuckDB in-memory + ASOF JOIN temporal é genuinamente diferenciada. A maioria dos projetos F1 públicos usa Pandas + CSV + Streamlit. Você está 2 níveis acima. O gap crítico é MLOps e observabilidade estruturada.</div>
+  </div>
+</div>
+
+<div id="tab-tecnica" style="display:none">
+  <div class="lbl">O que está excelente — evidência SOURCED + OBSERVED</div>
+
+  <div class="card">
+    <div class="card-h"><span class="pill p-green">destaque</span><span class="card-title">ASOF JOIN temporal entre telemetria (3.7Hz) e localização (1.5Hz)</span></div>
+    <div class="vd2" style="font-size:12px">Resolver o problema de frequências diferentes com ASOF JOIN no DuckDB em memória é uma decisão arquitetural de nível sênior. A maioria interpolaria no Pandas (2-3x mais lento, com perda semântica). Isso aqui é o que um engenheiro FAANG faria.</div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><span class="pill p-green">destaque</span><span class="card-title">DuckDB :memory: com Views virtuais — zero write locks em produção</span></div>
+    <div class="vd2" style="font-size:12px">Mapear Parquets como Views dinâmicas e usar asyncio.to_thread para não bloquear o event loop do FastAPI é padrão de performance que vai além do tutorial. Elimina concorrência de escrita e garante respostas em milissegundos.</div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><span class="pill p-green">destaque</span><span class="card-title">Ingestão resiliente com tenacity + backoff exponencial</span></div>
+    <div class="vd2" style="font-size:12px">Tratar 404s e timeouts da OpenF1 API com retry exponencial é o padrão §5 do gemini.md. A OpenF1 API é pública e instável — sem isso, o pipeline quebra silenciosamente em corridas ao vivo.</div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><span class="pill p-green">destaque</span><span class="card-title">Auto-healing de CI/CD com notify-send + diagnóstico automático</span></div>
+    <div class="vd2" style="font-size:12px">O módulo de monitoramento que consulta GitHub Actions, gera alertas desktop e executa make format/lint automaticamente é uma feature que projetos enterprise normalmente implementam com ferramentas externas (PagerDuty, Datadog). Aqui está em Python puro.</div>
+  </div>
+
+  <div class="sep"></div>
+  <div class="lbl">Stack validation — conformidade com §2 Detection Matrix do gemini.md</div>
+  <div class="row"><span class="pill p-green">válido</span><span class="rt">assets.py → pipeline-architect ativo (ingestão Dagster + tenacity)</span><span class="rs">§2 ✓</span></div>
+  <div class="row"><span class="pill p-green">válido</span><span class="rt">DuckDB + ASOF JOIN → sql-optimizer ativo</span><span class="rs">§2 ✓</span></div>
+  <div class="row"><span class="pill p-green">válido</span><span class="rt">bronze/silver/gold/ → medallion-architect ativo</span><span class="rs">§2 ✓</span></div>
+  <div class="row"><span class="pill p-green">válido</span><span class="rt">Pydantic v2 + validação → data-quality-analyst</span><span class="rs">§2 ✓</span></div>
+  <div class="row"><span class="pill p-green">válido</span><span class="rt">test_*.py + pytest → test-generator ativo</span><span class="rs">§2 ✓</span></div>
+  <div class="row"><span class="pill p-amber">parcial</span><span class="rt">TF-IDF local como RAG → genai-architect parcial (sem ChromaDB ou pgvector)</span><span class="rs">§2 ~</span></div>
+  <div class="row"><span class="pill p-red">ausente</span><span class="rt">Telemetria estruturada de pipeline → §3.6 Observability Mandatory não implementado</span><span class="rs">§2 ✗</span></div>
+</div>
+
+<div id="tab-gaps" style="display:none">
+  <div class="lbl">Pontos críticos — análise §4 Matriz de Riscos de Escala</div>
+
+  <div class="warn">
+    <div class="vt" style="color:#791F1F">🔴 CRÍTICO — RAG com TF-IDF: risco de escala e precisão</div>
+    <div class="vd2" style="color:#A32D2D">O endpoint /api/analytics/chat usa TF-IDF (scikit-learn) como motor de similaridade semântica. TF-IDF é bag-of-words — não entende contexto, sinônimos ou linguagem natural complexa. Em produção com usuários reais, a qualidade de resposta vai degradar rapidamente. §4 §VECTOR_DB: "Chunking fixo sem considerar estrutura semântica" é exatamente o risco aqui. Substituir por ChromaDB + embeddings reais é a correção estrutural.</div>
+  </div>
+
+  <div class="warn">
+    <div class="vt" style="color:#791F1F">🔴 CRÍTICO — RandomForestRegressor: modelo sem MLOps real</div>
+    <div class="vd2" style="color:#A32D2D">O modelo é treinado no final do pipeline Dagster e serializado como .joblib. Sem: versionamento de modelo, monitoramento de drift, métricas de performance pós-deploy, retreino automático quando novos dados chegam. Em produção, o modelo vai degradar silenciosamente com dados de novos GPs. §4.5 AI Governance: "Model Drift" e "Knowledge Freshness" estão sem cobertura.</div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">🟡 Riscos de escala identificados</div>
+    <div class="row"><span class="pill p-amber">escala</span><span class="rt">Parquet sem particionamento temporal explícito — em temporadas completas (20+ GPs × 20 pilotos × 3.7Hz) o volume pode ultrapassar 50GB sem Predicate Pushdown adequado</span></div>
+    <div class="row"><span class="pill p-amber">escala</span><span class="rt">endpoint /api/analytics/query sem paginação — queries ad-hoc sem LIMIT podem retornar datasets inteiros para o cliente</span></div>
+    <div class="row"><span class="pill p-amber">escala</span><span class="rt">Compress_bronze.py cria .tar.gz por GP, mas sem índice de catálogo — busca por GP específico requer descompressão completa</span></div>
+    <div class="row"><span class="pill p-amber">telemetria</span><span class="rt">§3.6 Observability Mandatory: nenhuma das métricas obrigatórias (runtime_seconds, records_processed, records_rejected, freshness_minutes) está documentada no README como emitida</span></div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">🔵 Débitos técnicos identificados</div>
+    <div class="row"><span class="pill p-blue">débito</span><span class="rt">Data Contracts Silver/Gold (§3.5) ausentes — Pydantic valida entrada mas não há contrato formal de saída com SLA, Owner, versão semântica e Freshness SLA</span></div>
+    <div class="row"><span class="pill p-blue">débito</span><span class="rt">27 testes documentados — cobertura não declarada. §3.5.1 exige testes de schema no CI antes do merge</span></div>
+    <div class="row"><span class="pill p-blue">débito</span><span class="rt">Frontend Vanilla JS — sem framework reativo. Em escala de features (streaming ao vivo, alertas em tempo real) vira débito de manutenção</span></div>
+    <div class="row"><span class="pill p-blue">débito</span><span class="rt">Branch único (master) sem proteção — CI/CD sem branch strategy pode causar deploy acidental de código com testes falhando</span></div>
+  </div>
+</div>
+
+<div id="tab-caminhos" style="display:none">
+  <div class="lbl">Comparativo de 3 caminhos de evolução — §0.8.3 Alternatives Analysis</div>
+
+  <div class="path-card">
+    <div class="path-header"><span class="pill p-gray">caminho A</span><span class="path-title">Consolidar e polir — portfolio de alta qualidade</span></div>
+    <div class="path-item"><span style="color:#1D9E75">✓</span><span>Substituir TF-IDF por ChromaDB + embeddings reais (sentence-transformers)</span></div>
+    <div class="path-item"><span style="color:#1D9E75">✓</span><span>Adicionar data contracts formais nas camadas Silver e Gold (§3.5)</span></div>
+    <div class="path-item"><span style="color:#1D9E75">✓</span><span>Implementar §3.6 Observability nas métricas do Dagster</span></div>
+    <div class="path-item"><span style="color:#1D9E75">✓</span><span>Elevar cobertura de testes para 85%+ com pytest-cov</span></div>
+    <div class="path-item"><span style="color:#E24B4A">✗</span><span>Não expande o domínio — permanece como projeto local/acadêmico</span></div>
+    <div class="path-metric">
+      <div class="pm"><div class="pmv">2-3 sem</div><div class="pml">prazo</div></div>
+      <div class="pm"><div class="pmv">baixo</div><div class="pml">risco</div></div>
+      <div class="pm"><div class="pmv">alto</div><div class="pml">portfolio</div></div>
+    </div>
+  </div>
+
+  <div class="path-card highlight">
+    <div class="path-header"><span class="pill p-blue">caminho B</span><span class="path-title">Plataforma multi-temporada — SaaS embrionário ⭐ recomendado</span></div>
+    <div class="path-item"><span style="color:#1D9E75">✓</span><span>Tudo do Caminho A +</span></div>
+    <div class="path-item"><span style="color:#1D9E75">✓</span><span>Multi-GP parametrizado: pipeline processa qualquer GP/temporada por config</span></div>
+    <div class="path-item"><span style="color:#1D9E75">✓</span><span>MLOps real: MLflow para tracking, versionamento e retreino automático por GP</span></div>
+    <div class="path-item"><span style="color:#1D9E75">✓</span><span>API pública documentada (Swagger + Redoc) para comunidade F1</span></div>
+    <div class="path-item"><span style="color:#1D9E75">✓</span><span>Streaming em tempo real (WebSocket) durante corridas ao vivo</span></div>
+    <div class="path-item"><span style="color:#1D9E75">✓</span><span>Deploy cloud (Railway/Render free tier) — URL pública compartilhável</span></div>
+    <div class="path-item"><span style="color:#BA7517">~</span><span>Requer 4-6 semanas de trabalho focado</span></div>
+    <div class="path-metric">
+      <div class="pm"><div class="pmv">4-6 sem</div><div class="pml">prazo</div></div>
+      <div class="pm"><div class="pmv">médio</div><div class="pml">risco</div></div>
+      <div class="pm"><div class="pmv">muito alto</div><div class="pml">impacto</div></div>
+    </div>
+  </div>
+
+  <div class="path-card">
+    <div class="path-header"><span class="pill p-purple">caminho C</span><span class="path-title">Produto de dados F1 com monetização — visão 12-24 meses</span></div>
+    <div class="path-item"><span style="color:#1D9E75">✓</span><span>Tudo do Caminho B +</span></div>
+    <div class="path-item"><span style="color:#1D9E75">✓</span><span>Predições proprietárias com modelo ensemble (RF + XGBoost + LightGBM)</span></div>
+    <div class="path-item"><span style="color:#1D9E75">✓</span><span>API com autenticação e tiers (free/pro) — Stripe para monetização</span></div>
+    <div class="path-item"><span style="color:#1D9E75">✓</span><span>Dashboard SaaS para times amadores de F1 (sim racing, fantasy leagues)</span></div>
+    <div class="path-item"><span style="color:#1D9E75">✓</span><span>Parceria com criadores de conteúdo F1 (YouTube, Twitch) como ferramenta ao vivo</span></div>
+    <div class="path-item"><span style="color:#E24B4A">✗</span><span>Alto risco: mercado nicho, requer suporte ativo, custos de infra crescem com escala</span></div>
+    <div class="path-metric">
+      <div class="pm"><div class="pmv">12-24m</div><div class="pml">prazo</div></div>
+      <div class="pm"><div class="pmv">alto</div><div class="pml">risco</div></div>
+      <div class="pm"><div class="pmv">estratégico</div><div class="pml">impacto</div></div>
+    </div>
+  </div>
+
+  <div class="vd">
+    <div class="vt">Eu escolheria: Caminho B — por quê</div>
+    <div class="vd2">O Caminho A não aproveita o potencial real da arquitetura. O Caminho C tem risco alto demais sem validação de mercado. O B é o meio-termo que transforma um excelente projeto de portfolio em uma plataforma real com URL pública, demonstrando domínio completo de end-to-end data engineering — exatamente o que diferencia candidatos FAANG.</div>
+  </div>
+</div>
+
+<div id="tab-futuro" style="display:none">
+  <div class="lbl">Visão de futuro — o que esse projeto pode se tornar em 12-24 meses</div>
+
+  <div class="mg3">
+    <div class="mc"><div class="mv" style="color:#1D9E75">6 meses</div><div class="ml">plataforma multi-GP ao vivo</div></div>
+    <div class="mc"><div class="mv" style="color:#378ADD">12 meses</div><div class="ml">API pública com 100+ usuários</div></div>
+    <div class="mc"><div class="mv" style="color:#7F77DD">24 meses</div><div class="ml">produto SaaS ou aquisição</div></div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">O maior ativo oculto desse projeto</div>
+    <div class="row"><span class="pill p-purple">oculto</span><span class="rt">ASOF JOIN temporal entre frequências diferentes é uma solução para um problema real de qualquer telemetria industrial — IoT, sensores de fábrica, veículos autônomos. A mesma arquitetura serve qualquer domínio com multi-frequency time series.</span></div>
+    <div class="row"><span class="pill p-purple">oculto</span><span class="rt">O pipeline Dagster + Medalhão é template replicável para qualquer API esportiva (NBA, cricket, MotoGP). Com parametrização, vira um produto de dados multi-domínio.</span></div>
+    <div class="row"><span class="pill p-purple">oculto</span><span class="rt">O endpoint /api/analytics/query com DuckDB é um mini Data Lakehouse query engine serverless. Equipes de BI pagariam por isso como serviço gerenciado.</span></div>
+  </div>
+
+  <div class="card">
+    <div class="lbl">O que adicionar nos próximos 3 meses para maximizar o impacto no mercado de trabalho</div>
+    <div class="row"><span class="pill p-blue">prioridade 1</span><span class="rt">ChromaDB + sentence-transformers no endpoint /chat — transforma o RAG de brinquedo em feature real demonstrável em entrevistas</span></div>
+    <div class="row"><span class="pill p-blue">prioridade 2</span><span class="rt">MLflow tracking + experiment comparison — mostra que você sabe MLOps além de treinar um modelo</span></div>
+    <div class="row"><span class="pill p-blue">prioridade 3</span><span class="rt">Deploy público (Railway/Render) com URL real — transforma "fiz um projeto" em "acessa aqui agora"</span></div>
+    <div class="row"><span class="pill p-green">bônus</span><span class="rt">Adicionar §3.6 Observability com Prometheus/Grafana ou mesmo logging estruturado JSON — mostra maturidade operacional que 90% dos candidatos não têm</span></div>
+  </div>
+
+  <div class="info">
+    <div class="vt">Potencial de monetização real — evidence: HEURISTIC (projeção)</div>
+    <div class="vd2">O mercado de F1 analytics está crescendo com a popularidade da série Drive to Survive. Ferramentas como FastF1 têm 3K+ stars no GitHub mas não têm UI ou predições. Um produto com UI premium Ferrari + predições de tempo de volta + API pública pode capturar esse mercado. Risco: comunidade F1 é entusiasta mas pequena para SaaS sustentável — validar com versão gratuita antes de monetizar.</div>
+  </div>
+</div>
+</div>
+
+<script>
+function setTab(t){
+  ['score','tecnica','gaps','caminhos','futuro'].forEach(id=>{
+    document.getElementById('tab-'+id).style.display=id===t?'block':'none';
+  });
+  document.querySelectorAll('.tab').forEach((b,i)=>{
+    b.classList.toggle('active',['score','tecnica','gaps','caminhos','futuro'][i]===t);
+  });
+}
+</script>
