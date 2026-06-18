@@ -33,6 +33,15 @@ Para respostas, planos, revisoes e decisoes tecnicas substantivas, aplicar estes
 9. Separar papeis de geracao, critica e integracao quando o risco justificar; o
    Lead Agent valida handoffs antes de transformar parecer em decisao.
 
+## Modelo de Execução
+
+Cadeia de fallback automático:
+1. `deepseek-v4-flash-opencode-zen` (Free) — padrão para T0-T5
+2. `mimo-v2.5-opencode-go-medium` — fallback automático
+
+Gatilho: 2+ timeouts consecutivos de bash (exit code -1 / exceeded).
+Ação: migrar modelo e continuar. Se fallback falhar: handoff + parada.
+
 Disponibilidade de capacidade nao significa invocacao. `Supporting Agents` deve
 listar somente subagentes realmente acionados.
 

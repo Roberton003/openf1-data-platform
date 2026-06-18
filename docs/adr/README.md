@@ -21,6 +21,7 @@ Cada arquivo segue o padrão de mercado de **ADR (Nygard format)**, registrando 
 | **[ADR-009](adr-009-f1-015-consolidacao-saneamento.md)** | [Consolidação e Saneamento F1-015](adr-009-f1-015-consolidacao-saneamento.md) | **Accepted** | 2026-06-18 | Consolidação do plano F1-015. |
 | **[ADR-010](adr-010-runtime-governance.md)** | [Runtime Governance](adr-010-runtime-governance.md) | **Accepted** | 2026-06-18 | Runtime Governance como camada nativa. |
 | **[ADR-011](adr-011-harness-reduction.md)** | [Redução do Harness](adr-011-harness-reduction.md) | **Accepted** | 2026-06-18 | Redução de 41 para 18 skills, 35 para 20 agents. |
+| **[ADR-012](adr-012-model-escalation-fallback.md)** | [Model Escalation & Fallback Automático](adr-012-model-escalation-fallback.md) | **Accepted** | 2026-06-18 | Cadeia deepseek Free → mimo pago com gatilho automático por timeout. |
 
 ---
 
