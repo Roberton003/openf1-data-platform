@@ -34,7 +34,8 @@ _SQL_BLOCKED_TOKENS = re.compile(
     r"\b("
     r"drop|delete|insert|update|alter|create|truncate|vacuum|replace|"
     r"attach|detach|copy|export|write_parquet|write_csv|read_text|"
-    r"httpfs|pragma\s+\w+\s*=\s*['\"]"
+    r"httpfs|pragma\s+\w+\s*=\s*['\"]|"
+    r"load|install|force_install|set|call|secret"
     r")\b",
     re.IGNORECASE,
 )

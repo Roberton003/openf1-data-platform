@@ -1,3 +1,4 @@
+import hmac
 import os
 import time
 from collections import defaultdict
@@ -42,7 +43,7 @@ async def verify_api_key(request: Request, call_next):
             "/api/predictions",
         )
     ):
-        if not token or token != api_key:
+        if not token or not hmac.compare_digest(token, api_key):
             return JSONResponse(
                 status_code=401,
                 content={

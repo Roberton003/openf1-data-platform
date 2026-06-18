@@ -104,6 +104,7 @@ def _seed_mock_data(conn: duckdb.DuckDBPyConnection) -> None:
         """
         CREATE TABLE fact_car_telemetry (
             session_key INTEGER, driver_number INTEGER, date TIMESTAMP,
+            x INTEGER, y INTEGER, z INTEGER,
             speed INTEGER, rpm INTEGER, n_gear INTEGER,
             throttle DOUBLE, brake DOUBLE, drs INTEGER
         )
@@ -111,9 +112,9 @@ def _seed_mock_data(conn: duckdb.DuckDBPyConnection) -> None:
     )
     conn.execute(
         "INSERT INTO fact_car_telemetry VALUES "
-        "(10014, 44, '2025-03-16 12:00:00.000', 312, 11800, 7, 98.5, 0.0, 12), "
-        "(10014, 44, '2025-03-16 12:00:01.000', 315, 12000, 7, 99.0, 0.0, 12), "
-        "(10014, 1, '2025-03-16 12:00:00.000', 320, 12100, 8, 100.0, 0.0, 12)"
+        "(10014, 44, '2025-03-16 12:00:00.000', 100, 200, 0, 312, 11800, 7, 98.5, 0.0, 12), "
+        "(10014, 44, '2025-03-16 12:00:01.000', 110, 210, 0, 315, 12000, 7, 99.0, 0.0, 12), "
+        "(10014, 1, '2025-03-16 12:00:00.000', 90, 190, 0, 320, 12100, 8, 100.0, 0.0, 12)"
     )
 
     # fact_car_location
@@ -322,6 +323,15 @@ def synthetic_model(tmp_path):
     X = rng.rand(100, 5) * 100
     y = 50 + X[:, 0] * 0.5 + rng.rand(100) * 5
     model.fit(X, y)
+    model.feature_names_in_ = np.array(
+        [
+            "throttle_intensity_pct",
+            "brake_intensity_pct",
+            "tyre_age_at_start",
+            "compound_num",
+            "max_speed",
+        ]
+    )
     model_path = tmp_path / "lap_regressor.joblib"
     joblib.dump(model, model_path)
     return model_path

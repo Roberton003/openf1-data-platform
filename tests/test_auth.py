@@ -43,6 +43,11 @@ class TestWithoutApiKey:
         resp = client.post("/api/analytics/query", json={"query": "SELECT 1"})
         assert resp.status_code != 401
 
+    def test_race_intelligence_bypass(self, mock_db):
+        client = _make_client(mock_db)
+        resp = client.get("/api/race_intelligence/session_summary?session_key=10014")
+        assert resp.status_code == 200
+
 
 # ---------------------------------------------------------------------------
 # With API key — auth enforced
@@ -78,4 +83,18 @@ class TestWithApiKey:
         client = _make_client(mock_db)
         headers = {"Authorization": f"Bearer {VALID_KEY}"}
         resp = client.get(PROTECTED_PATH, headers=headers)
+        assert resp.status_code == 200
+
+    def test_race_intelligence_without_key(self, mock_db):
+        client = _make_client(mock_db)
+        resp = client.get("/api/race_intelligence/session_summary?session_key=10014")
+        assert resp.status_code == 200
+
+    def test_race_intelligence_with_key(self, mock_db):
+        client = _make_client(mock_db)
+        headers = {"X-API-Key": VALID_KEY}
+        resp = client.get(
+            "/api/race_intelligence/session_summary?session_key=10014",
+            headers=headers,
+        )
         assert resp.status_code == 200

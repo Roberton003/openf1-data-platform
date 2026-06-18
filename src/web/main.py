@@ -17,7 +17,8 @@ from fastapi.staticfiles import StaticFiles
 from src.web.auth import rate_limit_middleware, verify_api_key
 from src.web.database import close_shared_connection
 from src.web.health import router as health_router
-from src.web.logging import configure_logging, generate_request_id, get_request_logger
+from src.web.logging import (configure_logging, generate_request_id,
+                             get_request_logger)
 from src.web.routers import analytics, ci_alerts, race_intelligence, telemetry
 
 _log_level = _os.environ.get("OPENF1_LOG_LEVEL", "INFO")
@@ -60,8 +61,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in _cors_origins.split(",")],
     allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Authorization", "X-API-Key", "Content-Type", "X-Request-ID"],
 )
 
 

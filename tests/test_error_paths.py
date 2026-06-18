@@ -4,7 +4,7 @@ import duckdb
 import pytest
 from fastapi.testclient import TestClient
 
-from src.web.database import get_db
+from src.web.database import EMPTY_TABLE_SCHEMAS, get_db
 from src.web.main import app
 
 
@@ -28,6 +28,12 @@ def empty_db():
     conn.execute(
         "INSERT INTO dim_drivers VALUES (1, 'Max Verstappen', 'VER', 'Red Bull Racing', 'NED')"
     )
+    conn.execute(
+        "CREATE TABLE dim_stints (session_key INTEGER, driver_number INTEGER, "
+        "stint_number INTEGER, compound VARCHAR, lap_start INTEGER, "
+        "lap_end INTEGER, tyre_age_at_start INTEGER)"
+    )
+    conn.execute("INSERT INTO dim_stints VALUES (10014, 1, 1, 'MEDIUM', 1, 18, 0)")
     conn.execute(
         "CREATE TABLE fact_car_telemetry (session_key INTEGER, driver_number INTEGER, "
         "speed DOUBLE, rpm DOUBLE, throttle DOUBLE, brake DOUBLE, n_gear INTEGER)"
@@ -112,11 +118,7 @@ def test_sql_gateway_empty_query(client):
 
 def test_dim_sessions_schema_contract():
     conn = duckdb.connect(database=":memory:")
-    conn.execute(
-        "CREATE TABLE dim_sessions (session_key INTEGER, year INTEGER, "
-        "session_name VARCHAR, session_type VARCHAR, circuit_key INTEGER, "
-        "circuit_short_name VARCHAR, country_name VARCHAR)"
-    )
+    conn.execute(f"CREATE TABLE dim_sessions ({EMPTY_TABLE_SCHEMAS['dim_sessions']})")
     columns = [col[0] for col in conn.execute("DESCRIBE dim_sessions").fetchall()]
     required = {"session_key", "year", "session_name", "session_type", "country_name"}
     assert required.issubset(columns), f"Missing: {required - set(columns)}"
@@ -125,10 +127,7 @@ def test_dim_sessions_schema_contract():
 
 def test_dim_drivers_schema_contract():
     conn = duckdb.connect(database=":memory:")
-    conn.execute(
-        "CREATE TABLE dim_drivers (driver_number INTEGER, full_name VARCHAR, "
-        "name_acronym VARCHAR, team_name VARCHAR, country_code VARCHAR)"
-    )
+    conn.execute(f"CREATE TABLE dim_drivers ({EMPTY_TABLE_SCHEMAS['dim_drivers']})")
     columns = [col[0] for col in conn.execute("DESCRIBE dim_drivers").fetchall()]
     required = {"driver_number", "full_name", "team_name"}
     assert required.issubset(columns), f"Missing: {required - set(columns)}"
@@ -138,9 +137,7 @@ def test_dim_drivers_schema_contract():
 def test_fact_car_telemetry_schema_contract():
     conn = duckdb.connect(database=":memory:")
     conn.execute(
-        "CREATE TABLE fact_car_telemetry ("
-        "session_key INTEGER, driver_number INTEGER, speed DOUBLE, "
-        "rpm DOUBLE, throttle DOUBLE, brake DOUBLE, n_gear INTEGER)"
+        f"CREATE TABLE fact_car_telemetry ({EMPTY_TABLE_SCHEMAS['fact_car_telemetry']})"
     )
     columns = [col[0] for col in conn.execute("DESCRIBE fact_car_telemetry").fetchall()]
     required = {"session_key", "driver_number", "speed"}
