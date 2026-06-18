@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
+import pandas as pd
 from pydantic import BaseModel, Field, field_validator
 
 # =====================================================================
@@ -154,9 +155,9 @@ SESSION_RESULTS_SCHEMA = {
     "position": "int64",
     "number_of_laps": "int64",
     "points": "float64",
-    "dnf": "bool",
-    "dns": "bool",
-    "dsq": "bool",
+    "dnf": pd.BooleanDtype(),
+    "dns": pd.BooleanDtype(),
+    "dsq": pd.BooleanDtype(),
     "duration": "float64",
     "gap_to_leader": "string",
 }

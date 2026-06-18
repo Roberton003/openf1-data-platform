@@ -151,7 +151,7 @@ make format
 # Executar linting estático PEP 8 (Flake8)
 make lint
 
-# Executar a suíte completa de testes (27 testes unitários e de qualidade analítica)
+# Executar a suíte completa de testes (112 testes passando via hatch run test ou .venv/bin/python3 -m pytest)
 make test
 ```
 *A suíte de testes unitários valida os contratos do Pydantic, a validação vetorizada da Silver, o Star Schema do DuckDB, e as lógicas de simulação de alertas do monitor de CI.*

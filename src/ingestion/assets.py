@@ -5,7 +5,7 @@ import duckdb
 import joblib
 import pandas as pd
 import requests
-from dagster import AssetExecutionContext, asset
+from dagster import AssetExecutionContext, Config, asset
 from sklearn.ensemble import RandomForestRegressor
 from tenacity import retry, stop_after_attempt, wait_exponential
 
@@ -46,6 +46,17 @@ SESSIONS_TO_PROCESS = [
     {"year": 2025, "session_key": 9979, "gp": "Monaco"},
     {"year": 2025, "session_key": 9693, "gp": "Australia"},
 ]
+
+
+class IngestionConfig(Config):
+    """Dagster RunConfig for overriding the ingestion scope.
+
+    When empty (default), falls back to SESSIONS_TO_PROCESS.
+    When provided, filters/overrides the session keys to process.
+    """
+
+    session_keys: list[int] | None = None
+    focus_drivers: str | None = None
 
 
 @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=2, min=2, max=15))
