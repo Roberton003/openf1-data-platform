@@ -1,0 +1,308 @@
+:root {
+  --bg: #101216;
+  --panel: #191d24;
+  --panel-strong: #222833;
+  --text: #edf1f5;
+  --muted: #a8b2bf;
+  --line: #323946;
+  --red: #e43d30;
+  --teal: #22b8a7;
+  --amber: #f2b84b;
+  --blue: #4c8df6;
+  --radius: 8px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  letter-spacing: 0;
+}
+
+button,
+select {
+  font: inherit;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 96px;
+  padding: 24px 32px;
+  border-bottom: 1px solid var(--line);
+  background: #151922;
+}
+
+.eyebrow {
+  margin: 0 0 4px;
+  color: var(--teal);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+h1,
+h2 {
+  margin: 0;
+  letter-spacing: 0;
+}
+
+h1 {
+  font-size: clamp(2rem, 2.8rem, 3rem);
+}
+
+h2 {
+  font-size: 1rem;
+}
+
+.session-controls {
+  display: grid;
+  grid-template-columns: auto minmax(220px, 340px) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+label {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+select,
+button {
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--text);
+}
+
+button {
+  padding: 0 14px;
+  cursor: pointer;
+}
+
+button:focus-visible,
+select:focus-visible {
+  outline: 3px solid rgba(34, 184, 167, 0.45);
+  outline-offset: 2px;
+}
+
+.app-shell {
+  width: min(1440px, 100%);
+  margin: 0 auto;
+  padding: 24px 32px 40px;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.metric-panel,
+.side-panel,
+.chart-panel {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.metric-panel {
+  min-height: 112px;
+  padding: 18px;
+}
+
+.metric-panel span,
+.metric-panel small {
+  display: block;
+  color: var(--muted);
+}
+
+.metric-panel strong {
+  display: block;
+  margin: 10px 0 4px;
+  font-size: 1.8rem;
+  line-height: 1.05;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  gap: 18px;
+}
+
+.side-panel {
+  align-self: start;
+  padding: 18px;
+}
+
+.field-stack {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.duel-cards {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.driver-card,
+.empty-state,
+.health-row,
+.timeline-item {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-strong);
+}
+
+.driver-card {
+  padding: 14px;
+}
+
+.driver-card strong {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.driver-card dl {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 12px;
+  margin: 0;
+  color: var(--muted);
+}
+
+.driver-card dd {
+  margin: 0;
+  color: var(--text);
+}
+
+.main-panel {
+  min-width: 0;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.tab-button.active {
+  border-color: var(--red);
+  background: rgba(228, 61, 48, 0.14);
+}
+
+.view {
+  display: none;
+}
+
+.view.active {
+  display: block;
+}
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  gap: 14px;
+}
+
+.chart-panel {
+  padding: 16px;
+  min-width: 0;
+}
+
+.chart {
+  width: 100%;
+  min-height: 360px;
+}
+
+.health-panel,
+.prediction-panel,
+.timeline-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.health-row,
+.timeline-item {
+  padding: 12px;
+}
+
+.timeline-item {
+  display: grid;
+  grid-template-columns: 118px 92px 1fr;
+  gap: 10px;
+  align-items: start;
+}
+
+.timeline-item.warning {
+  border-left: 4px solid var(--amber);
+}
+
+.timeline-item.critical {
+  border-left: 4px solid var(--red);
+}
+
+.timeline-time,
+.timeline-source,
+.empty-state {
+  color: var(--muted);
+}
+
+.empty-state {
+  padding: 18px;
+}
+
+.prediction-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.prediction-kpis div {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+  background: var(--panel-strong);
+}
+
+@media (max-width: 920px) {
+  .app-header,
+  .workspace,
+  .chart-grid,
+  .summary-grid,
+  .prediction-kpis {
+    grid-template-columns: 1fr;
+  }
+
+  .app-header {
+    display: grid;
+    padding: 20px;
+  }
+
+  .session-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .app-shell {
+    padding: 18px;
+  }
+
+  .timeline-item {
+    grid-template-columns: 1fr;
+  }
+}

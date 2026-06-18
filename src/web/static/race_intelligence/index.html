@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OpenF1 Race Intelligence</title>
+    <link rel="stylesheet" href="/static/race_intelligence/styles.css" />
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">OpenF1 Data Platform</p>
+        <h1>Race Intelligence</h1>
+      </div>
+      <div class="session-controls" aria-label="Session controls">
+        <label for="sessionKey">Session</label>
+        <select id="sessionKey"></select>
+        <button id="refreshButton" type="button">Refresh</button>
+      </div>
+    </header>
+
+    <main class="app-shell">
+      <section class="summary-grid" aria-label="Session summary">
+        <article class="metric-panel">
+          <span>Winner</span>
+          <strong id="winnerValue">--</strong>
+          <small id="winnerMeta">--</small>
+        </article>
+        <article class="metric-panel">
+          <span>Drivers</span>
+          <strong id="driverCount">--</strong>
+          <small>active in selected session</small>
+        </article>
+        <article class="metric-panel">
+          <span>Events</span>
+          <strong id="eventCount">--</strong>
+          <small>race control timeline</small>
+        </article>
+        <article class="metric-panel">
+          <span>Pipeline</span>
+          <strong id="pipelineStatus">--</strong>
+          <small id="pipelineMeta">--</small>
+        </article>
+      </section>
+
+      <section class="workspace">
+        <aside class="side-panel" aria-label="Driver comparison">
+          <h2>Driver Duel</h2>
+          <div class="field-stack">
+            <label for="driverOne">Driver 1</label>
+            <select id="driverOne"></select>
+          </div>
+          <div class="field-stack">
+            <label for="driverTwo">Driver 2</label>
+            <select id="driverTwo"></select>
+          </div>
+          <div id="duelCards" class="duel-cards"></div>
+        </aside>
+
+        <section class="main-panel" aria-label="Race analysis">
+          <div class="tabs" role="tablist">
+            <button class="tab-button active" data-view="overview" type="button">Overview</button>
+            <button class="tab-button" data-view="strategy" type="button">Strategy</button>
+            <button class="tab-button" data-view="predictions" type="button">Predictions</button>
+          </div>
+
+          <div id="overview" class="view active">
+            <div class="chart-grid">
+              <article class="chart-panel">
+                <h2>Telemetry Duel</h2>
+                <div id="duelChart" class="chart"></div>
+              </article>
+              <article class="chart-panel">
+                <h2>Pipeline Health</h2>
+                <div id="healthPanel" class="health-panel"></div>
+              </article>
+            </div>
+          </div>
+
+          <div id="strategy" class="view">
+            <article class="chart-panel">
+              <h2>Strategy Timeline</h2>
+              <div id="timelineList" class="timeline-list"></div>
+            </article>
+          </div>
+
+          <div id="predictions" class="view">
+            <article class="chart-panel">
+              <h2>Gold Predictions</h2>
+              <div id="predictionPanel" class="prediction-panel"></div>
+            </article>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script src="/static/race_intelligence/app.js"></script>
+  </body>
+</html>

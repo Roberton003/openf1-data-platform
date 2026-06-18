@@ -3,8 +3,10 @@ import os
 import tarfile
 
 
-def compress_bronze_layer() -> None:
-    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data"))
+def compress_bronze_layer(data_base_dir=None) -> None:
+    base_dir = data_base_dir or os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "../../data")
+    )
     bronze_dir = os.path.join(base_dir, "bronze")
     archive_dir = os.path.join(bronze_dir, "archive")
 

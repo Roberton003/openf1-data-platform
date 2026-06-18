@@ -54,7 +54,8 @@ def fetch_telemetry_from_db(
         ]
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Erro ao buscar telemetria no DuckDB: {str(e)}"
+            status_code=500,
+            detail="Erro interno ao buscar telemetria. Consulte os logs do servidor.",
         )
 
 

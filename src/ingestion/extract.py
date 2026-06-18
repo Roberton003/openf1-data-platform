@@ -9,7 +9,7 @@ import pandas as pd
 import requests
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from src.ingestion.config import PILOTOS_FOCO
+from src.ingestion.config import get_focus_drivers
 
 BASE_URL = "https://api.openf1.org/v1"
 DATA_DIR = os.path.join(os.path.dirname(__file__), "../../data")
@@ -164,7 +164,9 @@ def extract_driver_telemetry(
     return (driver_number, telemetry, intervals, location)
 
 
-def run_extraction_for_session(session_info: dict) -> str:
+def run_extraction_for_session(
+    session_info: dict, focus_drivers: dict[int, str]
+) -> str:
     """
     Executa a extração para uma única sessão específica.
     """
@@ -227,7 +229,7 @@ def run_extraction_for_session(session_info: dict) -> str:
 
     with ThreadPoolExecutor(max_workers=3) as executor:
         futures = []
-        for d_num, d_name in PILOTOS_FOCO.items():
+        for d_num, d_name in focus_drivers.items():
             futures.append(
                 executor.submit(
                     extract_driver_telemetry,
@@ -306,7 +308,9 @@ def run_extraction_for_session(session_info: dict) -> str:
     return partition_path
 
 
-def run_extraction(year: int, gp_name: Optional[str], session_name: str):
+def run_extraction(
+    year: int, gp_name: Optional[str], session_name: str, focus_drivers: dict[int, str]
+):
     """
     Pipeline de Ingestão da Camada Bronze.
     """
@@ -317,14 +321,14 @@ def run_extraction(year: int, gp_name: Optional[str], session_name: str):
         sessions = get_all_sessions(year, session_name)
         print(f"Encontrados {len(sessions)} GPs para ingestão em lote.")
         for s in sessions:
-            run_extraction_for_session(s)
+            run_extraction_for_session(s, focus_drivers)
             # Delay de cooldown maior entre sessões diferentes (GPs)
             print("Aguardando cooldown de 5s antes do próximo GP...")
             time.sleep(5)
     else:
         # 1. Resolução da Sessão
         session_info = get_session_info(year, gp_name, session_name)
-        run_extraction_for_session(session_info)
+        run_extraction_for_session(session_info, focus_drivers)
 
 
 if __name__ == "__main__":
@@ -340,7 +344,16 @@ if __name__ == "__main__":
     parser.add_argument(
         "--session", type=str, default="Race", help="Nome da sessão (padrão: Race)"
     )
+    parser.add_argument(
+        "--focus-drivers",
+        type=str,
+        default=None,
+        help=(
+            "Lista opcional de pilotos de foco no formato '44:Lewis Hamilton,1:Max Verstappen'"
+        ),
+    )
 
     args = parser.parse_args()
 
-    run_extraction(args.year, args.gp, args.session)
+    focus_drivers = get_focus_drivers(args.focus_drivers)
+    run_extraction(args.year, args.gp, args.session, focus_drivers)

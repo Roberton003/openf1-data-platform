@@ -42,12 +42,14 @@ docs/*
 !docs/adr/
 !docs/plans/
 !docs/session-handoffs/
+!docs/public-safe/
 !docs/PROJECT_PROFILE.md
 *.md
 !README.md
 !docs/adr/*.md
 !docs/plans/*.md
 !docs/session-handoffs/*.md
+!docs/public-safe/*.md
 
 # Temporary and Lock Files
 *~lock.*

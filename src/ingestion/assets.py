@@ -9,9 +9,7 @@ from dagster import AssetExecutionContext, asset
 from sklearn.ensemble import RandomForestRegressor
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from src.ingestion.config import PILOTOS_FOCO
-
-# Reutilizar esquemas e contratos de validação
+from src.ingestion.config import get_focus_drivers
 from src.ingestion.schemas import (
     DriverContract,
     OvertakeContract,
@@ -20,9 +18,27 @@ from src.ingestion.schemas import (
     SessionResultContract,
 )
 
+# Reutilizar esquemas e contratos de validação
+from src.ingestion.storage import (
+    atomic_append_partitioned_file,
+    atomic_write_dataframe,
+    atomic_write_partitioned_parquet,
+)
+
 BASE_URL = "https://api.openf1.org/v1"
 DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data"))
 MODELS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../models"))
+
+
+def _write_session_partition(df: pd.DataFrame, target_dir: str) -> None:
+    atomic_write_dataframe(df, os.path.join(target_dir, "data.parquet"))
+
+
+def _append_execution_record(part_exec_path: str, run_record: dict) -> None:
+    atomic_append_partitioned_file(
+        os.path.join(part_exec_path, "data.parquet"), pd.DataFrame([run_record])
+    )
+
 
 # GPs Estratégicos Selecionados (ADR 003)
 SESSIONS_TO_PROCESS = [
@@ -208,7 +224,7 @@ def bronze_telemetry_spatial(context: AssetExecutionContext) -> None:
 
         # Para evitar estourar a API com requisições simultâneas de todos os 20 pilotos,
         # vamos limitar a telemetria aos 5 pilotos de foco histórico do projeto (reduz tempo e garante estabilidade)
-        foco_drivers = list(PILOTOS_FOCO.keys())
+        foco_drivers = list(get_focus_drivers().keys())
         active_drivers = [d for d in drivers_in_session if d in foco_drivers]
 
         # Garante que criamos a pasta da partição
@@ -416,8 +432,6 @@ def silver_metadata_tables(context: AssetExecutionContext) -> None:
             ov_df["date"] = pd.to_datetime(ov_df["date"], format="ISO8601")
             ov_all.append(ov_df)
 
-    import shutil
-
     # Salvar consolidados (Dimensões)
     if stints_all:
         pd.concat(stints_all).to_parquet(
@@ -432,8 +446,7 @@ def silver_metadata_tables(context: AssetExecutionContext) -> None:
     if pits_all:
         pits_df = pd.concat(pits_all)
         target = os.path.join(DATA_DIR, "silver", "fact_pit_stops")
-        shutil.rmtree(target, ignore_errors=True)
-        pits_df.to_parquet(target, partition_cols=["session_key"], index=False)
+        atomic_write_partitioned_parquet(pits_df, target, ["session_key"])
 
     if rc_all:
         # Validar via contrato Pydantic para logs de race control
@@ -454,8 +467,7 @@ def silver_metadata_tables(context: AssetExecutionContext) -> None:
         if valid_rc:
             rc_df = pd.DataFrame(valid_rc)
             target = os.path.join(DATA_DIR, "silver", "fact_race_control")
-            shutil.rmtree(target, ignore_errors=True)
-            rc_df.to_parquet(target, partition_cols=["session_key"], index=False)
+            atomic_write_partitioned_parquet(rc_df, target, ["session_key"])
 
     if res_all:
         # Validar via contrato Pydantic para resultados de sessão
@@ -497,8 +509,7 @@ def silver_metadata_tables(context: AssetExecutionContext) -> None:
         if valid_res:
             res_df = pd.DataFrame(valid_res)
             target = os.path.join(DATA_DIR, "silver", "fact_session_results")
-            shutil.rmtree(target, ignore_errors=True)
-            res_df.to_parquet(target, partition_cols=["session_key"], index=False)
+            atomic_write_partitioned_parquet(res_df, target, ["session_key"])
 
     if ov_all:
         # Validar via contrato Pydantic para ultrapassagens
@@ -523,8 +534,7 @@ def silver_metadata_tables(context: AssetExecutionContext) -> None:
         if valid_ov:
             ov_df = pd.DataFrame(valid_ov)
             target = os.path.join(DATA_DIR, "silver", "fact_overtakes")
-            shutil.rmtree(target, ignore_errors=True)
-            ov_df.to_parquet(target, partition_cols=["session_key"], index=False)
+            atomic_write_partitioned_parquet(ov_df, target, ["session_key"])
 
 
 @asset(group_name="Camada_Silver", deps=[bronze_telemetry_spatial])
@@ -543,7 +553,7 @@ def silver_telemetry_location_aligned(context: AssetExecutionContext) -> None:
     os.makedirs(telemetry_root, exist_ok=True)
     os.makedirs(location_root, exist_ok=True)
 
-    foco_drivers = list(PILOTOS_FOCO.keys())
+    foco_drivers = list(get_focus_drivers().keys())
 
     for gp_cfg in SESSIONS_TO_PROCESS:
         skey = gp_cfg["session_key"]
@@ -597,19 +607,13 @@ def silver_telemetry_location_aligned(context: AssetExecutionContext) -> None:
                 part_tel_path = os.path.join(
                     telemetry_root, f"session_key={skey}", f"driver_number={dnum}"
                 )
-                os.makedirs(part_tel_path, exist_ok=True)
-                aligned_df.to_parquet(
-                    os.path.join(part_tel_path, "data.parquet"), index=False
-                )
+                _write_session_partition(aligned_df, part_tel_path)
 
                 # Também salvamos a localização Silver isolada particionada
                 part_loc_path = os.path.join(
                     location_root, f"session_key={skey}", f"driver_number={dnum}"
                 )
-                os.makedirs(part_loc_path, exist_ok=True)
-                df_loc.to_parquet(
-                    os.path.join(part_loc_path, "data.parquet"), index=False
-                )
+                _write_session_partition(df_loc, part_loc_path)
 
     context.log.info("ASOF JOINs analíticos gravados na Silver com sucesso.")
 
@@ -630,24 +634,15 @@ def silver_telemetry_location_aligned(context: AssetExecutionContext) -> None:
             "duration_seconds": float(time.time() - start_time),
             "status": "SUCCESS",
             "total_rows_processed": 0,
+            "total_rows_bronze": 0,
+            "total_rows_silver": 0,
+            "total_rows_quarantine": 0,
+            "quarantine_rate": 0.0,
         }
 
         part_exec_path = os.path.join(execution_root, f"session_key={skey}")
         os.makedirs(part_exec_path, exist_ok=True)
-        exec_file = os.path.join(part_exec_path, "data.parquet")
-
-        if os.path.exists(exec_file):
-            try:
-                existing_df = pd.read_parquet(exec_file)
-                new_df = pd.concat(
-                    [existing_df, pd.DataFrame([run_record])], ignore_index=True
-                )
-            except Exception:
-                new_df = pd.DataFrame([run_record])
-        else:
-            new_df = pd.DataFrame([run_record])
-
-        new_df.to_parquet(exec_file, index=False)
+        _append_execution_record(part_exec_path, run_record)
 
 
 # =====================================================================
@@ -889,10 +884,12 @@ def gold_feature_engineering_lap_data(context: AssetExecutionContext) -> None:
 
     if expanded_rows:
         merged = pd.DataFrame(expanded_rows)
-        output_file = os.path.join(DATA_DIR, "gold", "features_lap_data.parquet")
-        merged.to_parquet(output_file, index=False)
+        output_root = os.path.join(DATA_DIR, "gold", "features_lap_data")
+        for skey, df_session in merged.groupby("session_key"):
+            part_dir = os.path.join(output_root, f"session_key={int(skey)}")
+            _write_session_partition(df_session, part_dir)
         context.log.info(
-            f"Criadas {len(merged)} linhas de features para a IA em {output_file}"
+            f"Criadas {len(merged)} linhas de features para a IA em {output_root}"
         )
     else:
         context.log.warn("Nenhuma linha de feature expandida gerada.")
@@ -904,7 +901,7 @@ def gold_lap_time_prediction_model(context: AssetExecutionContext) -> None:
     Treina o modelo regressor RandomForest local para predição física de tempos de volta e desgaste.
     """
     os.makedirs(MODELS_DIR, exist_ok=True)
-    src_file = os.path.join(DATA_DIR, "gold", "features_lap_data.parquet")
+    src_file = os.path.join(DATA_DIR, "gold", "features_lap_data")
     if not os.path.exists(src_file):
         return
 
@@ -943,7 +940,7 @@ def gold_lap_predictions(context: AssetExecutionContext) -> None:
     Aplica o modelo serializado de IA preditiva para gerar tempos ideais e salvas na Gold.
     """
     model_path = os.path.join(MODELS_DIR, "lap_regressor.joblib")
-    src_file = os.path.join(DATA_DIR, "gold", "features_lap_data.parquet")
+    src_file = os.path.join(DATA_DIR, "gold", "features_lap_data")
 
     if not os.path.exists(model_path) or not os.path.exists(src_file):
         return
@@ -968,6 +965,8 @@ def gold_lap_predictions(context: AssetExecutionContext) -> None:
         df["lap_duration_seconds"] - df["predicted_lap_duration_seconds"]
     )
 
-    output_file = os.path.join(DATA_DIR, "gold", "lap_predictions.parquet")
-    df.to_parquet(output_file, index=False)
-    context.log.info(f"Predições de IA salvas na camada Gold em {output_file}")
+    output_root = os.path.join(DATA_DIR, "gold", "lap_predictions")
+    for skey, df_session in df.groupby("session_key"):
+        part_dir = os.path.join(output_root, f"session_key={int(skey)}")
+        _write_session_partition(df_session, part_dir)
+    context.log.info(f"Predições de IA salvas na camada Gold em {output_root}")

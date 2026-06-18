@@ -1,5 +1,8 @@
 # Centralized Ingestion Configurations for OpenF1 Data Platform
+from __future__ import annotations
+
 import os
+from typing import Dict
 
 
 # Helper to load .env variables locally for standalone ingestion scripts
@@ -23,7 +26,7 @@ _load_dotenv_local()
 # Can be configured via environment variable "FOCUS_DRIVERS" as a comma-separated list of "number:name"
 # Example in .env: FOCUS_DRIVERS="1:Max Verstappen,4:Lando Norris,16:Charles Leclerc"
 # Default: Top-6 drivers from top-4 constructors (RBR, McLaren, Ferrari, Mercedes)
-DEFAULT_DRIVERS = {
+DEFAULT_DRIVERS: Dict[int, str] = {
     1: "Max Verstappen",
     4: "Lando Norris",
     16: "Charles Leclerc",
@@ -32,19 +35,35 @@ DEFAULT_DRIVERS = {
     81: "Oscar Piastri",
 }
 
-focus_drivers_env = os.getenv("FOCUS_DRIVERS")
 
-if focus_drivers_env:
-    PILOTOS_FOCO = {}
+def parse_focus_drivers(raw_value: str | None = None) -> Dict[int, str]:
+    """Parse a comma-separated driver spec into a stable mapping."""
+    focus_drivers_env = (
+        raw_value if raw_value is not None else os.getenv("FOCUS_DRIVERS")
+    )
+    if not focus_drivers_env:
+        return dict(DEFAULT_DRIVERS)
+
+    parsed: Dict[int, str] = {}
     try:
         for item in focus_drivers_env.split(","):
+            item = item.strip()
+            if not item:
+                continue
             if ":" in item:
                 num_str, name = item.split(":", 1)
-                PILOTOS_FOCO[int(num_str.strip())] = name.strip()
+                parsed[int(num_str.strip())] = name.strip()
             else:
                 num = int(item.strip())
-                PILOTOS_FOCO[num] = f"Driver {num}"
+                parsed[num] = f"Driver {num}"
     except Exception:
-        PILOTOS_FOCO = DEFAULT_DRIVERS
-else:
-    PILOTOS_FOCO = DEFAULT_DRIVERS
+        return dict(DEFAULT_DRIVERS)
+
+    return parsed or dict(DEFAULT_DRIVERS)
+
+
+def get_focus_drivers(raw_value: str | None = None) -> Dict[int, str]:
+    return parse_focus_drivers(raw_value)
+
+
+PILOTOS_FOCO = get_focus_drivers()

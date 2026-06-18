@@ -1,14 +1,120 @@
+import re
+from typing import Any
+
 import duckdb
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-from src.web.database import get_db, run_query_async
+from src.web.database import get_db, result_cache, run_query_async
 
 router = APIRouter(prefix="/api")
 
+# ---------------------------------------------------------------------------
+# SQL Gateway — Hardened Read-Only Enforcement
+# ---------------------------------------------------------------------------
+# Security contract (F1-009 / Sprint 1.1):
+#   1. Allowlist: query MUST start with SELECT or WITH (case-insensitive).
+#   2. Blocklist (word-boundary regex): DDL/DML tokens rejected even inside
+#      CTEs or subqueries. Prevents DROP/DELETE/INSERT/UPDATE/ALTER/CREATE/
+#      TRUNCATE/VACUUM/COPY/WRITE_PARQUET/EXPORT.
+#   3. LIMIT injection: queries without a LIMIT clause automatically receive
+#      LIMIT {MAX_ADHOC_ROWS} to avoid unbounded result sets.
+#   4. PRAGMA guards: per-connection statement_timeout (30s) and memory_limit
+#      (2GB) applied before execution to prevent runaway queries.
+# ---------------------------------------------------------------------------
+MAX_ADHOC_ROWS = 10_000
+SQL_TIMEOUT_SECONDS = 30
+SQL_MEMORY_LIMIT = "2GB"
 
+# Blocklist uses word boundaries (\b) so legitimate column/table names
+# containing substrings (e.g. "copilot", "drop_off") are not false-positived.
+_SQL_BLOCKED_TOKENS = re.compile(
+    r"\b("
+    r"drop|delete|insert|update|alter|create|truncate|vacuum|replace|"
+    r"attach|detach|copy|export|write_parquet|write_csv|read_text|"
+    r"httpfs|pragma\s+\w+\s*=\s*['\"]"
+    r")\b",
+    re.IGNORECASE,
+)
+
+_COMMENT_STRIP_RE = re.compile(
+    r"(--.*?$|/\*.*?\*/)", re.IGNORECASE | re.DOTALL | re.MULTILINE
+)
+
+# Strip string literals before validating tokens so tokens inside a string
+# literal (e.g. "drop") do not trigger the blocklist.
+_STRING_LITERAL_RE = re.compile(r"'(?:[^'\\]|\\.)*'|\"(?:[^\"\\]|\\.)*\"")
+
+
+def _strip_sql_comments_and_literals(sql: str) -> str:
+    """Remove comments and string literals for token-level safe validation."""
+    sql = _STRING_LITERAL_RE.sub("", sql)
+    return _COMMENT_STRIP_RE.sub("", sql)
+
+
+def _validate_and_prepare_sql(raw_query: str) -> str:
+    """
+    Validate the query against the allowlist/blocklist, strip it for token
+    analysis, and inject LIMIT if absent. Raises HTTPException on violation.
+    Returns the final safe query string.
+    """
+    stripped = raw_query.strip()
+    if not stripped:
+        raise HTTPException(status_code=400, detail="Query vazia não permitida.")
+
+    stripped_clean = _strip_sql_comments_and_literals(stripped).strip().upper()
+
+    # 1. Allowlist — first token must be SELECT or WITH
+    first_token_match = re.match(r"\b(SELECT|WITH)\b", stripped_clean)
+    if not first_token_match:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Operação não autorizada. Apenas consultas de leitura "
+                "(SELECT, WITH) são permitidas."
+            ),
+        )
+
+    # 2. Blocklist — dangerous tokens anywhere in the query (regex word-boundary)
+    blocked_match = _SQL_BLOCKED_TOKENS.search(stripped_clean)
+    if blocked_match:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Operação não autorizada. Token proibido detectado: "
+                f"'{blocked_match.group(0).upper()}'."
+            ),
+        )
+
+    # 3. LIMIT injection — ensure bounded result size
+    final_query = stripped
+    if not re.search(r"\bLIMIT\b", stripped_clean):
+        final_query = f"{stripped.rstrip().rstrip(';')} \nLIMIT {MAX_ADHOC_ROWS}"
+
+    return final_query
+
+
+def _apply_pragmas(conn: duckdb.DuckDBPyConnection) -> None:
+    """Apply per-query resource limits. Safe to call before each ad-hoc query."""
+    try:
+        conn.execute(f"SET statement_timeout = '{SQL_TIMEOUT_SECONDS}s'")
+    except Exception:
+        # statement_timeout not supported on this DuckDB version; skip.
+        pass
+    try:
+        conn.execute(f"SET memory_limit = '{SQL_MEMORY_LIMIT}'")
+    except Exception:
+        pass
+    try:
+        # Cap threads for a single ad-hoc query to avoid starving other workers.
+        conn.execute("SET threads = 2")
+    except Exception:
+        pass
+
+
+@result_cache
 def fetch_sessions_from_db(conn: duckdb.DuckDBPyConnection) -> list[dict]:
     try:
         query = """
@@ -35,9 +141,13 @@ def fetch_sessions_from_db(conn: duckdb.DuckDBPyConnection) -> list[dict]:
             for r in results
         ]
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erro ao buscar sessões: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail="Erro interno ao processar a requisicao. Consulte os logs do servidor.",
+        )
 
 
+@result_cache
 def fetch_drivers_from_db(
     conn: duckdb.DuckDBPyConnection, session_key: int
 ) -> list[dict]:
@@ -68,10 +178,12 @@ def fetch_drivers_from_db(
         ]
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Erro ao buscar pilotos da sessão: {str(e)}"
+            status_code=500,
+            detail="Erro interno ao processar a requisicao. Consulte os logs do servidor.",
         )
 
 
+@result_cache
 def fetch_intervals_from_db(
     conn: duckdb.DuckDBPyConnection, session_key: int
 ) -> list[dict]:
@@ -101,10 +213,12 @@ def fetch_intervals_from_db(
         ]
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Erro ao buscar intervalos: {str(e)}"
+            status_code=500,
+            detail="Erro interno ao processar a requisicao. Consulte os logs do servidor.",
         )
 
 
+@result_cache
 def fetch_pit_stops_from_db(
     conn: duckdb.DuckDBPyConnection, session_key: int
 ) -> list[dict]:
@@ -138,7 +252,8 @@ def fetch_pit_stops_from_db(
         ]
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Erro ao buscar pit stops: {str(e)}"
+            status_code=500,
+            detail="Erro interno ao processar a requisicao. Consulte os logs do servidor.",
         )
 
 
@@ -183,6 +298,7 @@ async def get_pit_stops(
     return await run_query_async(fetch_pit_stops_from_db, db, session_key)
 
 
+@result_cache
 def fetch_weather_from_db(
     conn: duckdb.DuckDBPyConnection, session_key: int
 ) -> list[dict]:
@@ -213,7 +329,8 @@ def fetch_weather_from_db(
         ]
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Erro ao buscar clima no DuckDB: {str(e)}"
+            status_code=500,
+            detail="Erro interno ao processar a requisicao. Consulte os logs do servidor.",
         )
 
 
@@ -228,6 +345,7 @@ async def get_weather(
     return await run_query_async(fetch_weather_from_db, db, session_key)
 
 
+@result_cache
 def fetch_stints_from_db(
     conn: duckdb.DuckDBPyConnection, session_key: int
 ) -> list[dict]:
@@ -261,7 +379,8 @@ def fetch_stints_from_db(
         ]
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Erro ao buscar stints no DuckDB: {str(e)}"
+            status_code=500,
+            detail="Erro interno ao processar a requisicao. Consulte os logs do servidor.",
         )
 
 
@@ -305,7 +424,8 @@ def fetch_race_control_from_db(
         ]
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Erro ao buscar controle de prova: {str(e)}"
+            status_code=500,
+            detail="Erro interno ao processar a requisicao. Consulte os logs do servidor.",
         )
 
 
@@ -350,7 +470,8 @@ def fetch_winner_from_db(
         ]
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Erro ao buscar vencedor no DuckDB: {str(e)}"
+            status_code=500,
+            detail="Erro interno ao processar a requisicao. Consulte os logs do servidor.",
         )
 
 
@@ -365,6 +486,7 @@ async def get_winner(
     return await run_query_async(fetch_winner_from_db, db, session_key)
 
 
+@result_cache
 def fetch_duel_location_from_db(
     conn: duckdb.DuckDBPyConnection, session_key: int, driver_number: int
 ) -> list[dict]:
@@ -397,33 +519,51 @@ def fetch_duel_location_from_db(
         target_points = 1500
         step = max(1, total_records // target_points)
 
-        # 3. Extrair coordenadas com ASOF JOIN e amostragem sistemática
+        # 3. Extrair coordenadas com ASOF JOIN e amostragem sistemática.
+        #
+        # Performance optimization (Sprint 4.1):
+        #   - Predicate pushdown: filter BOTH sides of the ASOF JOIN via CTEs
+        #     so the telemetry table doesn't scan all drivers/sessions.
+        #   - Projection pushdown: only select needed columns in the CTEs
+        #     (skip z from location, skip rpm/drs from telemetry).
+        #   This dramatically reduces I/O for large Parquet partitions.
         query = """
-            WITH numbered_locations AS (
-                SELECT 
-                    l.x, 
-                    l.y, 
-                    t.speed,
-                    t.n_gear,
-                    t.throttle,
-                    t.brake,
-                    ROW_NUMBER() OVER(ORDER BY l.date ASC) as rn
-                FROM fact_car_location l
-                ASOF JOIN fact_car_telemetry t 
-                    ON l.session_key = t.session_key 
-                   AND l.driver_number = t.driver_number 
-                   AND l.date >= t.date
-                WHERE l.session_key = ? 
-                  AND l.driver_number = ? 
-                  AND l.date >= ?
+            WITH filtered_location AS (
+                SELECT x, y, date, session_key, driver_number
+                FROM fact_car_location
+                WHERE session_key = ?
+                  AND driver_number = ?
+                  AND date >= ?
+            ),
+            filtered_telemetry AS (
+                SELECT speed, n_gear, throttle, brake, date, session_key, driver_number
+                FROM fact_car_telemetry
+                WHERE session_key = ?
+                  AND driver_number = ?
+            ),
+            numbered_locations AS (
+                SELECT
+                    loc.x,
+                    loc.y,
+                    tel.speed,
+                    tel.n_gear,
+                    tel.throttle,
+                    tel.brake,
+                    ROW_NUMBER() OVER(ORDER BY loc.date ASC) as rn
+                FROM filtered_location loc
+                ASOF JOIN filtered_telemetry tel
+                    ON loc.session_key = tel.session_key
+                   AND loc.driver_number = tel.driver_number
+                   AND loc.date >= tel.date
             )
-            SELECT x, y, speed, n_gear, throttle, brake 
-            FROM numbered_locations 
+            SELECT x, y, speed, n_gear, throttle, brake
+            FROM numbered_locations
             WHERE rn % ? = 0
             ORDER BY rn ASC
         """
         results = conn.execute(
-            query, (session_key, driver_number, start_date, step)
+            query,
+            (session_key, driver_number, start_date, session_key, driver_number, step),
         ).fetchall()
         return [
             {
@@ -439,7 +579,8 @@ def fetch_duel_location_from_db(
         ]
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Erro ao buscar trajetórias do duelo: {str(e)}"
+            status_code=500,
+            detail="Erro interno ao processar a requisicao. Consulte os logs do servidor.",
         )
 
 
@@ -457,6 +598,7 @@ async def get_duel_location(
     )
 
 
+@result_cache
 def fetch_duel_metrics_from_db(
     conn: duckdb.DuckDBPyConnection, session_key: int, driver_1: int, driver_2: int
 ) -> dict:
@@ -502,7 +644,8 @@ def fetch_duel_metrics_from_db(
         return metrics
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Erro ao calcular métricas do duelo: {str(e)}"
+            status_code=500,
+            detail="Erro interno ao processar a requisicao. Consulte os logs do servidor.",
         )
 
 
@@ -600,7 +743,8 @@ def fetch_overtakes_from_db(
         ]
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Erro ao buscar ultrapassagens no DuckDB: {str(e)}"
+            status_code=500,
+            detail="Erro interno ao processar a requisicao. Consulte os logs do servidor.",
         )
 
 
@@ -625,7 +769,11 @@ def fetch_pipeline_executions_from_db(conn: duckdb.DuckDBPyConnection) -> list[d
                 execution_timestamp,
                 duration_seconds,
                 status,
-                total_rows_processed
+                total_rows_processed,
+                COALESCE(total_rows_bronze, 0) AS total_rows_bronze,
+                COALESCE(total_rows_silver, 0) AS total_rows_silver,
+                COALESCE(total_rows_quarantine, 0) AS total_rows_quarantine,
+                COALESCE(quarantine_rate, 0.0) AS quarantine_rate
             FROM fact_pipeline_execution
             ORDER BY execution_timestamp DESC
         """
@@ -639,6 +787,10 @@ def fetch_pipeline_executions_from_db(conn: duckdb.DuckDBPyConnection) -> list[d
                 "duration_seconds": round(r[4], 2) if r[4] is not None else None,
                 "status": r[5],
                 "total_rows_processed": r[6],
+                "total_rows_bronze": r[7],
+                "total_rows_silver": r[8],
+                "total_rows_quarantine": r[9],
+                "quarantine_rate": r[10],
             }
             for r in results
         ]
@@ -660,39 +812,57 @@ class SQLQueryRequest(BaseModel):
 
 def execute_safe_sql_query(
     conn: duckdb.DuckDBPyConnection, raw_query: str
-) -> list[dict]:
-    # 🛡️ Validação defensiva de segurança analítica (limita a SELECT/WITH e previne DDL/DML)
-    forbidden_tokens = [
-        "drop",
-        "delete",
-        "insert",
-        "update",
-        "create",
-        "alter",
-        "vacuum",
-        "truncate",
-        "system",
-        "write_parquet",
-        "copy",
-    ]
-    query_lower = raw_query.lower()
-    if any(token in query_lower for token in forbidden_tokens):
-        raise HTTPException(
-            status_code=400,
-            detail="Operação não autorizada. Apenas consultas de leitura (SELECT, WITH) são permitidas.",
-        )
+) -> dict[str, Any]:
+    # 🛡️ Validação robusta de segurança analítica
+    # - Allowlist: SELECT ou WITH apenas
+    # - Blocklist com word boundaries para tokens DDL/DML
+    # - LIMIT automático para bounded result sets
+    # - PRAGMAs de timeout e memory_limit
+    safe_query = _validate_and_prepare_sql(raw_query)
+    _apply_pragmas(conn)
 
     try:
-        # Executa a query e retorna como DataFrame do Pandas, convertendo em registros JSON
-        # O DuckDB lida nativamente com o retorno em Pandas DataFrame via view Parquet
-        df = conn.execute(raw_query).df()
+        df = conn.execute(safe_query).df()
         # Tratamento de nulos/NaNs típicos de bancos analíticos para serialização JSON limpa
         df = df.where(df.notnull(), None)
-        return df.to_dict(orient="records")
+
+        # Apply client-side LIMIT enforcement as defense-in-depth
+        # (in case LIMIT injection was bypassed via exotic SQL).
+        records = df.head(MAX_ADHOC_ROWS).to_dict(orient="records")
+        truncated = len(df) > MAX_ADHOC_ROWS
+
+        return {
+            "columns": list(df.columns),
+            "row_count": len(records),
+            "total_rows": len(df),
+            "truncated": truncated,
+            "limit": MAX_ADHOC_ROWS,
+            "data": records,
+        }
+    except HTTPException:
+        raise
+    except duckdb.ConnectionException as e:
+        msg = str(e).lower()
+        if "timeout" in msg or "interrupt" in msg:
+            raise HTTPException(
+                status_code=408,
+                detail=f"Query excedeu o timeout de {SQL_TIMEOUT_SECONDS}s. "
+                f"Adicione filtros ou LIMIT para reduzir o escopo.",
+            )
+        if "memory" in msg:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Query excedeu o limite de memória de {SQL_MEMORY_LIMIT}. "
+                f"Adicione filtros ou reduza o volume de dados.",
+            )
+        raise HTTPException(
+            status_code=400,
+            detail="Erro interno ao executar a consulta. Verifique os logs do servidor.",
+        )
     except Exception as e:
         raise HTTPException(
             status_code=400,
-            detail=f"Erro de sintaxe SQL ou execução no DuckDB: {str(e)}",
+            detail="Erro interno ao executar a consulta. Verifique os logs do servidor.",
         )
 
 
@@ -943,7 +1113,7 @@ def fetch_telemetry_analysis_from_db(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Erro ao buscar análise de telemetria Gold: {str(e)}",
+            detail="Erro interno ao processar a requisicao. Consulte os logs do servidor.",
         )
 
 

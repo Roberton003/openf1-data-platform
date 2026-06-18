@@ -1,6 +1,5 @@
 import argparse
 import os
-import shutil
 import time
 import uuid
 from datetime import datetime
@@ -9,7 +8,7 @@ import duckdb
 import pandas as pd
 from pydantic import ValidationError
 
-from src.ingestion.config import PILOTOS_FOCO
+from src.ingestion.config import get_focus_drivers
 from src.ingestion.schemas import (
     INTERVALS_SCHEMA,
     LOCATION_SCHEMA,
@@ -23,9 +22,20 @@ from src.ingestion.schemas import (
     SessionContract,
     SessionResultContract,
 )
+from src.ingestion.storage import atomic_append_partitioned_file, atomic_write_dataframe
 
 DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data"))
 QUARANTINE_DIR = os.path.join(DATA_DIR, "quarantine")
+
+
+def _write_session_partition(df: pd.DataFrame, target_dir: str) -> None:
+    atomic_write_dataframe(df, os.path.join(target_dir, "data.parquet"))
+
+
+def _append_execution_record(part_exec_path: str, run_record: dict) -> None:
+    atomic_append_partitioned_file(
+        os.path.join(part_exec_path, "data.parquet"), pd.DataFrame([run_record])
+    )
 
 
 def quarantine_invalid_rows(
@@ -154,13 +164,19 @@ def validate_vectorized_batch(
     return df_valid, df_invalid
 
 
-def process_medallion_pipeline(year: int, gp_name: str, session_name: str):
+def process_medallion_pipeline(
+    year: int,
+    gp_name: str,
+    session_name: str,
+    focus_drivers: dict[int, str] | None = None,
+):
     """
     Orquestra a leitura da Bronze, validação das tabelas (Silver fronteira) e
     atualização no Lakehouse Silver e Gold (ML).
     """
     start_time = time.time()
     run_id = str(uuid.uuid4())
+    focus_drivers = focus_drivers or get_focus_drivers()
 
     # 1. Localizar partição na Bronze
     gp_dir = gp_name.replace(" ", "_")
@@ -300,11 +316,7 @@ def process_medallion_pipeline(year: int, gp_name: str, session_name: str):
                     "fact_race_control",
                     f"session_key={session_key}",
                 )
-                shutil.rmtree(target_dir, ignore_errors=True)
-                os.makedirs(target_dir, exist_ok=True)
-                df_valid.to_parquet(
-                    os.path.join(target_dir, "data.parquet"), index=False
-                )
+                _write_session_partition(df_valid, target_dir)
                 total_rows_silver += len(df_valid)
 
         # 6. Processar fact_pit_stops (Validação Vetorizada)
@@ -328,11 +340,7 @@ def process_medallion_pipeline(year: int, gp_name: str, session_name: str):
                 target_dir = os.path.join(
                     DATA_DIR, "silver", "fact_pit_stops", f"session_key={session_key}"
                 )
-                shutil.rmtree(target_dir, ignore_errors=True)
-                os.makedirs(target_dir, exist_ok=True)
-                df_valid.to_parquet(
-                    os.path.join(target_dir, "data.parquet"), index=False
-                )
+                _write_session_partition(df_valid, target_dir)
                 total_rows_silver += len(df_valid)
 
         # 7. Processar dim_stints (Validação Vetorizada)
@@ -414,11 +422,7 @@ def process_medallion_pipeline(year: int, gp_name: str, session_name: str):
                 target_dir = os.path.join(
                     DATA_DIR, "silver", "fact_intervals", f"session_key={session_key}"
                 )
-                shutil.rmtree(target_dir, ignore_errors=True)
-                os.makedirs(target_dir, exist_ok=True)
-                df_valid.to_parquet(
-                    os.path.join(target_dir, "data.parquet"), index=False
-                )
+                _write_session_partition(df_valid, target_dir)
                 total_rows_silver += len(df_valid)
 
         # 10. Processar fact_session_results (Pydantic validation)
@@ -445,11 +449,7 @@ def process_medallion_pipeline(year: int, gp_name: str, session_name: str):
                     "fact_session_results",
                     f"session_key={session_key}",
                 )
-                shutil.rmtree(target_dir, ignore_errors=True)
-                os.makedirs(target_dir, exist_ok=True)
-                df_valid.to_parquet(
-                    os.path.join(target_dir, "data.parquet"), index=False
-                )
+                _write_session_partition(df_valid, target_dir)
                 total_rows_silver += len(df_valid)
 
         # 10.1. Processar fact_overtakes (Pydantic validation se existir)
@@ -474,11 +474,7 @@ def process_medallion_pipeline(year: int, gp_name: str, session_name: str):
                 target_dir = os.path.join(
                     DATA_DIR, "silver", "fact_overtakes", f"session_key={session_key}"
                 )
-                shutil.rmtree(target_dir, ignore_errors=True)
-                os.makedirs(target_dir, exist_ok=True)
-                df_valid.to_parquet(
-                    os.path.join(target_dir, "data.parquet"), index=False
-                )
+                _write_session_partition(df_valid, target_dir)
                 total_rows_silver += len(df_valid)
 
         # 11. Processar fact_car_telemetry e fact_car_location via ASOF JOIN analítico (Top 6)
@@ -519,7 +515,7 @@ def process_medallion_pipeline(year: int, gp_name: str, session_name: str):
 
             if not df_tel_val.empty and not df_loc_val.empty:
                 # Filtrar apenas os 6 pilotos foco
-                foco_drivers = list(PILOTOS_FOCO.keys())
+                foco_drivers = list(focus_drivers.keys())
                 df_tel_foco = df_tel_val[
                     df_tel_val["driver_number"].isin(foco_drivers)
                 ].copy()
@@ -543,11 +539,7 @@ def process_medallion_pipeline(year: int, gp_name: str, session_name: str):
                         f"session_key={session_key}",
                         f"driver_number={dnum}",
                     )
-                    shutil.rmtree(part_loc_path, ignore_errors=True)
-                    os.makedirs(part_loc_path, exist_ok=True)
-                    df_drv_loc.to_parquet(
-                        os.path.join(part_loc_path, "data.parquet"), index=False
-                    )
+                    _write_session_partition(df_drv_loc, part_loc_path)
                     total_rows_silver += len(df_drv_loc)
 
                 # Realizar ASOF JOIN analítico via DuckDB
@@ -589,11 +581,7 @@ def process_medallion_pipeline(year: int, gp_name: str, session_name: str):
                             f"session_key={session_key}",
                             f"driver_number={dnum}",
                         )
-                        shutil.rmtree(part_tel_path, ignore_errors=True)
-                        os.makedirs(part_tel_path, exist_ok=True)
-                        aligned_df.to_parquet(
-                            os.path.join(part_tel_path, "data.parquet"), index=False
-                        )
+                        _write_session_partition(aligned_df, part_tel_path)
                         total_rows_silver += len(aligned_df)
 
         # 12. Rodar a Camada Gold (Predições da IA) diretamente no CLI
@@ -726,9 +714,13 @@ def process_medallion_pipeline(year: int, gp_name: str, session_name: str):
                 if expanded_rows:
                     df_gold_feat = pd.DataFrame(expanded_rows)
                     features_output = os.path.join(
-                        DATA_DIR, "gold", "features_lap_data.parquet"
+                        DATA_DIR, "gold", "features_lap_data"
                     )
-                    df_gold_feat.to_parquet(features_output, index=False)
+                    for skey, df_session in df_gold_feat.groupby("session_key"):
+                        part_dir = os.path.join(
+                            features_output, f"session_key={int(skey)}"
+                        )
+                        _write_session_partition(df_session, part_dir)
                     print(f"Features da Gold criadas com {len(df_gold_feat)} linhas.")
 
                     # Treinar o RandomForestRegressor analítico
@@ -756,7 +748,7 @@ def process_medallion_pipeline(year: int, gp_name: str, session_name: str):
                     joblib.dump(model, model_path)
                     print(f"Modelo regressor treinado e salvo em {model_path}")
 
-                    # Aplicar predições e salvar lap_predictions.parquet
+                    # Aplicar predições e salvar a Gold particionada por session_key
                     df_gold_feat["predicted_lap_duration_seconds"] = model.predict(X)
                     df_gold_feat["delta_performance_seconds"] = (
                         df_gold_feat["lap_duration_seconds"]
@@ -764,9 +756,13 @@ def process_medallion_pipeline(year: int, gp_name: str, session_name: str):
                     )
 
                     predictions_output = os.path.join(
-                        DATA_DIR, "gold", "lap_predictions.parquet"
+                        DATA_DIR, "gold", "lap_predictions"
                     )
-                    df_gold_feat.to_parquet(predictions_output, index=False)
+                    for skey, df_session in df_gold_feat.groupby("session_key"):
+                        part_dir = os.path.join(
+                            predictions_output, f"session_key={int(skey)}"
+                        )
+                        _write_session_partition(df_session, part_dir)
                     print(f"Predições salvas em {predictions_output}")
 
         # Gravar a Linhagem de Execução (Audit Trail)
@@ -779,6 +775,14 @@ def process_medallion_pipeline(year: int, gp_name: str, session_name: str):
             "duration_seconds": float(duration),
             "status": "SUCCESS",
             "total_rows_processed": int(total_rows_silver),
+            "total_rows_bronze": int(total_rows_bronze),
+            "total_rows_silver": int(total_rows_silver),
+            "total_rows_quarantine": int(total_rows_quarantine),
+            "quarantine_rate": (
+                float(total_rows_quarantine / total_rows_bronze)
+                if total_rows_bronze
+                else 0.0
+            ),
         }
 
         execution_root = os.path.join(DATA_DIR, "silver", "fact_pipeline_execution")
@@ -787,18 +791,7 @@ def process_medallion_pipeline(year: int, gp_name: str, session_name: str):
         os.makedirs(part_exec_path, exist_ok=True)
         exec_file = os.path.join(part_exec_path, "data.parquet")
 
-        if os.path.exists(exec_file):
-            try:
-                existing_df = pd.read_parquet(exec_file)
-                new_df = pd.concat(
-                    [existing_df, pd.DataFrame([run_record])], ignore_index=True
-                )
-            except Exception:
-                new_df = pd.DataFrame([run_record])
-        else:
-            new_df = pd.DataFrame([run_record])
-
-        new_df.to_parquet(exec_file, index=False)
+        _append_execution_record(part_exec_path, run_record)
         print("Linhagem de execução gravada na Silver.")
 
     except Exception as e:
@@ -814,6 +807,14 @@ def process_medallion_pipeline(year: int, gp_name: str, session_name: str):
                 "duration_seconds": float(duration),
                 "status": f"FAILED: {str(e)[:100]}",
                 "total_rows_processed": 0,
+                "total_rows_bronze": int(total_rows_bronze),
+                "total_rows_silver": int(total_rows_silver),
+                "total_rows_quarantine": int(total_rows_quarantine),
+                "quarantine_rate": (
+                    float(total_rows_quarantine / total_rows_bronze)
+                    if total_rows_bronze
+                    else 0.0
+                ),
             }
             skey_val = int(session_key) if "session_key" in locals() else 0
             execution_root = os.path.join(DATA_DIR, "silver", "fact_pipeline_execution")
@@ -821,18 +822,7 @@ def process_medallion_pipeline(year: int, gp_name: str, session_name: str):
             os.makedirs(part_exec_path, exist_ok=True)
             exec_file = os.path.join(part_exec_path, "data.parquet")
 
-            if os.path.exists(exec_file):
-                try:
-                    existing_df = pd.read_parquet(exec_file)
-                    new_df = pd.concat(
-                        [existing_df, pd.DataFrame([run_record])], ignore_index=True
-                    )
-                except Exception:
-                    new_df = pd.DataFrame([run_record])
-            else:
-                new_df = pd.DataFrame([run_record])
-
-            new_df.to_parquet(exec_file, index=False)
+            _append_execution_record(part_exec_path, run_record)
         except Exception as lineage_err:
             print(f"Erro ao salvar linhagem de erro: {lineage_err}")
         conn.close()
@@ -856,8 +846,17 @@ if __name__ == "__main__":
         help="Nome do GP ou País da corrida (ou 'all' para todos)",
     )
     parser.add_argument("--session", type=str, default="Race", help="Nome da sessão")
+    parser.add_argument(
+        "--focus-drivers",
+        type=str,
+        default=None,
+        help=(
+            "Lista opcional de pilotos de foco no formato '44:Lewis Hamilton,1:Max Verstappen'"
+        ),
+    )
 
     args = parser.parse_args()
+    focus_drivers = get_focus_drivers(args.focus_drivers)
 
     if args.gp == "all":
         import glob
@@ -892,8 +891,10 @@ if __name__ == "__main__":
                 gp_val = gp_folder.split("=")[1].replace("_", " ")
                 print(f"\n--- Processando GP em lote: {gp_val} ---")
                 try:
-                    process_medallion_pipeline(args.year, gp_val, args.session)
+                    process_medallion_pipeline(
+                        args.year, gp_val, args.session, focus_drivers
+                    )
                 except Exception as e:
                     print(f"Erro ao processar {gp_val}: {e}")
     else:
-        process_medallion_pipeline(args.year, args.gp, args.session)
+        process_medallion_pipeline(args.year, args.gp, args.session, focus_drivers)
