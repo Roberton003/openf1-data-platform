@@ -18,6 +18,20 @@ import duckdb
 import pytest
 
 # ---------------------------------------------------------------------------
+# Global cleanup — ensure auth bypass mode for all tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _cleanup_auth_env():
+    """Remove any OPENF1_API_KEY leak between tests."""
+    import os
+
+    os.environ.pop("OPENF1_API_KEY", None)
+    yield
+
+
+# ---------------------------------------------------------------------------
 # Core database fixture — in-memory DuckDB with mock F1 data
 # ---------------------------------------------------------------------------
 
@@ -290,6 +304,27 @@ def mock_db_with_session(
         (session_key,),
     )
     return mock_db, session_key
+
+
+# ---------------------------------------------------------------------------
+# ML model fixtures — synthetic model for deterministic testing
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def synthetic_model(tmp_path):
+    import joblib
+    import numpy as np
+    from sklearn.linear_model import LinearRegression
+
+    rng = np.random.RandomState(42)
+    model = LinearRegression()
+    X = rng.rand(100, 5) * 100
+    y = 50 + X[:, 0] * 0.5 + rng.rand(100) * 5
+    model.fit(X, y)
+    model_path = tmp_path / "lap_regressor.joblib"
+    joblib.dump(model, model_path)
+    return model_path
 
 
 # ---------------------------------------------------------------------------

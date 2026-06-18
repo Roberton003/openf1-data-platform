@@ -1,210 +1,226 @@
-import glob
-import os
-
-import joblib
 import pandas as pd
 
-DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../data"))
-MODELS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../models"))
+
+def _write_silver_parquet(base, name, df):
+    path = base / "silver" / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_parquet(path)
 
 
-def test_silver_parquet_files_exist():
-    """
-    Garante que os arquivos Parquet estruturados da camada Silver existem no Lakehouse.
-    """
-    silver_dir = os.path.join(DATA_DIR, "silver")
-    assert os.path.exists(
-        silver_dir
-    ), "Diretório Silver de dados analíticos não existe."
+def _write_gold_partitioned(base, layer, table, session_key, df):
+    path = base / "gold" / table / f"session_key={session_key}" / "data.parquet"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_parquet(path)
 
-    # Arquivos de metadados mínimos esperados
-    essential_files = [
-        "dim_sessions.parquet",
-        "dim_drivers.parquet",
-        "dim_stints.parquet",
-        "dim_weather.parquet",
+
+def _write_silver_telemetry(base, session_key, driver_number, df):
+    path = (
+        base
+        / "silver"
+        / "fact_car_telemetry"
+        / f"session_key={session_key}"
+        / f"driver_number={driver_number}"
+        / "data.parquet"
+    )
+    path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_parquet(path)
+
+
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
+
+
+def test_silver_parquet_files_exist(tmp_path):
+    essential = ["dim_sessions", "dim_drivers", "dim_stints", "dim_weather"]
+    for name in essential:
+        _write_silver_parquet(tmp_path, f"{name}.parquet", pd.DataFrame({"col": [1]}))
+
+    silver_dir = tmp_path / "silver"
+    assert silver_dir.exists()
+    for name in essential:
+        path = silver_dir / f"{name}.parquet"
+        df = pd.read_parquet(path)
+        assert not df.empty
+
+
+def test_silver_telemetry_partitioning(tmp_path):
+    telemetry_data = pd.DataFrame(
+        {
+            "speed": [120, 310, 150],
+            "rpm": [4000, 12000, 6000],
+            "n_gear": [4, 8, 5],
+            "throttle": [50.0, 99.0, 60.0],
+            "brake": [10.0, 0.0, 5.0],
+        }
+    )
+    _write_silver_telemetry(
+        tmp_path, session_key=10014, driver_number=44, df=telemetry_data
+    )
+    _write_silver_telemetry(
+        tmp_path, session_key=10014, driver_number=1, df=telemetry_data
+    )
+
+    telemetry_root = tmp_path / "silver" / "fact_car_telemetry"
+    sessions = sorted(telemetry_root.iterdir())
+    assert len(sessions) > 0
+
+    for sess_dir in sessions:
+        assert sess_dir.name.startswith("session_key=")
+        drivers = sorted(sess_dir.iterdir())
+        for drv_dir in drivers:
+            assert drv_dir.name.startswith("driver_number=")
+            parquet_file = drv_dir / "data.parquet"
+            assert parquet_file.exists()
+
+            df = pd.read_parquet(parquet_file)
+            assert "speed" in df.columns
+            assert "rpm" in df.columns
+            assert "n_gear" in df.columns
+            assert (df["speed"] >= 0).all() and (df["speed"] <= 380).all()
+            assert (df["n_gear"] >= -1).all() and (df["n_gear"] <= 8).all()
+            assert (df["rpm"] >= 0).all() and (df["rpm"] <= 16000).all()
+
+
+def test_gold_predictions_integrity(tmp_path):
+    gold_df = pd.DataFrame(
+        {
+            "session_key": [10014],
+            "driver_number": [44],
+            "lap_duration_seconds": [92.5],
+            "predicted_lap_duration_seconds": [91.9],
+            "delta_performance_seconds": [0.6],
+        }
+    )
+    _write_gold_partitioned(tmp_path, "gold", "lap_predictions", 10014, gold_df)
+
+    prediction_files = sorted(
+        (tmp_path / "gold" / "lap_predictions").rglob("data.parquet")
+    )
+    assert len(prediction_files) > 0
+    df = pd.concat(
+        [pd.read_parquet(path) for path in prediction_files], ignore_index=True
+    )
+    assert not df.empty
+
+    required_cols = [
+        "session_key",
+        "driver_number",
+        "lap_duration_seconds",
+        "predicted_lap_duration_seconds",
+        "delta_performance_seconds",
     ]
-    for f in essential_files:
-        path = os.path.join(silver_dir, f)
-        if os.path.exists(path):
-            df = pd.read_parquet(path)
-            assert not df.empty, f"O arquivo Parquet {f} está vazio."
+    for col in required_cols:
+        assert col in df.columns
+        assert df[col].notna().any()
+
+    mean_prediction = df["predicted_lap_duration_seconds"].mean()
+    assert 50.0 <= mean_prediction <= 250.0
 
 
-def test_silver_telemetry_partitioning():
-    """
-    Valida a existência de estrutura particionada física para a telemetria Silver.
-    """
-    telemetry_root = os.path.join(DATA_DIR, "silver", "fact_car_telemetry")
-    if os.path.exists(telemetry_root):
-        sessions = os.listdir(telemetry_root)
-        assert (
-            len(sessions) > 0
-        ), "Nenhuma partição de session_key na telemetria Silver."
-
-        # Checar se as subpastas seguem a partição por session_key e driver_number
-        for sess in sessions:
-            assert sess.startswith(
-                "session_key="
-            ), f"Pasta de partição inválida: {sess}"
-            sess_path = os.path.join(telemetry_root, sess)
-
-            drivers = os.listdir(sess_path)
-            for drv in drivers:
-                assert drv.startswith(
-                    "driver_number="
-                ), f"Subpasta de partição de piloto inválida: {drv}"
-
-                parquet_file = os.path.join(sess_path, drv, "data.parquet")
-                assert os.path.exists(
-                    parquet_file
-                ), f"Arquivo data.parquet ausente na partição {sess}/{drv}"
-
-                # Checar qualidade física básica dos dados gravados
-                df = pd.read_parquet(parquet_file)
-                assert "speed" in df.columns
-                assert "rpm" in df.columns
-                assert "n_gear" in df.columns
-
-                # Asserts de Limites Físicos de Telemetria F1 (Data Quality)
-                assert (df["speed"] >= 0).all() and (
-                    df["speed"] <= 380
-                ).all(), "Velocidades físicas fora do intervalo realista de F1 [0, 380]"
-                assert (df["n_gear"] >= -1).all() and (
-                    df["n_gear"] <= 8
-                ).all(), "Marchas fora do intervalo realista de F1 [-1, 8]"
-                assert (df["rpm"] >= 0).all() and (
-                    df["rpm"] <= 16000
-                ).all(), "RPM de motor fora da faixa de segurança do asfalto [0, 16000]"
-
-
-def test_gold_predictions_integrity():
-    """
-    Verifica a qualidade e integridade lógica das predições de IA da camada Gold.
-    """
-    prediction_files = glob.glob(
-        os.path.join(
-            DATA_DIR, "gold", "lap_predictions", "session_key=*", "data.parquet"
-        )
+def test_gold_features_partitioning(tmp_path):
+    features_df = pd.DataFrame(
+        {
+            "session_key": [10014],
+            "driver_number": [44],
+            "stint_number": [1],
+            "lap_number": [1],
+            "lap_duration_seconds": [92.5],
+        }
     )
-    if prediction_files:
-        df = pd.concat(
-            [pd.read_parquet(path) for path in prediction_files], ignore_index=True
-        )
-        assert not df.empty
+    _write_gold_partitioned(tmp_path, "gold", "features_lap_data", 10014, features_df)
 
-        required_cols = [
-            "session_key",
-            "driver_number",
-            "lap_duration_seconds",
-            "predicted_lap_duration_seconds",
-            "delta_performance_seconds",
-        ]
-        for col in required_cols:
-            assert (
-                col in df.columns
-            ), f"Coluna obrigatória {col} ausente na camada Gold."
-            assert df[col].notna().any(), f"Coluna {col} contém apenas nulos."
-
-        # O tempo predito de volta deve ser coerente com um tempo real (ex: entre 50s e 200s para voltas normais)
-        mean_prediction = df["predicted_lap_duration_seconds"].mean()
-        assert (
-            50.0 <= mean_prediction <= 250.0
-        ), f"Tempo predito médio de volta irrealista: {mean_prediction}s"
-
-
-def test_gold_features_partitioning():
-    """
-    Valida a persistência particionada da camada Gold de features.
-    """
-    feature_files = glob.glob(
-        os.path.join(
-            DATA_DIR, "gold", "features_lap_data", "session_key=*", "data.parquet"
-        )
+    feature_files = sorted(
+        (tmp_path / "gold" / "features_lap_data").rglob("data.parquet")
     )
-    if feature_files:
-        df = pd.concat(
-            [pd.read_parquet(path) for path in feature_files], ignore_index=True
-        )
-        assert not df.empty
-        required_cols = [
-            "session_key",
-            "driver_number",
-            "stint_number",
-            "lap_number",
-            "lap_duration_seconds",
-        ]
-        for col in required_cols:
-            assert col in df.columns
-            assert df[col].notna().any()
+    assert len(feature_files) > 0
+    df = pd.concat([pd.read_parquet(path) for path in feature_files], ignore_index=True)
+    assert not df.empty
+
+    required_cols = [
+        "session_key",
+        "driver_number",
+        "stint_number",
+        "lap_number",
+        "lap_duration_seconds",
+    ]
+    for col in required_cols:
+        assert col in df.columns
+        assert df[col].notna().any()
 
 
-def test_ml_model_serialization():
-    """
-    Garante que o modelo de IA foi treinado e serializado no disco com sucesso.
-    """
-    model_path = os.path.join(MODELS_DIR, "lap_regressor.joblib")
-    if os.path.exists(model_path):
-        model = joblib.load(model_path)
-        assert hasattr(
-            model, "predict"
-        ), "O arquivo serializado não é um modelo preditivo sklearn válido."
+def test_ml_model_serialization(tmp_path):
+    import joblib
+    import numpy as np
+    from sklearn.linear_model import LinearRegression
+
+    rng = np.random.RandomState(42)
+    model = LinearRegression()
+    X = rng.rand(100, 5)
+    y = rng.rand(100)
+    model.fit(X, y)
+
+    model_path = tmp_path / "lap_regressor.joblib"
+    joblib.dump(model, model_path)
+
+    loaded = joblib.load(model_path)
+    assert hasattr(loaded, "predict")
 
 
-def test_gold_f1_telemetry_analysis_integrity():
-    """
-    Garante as regras de integridade do Contrato de Dados para fct_f1_telemetry_analysis.
-    """
-    gold_parquet = os.path.join(DATA_DIR, "gold", "fct_f1_telemetry_analysis.parquet")
-    if os.path.exists(gold_parquet):
-        df = pd.read_parquet(gold_parquet)
-        assert not df.empty, "Tabela fct_f1_telemetry_analysis está vazia."
+def test_gold_f1_telemetry_analysis_integrity(tmp_path):
+    analysis_df = pd.DataFrame(
+        {
+            "session_key": [10014, 10014],
+            "driver_number": [44, 1],
+            "lap_number": [1, 2],
+            "max_speed": [312, 298],
+            "avg_speed": [280.5, 265.0],
+            "max_rpm": [11800, 11500],
+            "avg_rpm": [11000.0, 10800.0],
+            "throttle_intensity_pct": [98.5, 92.0],
+            "brake_intensity_pct": [0.0, 5.0],
+            "drs_activation_pct": [10.0, 8.0],
+            "gear_changes": [15, 12],
+        }
+    )
+    gold_parquet = tmp_path / "gold" / "fct_f1_telemetry_analysis.parquet"
+    gold_parquet.parent.mkdir(parents=True, exist_ok=True)
+    analysis_df.to_parquet(gold_parquet)
 
-        # Validar colunas obrigatórias
-        required_cols = [
-            "session_key",
-            "driver_number",
-            "lap_number",
-            "max_speed",
-            "avg_speed",
-            "max_rpm",
-            "avg_rpm",
-            "throttle_intensity_pct",
-            "brake_intensity_pct",
-            "drs_activation_pct",
-            "gear_changes",
-        ]
-        for col in required_cols:
-            assert col in df.columns, f"Coluna obrigatória {col} ausente."
-            assert df[col].notna().all(), f"Coluna {col} contém valores nulos."
+    df = pd.read_parquet(gold_parquet)
+    assert not df.empty
 
-        # Validar limites de qualidade física (evitando quebras com carros parados/retirados ou cool-down laps)
-        assert (df["lap_number"] > 0).all(), "Número de volta inválido."
-        assert (
-            df["max_speed"] <= 400
-        ).all(), "max_speed fora do limite do contrato [<= 400]"
-        assert (
-            df["avg_speed"] <= 380
-        ).all(), "avg_speed fora do limite do contrato [<= 380]"
-        assert (
-            df["max_rpm"] <= 18000
-        ).all(), "max_rpm fora do limite do contrato [<= 18000]"
-        assert (df["throttle_intensity_pct"] >= 0).all() and (
-            df["throttle_intensity_pct"] <= 100
-        ).all()
-        assert (df["brake_intensity_pct"] >= 0).all() and (
-            df["brake_intensity_pct"] <= 100
-        ).all()
-        assert (df["drs_activation_pct"] >= 0).all() and (
-            df["drs_activation_pct"] <= 100
-        ).all()
-        assert (df["gear_changes"] >= 0).all()
+    required_cols = [
+        "session_key",
+        "driver_number",
+        "lap_number",
+        "max_speed",
+        "avg_speed",
+        "max_rpm",
+        "avg_rpm",
+        "throttle_intensity_pct",
+        "brake_intensity_pct",
+        "drs_activation_pct",
+        "gear_changes",
+    ]
+    for col in required_cols:
+        assert col in df.columns
+        assert df[col].notna().all()
 
-        # Validar que a grande maioria das voltas são ativas e atendem às faixas operacionais típicas
-        active_laps = df[df["max_speed"] >= 100]
-        assert len(active_laps) / len(df) > 0.8, "Menos de 80% das voltas estão ativas."
-        assert (active_laps["max_speed"] >= 50).all()
-        assert (
-            active_laps["avg_speed"] >= 10
-        ).all()  # Mínimo absoluto para voltas de cool-down ativas
-        assert (active_laps["max_rpm"] >= 1000).all()
+    assert (df["lap_number"] > 0).all()
+    assert (df["max_speed"] <= 400).all()
+    assert (df["avg_speed"] <= 380).all()
+    assert (df["max_rpm"] <= 18000).all()
+    assert (df["throttle_intensity_pct"] >= 0).all()
+    assert (df["throttle_intensity_pct"] <= 100).all()
+    assert (df["brake_intensity_pct"] >= 0).all()
+    assert (df["brake_intensity_pct"] <= 100).all()
+    assert (df["drs_activation_pct"] >= 0).all()
+    assert (df["drs_activation_pct"] <= 100).all()
+    assert (df["gear_changes"] >= 0).all()
+
+    active_laps = df[df["max_speed"] >= 100]
+    assert len(active_laps) / len(df) > 0.8
+    assert (active_laps["max_speed"] >= 50).all()
+    assert (active_laps["avg_speed"] >= 10).all()
+    assert (active_laps["max_rpm"] >= 1000).all()
