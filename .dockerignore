@@ -1,0 +1,33 @@
+# Secrets
+.env
+.env.*
+!env.example
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.egg-info/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*.swo
+
+# Project artifacts - not needed in build
+data/
+models/
+notebooks/
+Formula\ Insights/
+codex_frontier_agentic_ecosystem_pack/
+docs/
+tests/
+.coverage
+.pytest_cache/
+*.duckdb
+*.db
+*.db-wal
+*.db-shm

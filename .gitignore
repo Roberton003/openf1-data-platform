@@ -36,11 +36,18 @@ data/
 !data/.gitkeep
 
 # Documentation & Markdown
+# Governance files (ADRs, plans, handoffs, profile) ARE versioned.
+# Everything else in docs/ stays local.
+docs/*
+!docs/adr/
+!docs/plans/
+!docs/session-handoffs/
+!docs/PROJECT_PROFILE.md
 *.md
 !README.md
-docs/
-!docs/plans/
+!docs/adr/*.md
 !docs/plans/*.md
+!docs/session-handoffs/*.md
 
 # Temporary and Lock Files
 *~lock.*
@@ -58,5 +65,11 @@ docs/
 
 # Dagster temporary homes
 .tmp_dagster_home*/
+
+# Dashboard exports (local, not for versioning)
+Formula\ Insights/
+
+# External tooling packs
+codex_frontier_agentic_ecosystem_pack/
 
 # Markdown exceptions for data architecture docs (Excluídos para proteção de dados)
