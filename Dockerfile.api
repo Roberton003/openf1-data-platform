@@ -16,7 +16,7 @@
 # ---------------------------------------------------------------------------
 # Stage 1: Builder — install dependencies into a virtualenv
 # ---------------------------------------------------------------------------
-FROM python:3.12.10-slim AS builder
+FROM python:3.12.10-slim@sha256:fd95fa221297a88e1cf49c55ec1828edd7c5a428187e67b5d1805692d11588db AS builder
 
 WORKDIR /build
 
@@ -39,7 +39,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # ---------------------------------------------------------------------------
 # Stage 2: Runtime — minimal image with app + venv only
 # ---------------------------------------------------------------------------
-FROM python:3.12.10-slim AS runtime
+FROM python:3.12.10-slim@sha256:fd95fa221297a88e1cf49c55ec1828edd7c5a428187e67b5d1805692d11588db AS runtime
 
 # Metadata
 LABEL maintainer="OpenF1 Data Platform"
