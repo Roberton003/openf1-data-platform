@@ -3,7 +3,6 @@
 import os
 
 import pandas as pd
-import pytest
 
 from src.ingestion.storage import (
     atomic_append_partitioned_file,

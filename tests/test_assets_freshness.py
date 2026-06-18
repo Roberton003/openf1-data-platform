@@ -1,6 +1,5 @@
 """Tests for ingestion/assets.py — freshness calculation and utility functions."""
 
-import os
 import time
 
 from src.ingestion.assets import _calc_freshness_minutes

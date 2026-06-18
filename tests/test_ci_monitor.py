@@ -1,10 +1,9 @@
 """Tests for web/ci_monitor.py — CI monitoring and healing."""
 
-import json
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-from src.web.ci_monitor import get_latest_runs, get_run_jobs, ALERTS_DIR
+from src.web.ci_monitor import ALERTS_DIR, get_latest_runs, get_run_jobs
 
 
 def test_get_latest_runs_returns_list():

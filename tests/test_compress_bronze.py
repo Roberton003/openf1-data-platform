@@ -1,7 +1,6 @@
 """Tests for ingestion/compress_bronze.py — cold storage compression."""
 
 import json
-import os
 
 from src.ingestion.compress_bronze import compress_bronze_layer
 

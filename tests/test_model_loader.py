@@ -1,9 +1,7 @@
 """Tests for web/model_loader.py — ModelLoader singleton with joblib fallback."""
 
-import os
 import threading
-import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -76,6 +74,7 @@ def test_model_loader_thread_safety(tmp_path):
     results = []
 
     with patch("src.web.model_loader.joblib.load", return_value="thread_model"):
+
         def load_model():
             results.append(loader.load())
 

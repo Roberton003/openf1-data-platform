@@ -1,14 +1,13 @@
 """Tests for web/ci_monitor.py — additional functions for coverage."""
 
-import json
 import os
 from unittest.mock import MagicMock, patch
 
 from src.web.ci_monitor import (
+    ALERTS_DIR,
     execute_healing_action,
     notify_local,
     send_alert_email,
-    ALERTS_DIR,
 )
 
 
