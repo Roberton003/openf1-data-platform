@@ -1,4 +1,5 @@
 import duckdb
+import pytest
 from fastapi.testclient import TestClient
 
 from src.web.database import get_db
@@ -171,14 +172,18 @@ def override_get_db():
             execution_timestamp TIMESTAMP,
             duration_seconds DOUBLE,
             status VARCHAR,
-            total_rows_processed INTEGER
+            total_rows_processed INTEGER,
+            total_rows_bronze INTEGER,
+            total_rows_silver INTEGER,
+            total_rows_quarantine INTEGER,
+            quarantine_rate DOUBLE
         )
     """
     )
     conn.execute(
         "INSERT INTO fact_pipeline_execution VALUES "
         "('uuid-123', 'Silver_Pipeline', 10014, '2026-06-10 13:00:00', "
-        "0.29, 'Success', 8520)"
+        "0.29, 'Success', 8520, 10000, 8520, 12, 0.0012)"
     )
 
     # 9. Setup mock fact_session_results
@@ -249,7 +254,27 @@ def override_get_db():
         "(10014, 1, 44, 1, '2025-03-16 12:10:00.000')"
     )
 
-    # 13. Setup mock fct_f1_telemetry_analysis
+    # 13. Setup mock gold_lap_predictions
+    conn.execute(
+        """
+        CREATE TABLE gold_lap_predictions (
+            session_key INTEGER,
+            driver_number INTEGER,
+            stint_number INTEGER,
+            compound VARCHAR,
+            tyre_age_at_start INTEGER,
+            lap_duration_seconds DOUBLE,
+            predicted_lap_duration_seconds DOUBLE,
+            delta_performance_seconds DOUBLE
+        )
+    """
+    )
+    conn.execute(
+        "INSERT INTO gold_lap_predictions VALUES "
+        "(10014, 44, 1, 'SOFT', 0, 92.5, 91.9, 0.6)"
+    )
+
+    # 14. Setup mock fct_f1_telemetry_analysis
     conn.execute(
         """
         CREATE TABLE fct_f1_telemetry_analysis (
@@ -339,6 +364,17 @@ def test_get_pipeline_execution():
     assert len(data) == 1
     assert data[0]["run_id"] == "uuid-123"
     assert data[0]["status"] == "Success"
+    assert data[0]["total_rows_quarantine"] == 12
+
+
+def test_get_lap_predictions():
+    response = client.get(
+        "/api/predictions/lap_time?session_key=10014&driver_number=44"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["predicted_lap_time"] == 91.9
 
 
 def test_get_weather():
@@ -422,9 +458,14 @@ def test_execute_adhoc_query_success():
     )
     assert response.status_code == 200
     data = response.json()
-    assert len(data) == 1
-    assert data[0]["session_key"] == 10014
-    assert data[0]["country_name"] == "Bahrain"
+    # New contract: {columns, row_count, total_rows, truncated, limit, data}
+    assert data["columns"] == ["session_key", "country_name"]
+    assert data["row_count"] == 1
+    assert data["truncated"] is False
+    assert data["limit"] == 10_000
+    assert len(data["data"]) == 1
+    assert data["data"][0]["session_key"] == 10014
+    assert data["data"][0]["country_name"] == "Bahrain"
 
 
 def test_execute_adhoc_query_forbidden():
@@ -435,6 +476,113 @@ def test_execute_adhoc_query_forbidden():
     assert response.status_code == 400
     data = response.json()
     assert "Apenas consultas de leitura" in data["detail"]
+
+
+# ---------------------------------------------------------------------------
+# SQL Injection / Hardened Gateway Tests (Sprint 1.1 + 1.2)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "malicious_query,expected_fragment",
+    [
+        # Plain DDL/DML — blocked by allowlist (must start with SELECT/WITH)
+        ("DROP TABLE dim_sessions", "Apenas consultas de leitura"),
+        ("DELETE FROM dim_sessions", "Apenas consultas de leitura"),
+        ("INSERT INTO dim_sessions VALUES (1)", "Apenas consultas de leitura"),
+        ("UPDATE dim_sessions SET year=2000", "Apenas consultas de leitura"),
+        ("CREATE TABLE x (a INT)", "Apenas consultas de leitura"),
+        ("ALTER TABLE dim_sessions ADD COLUMN x INT", "Apenas consultas de leitura"),
+        ("TRUNCATE dim_sessions", "Apenas consultas de leitura"),
+        # Mixed-case obfuscation — still blocked by first-token allowlist
+        ("DrOp TABLE dim_sessions", "Apenas consultas de leitura"),
+        ("  DROP TABLE dim_sessions", "Apenas consultas de leitura"),
+        ("select * from dim_sessions; DROP TABLE dim_sessions", "Token proibido"),
+        # Dangerous tokens inside CTE/subquery — blocked by word-boundary regex
+        (
+            "WITH x AS (SELECT * FROM dim_sessions) SELECT * FROM x; DROP TABLE y",
+            "Token proibido",
+        ),
+        (
+            "SELECT * FROM dim_sessions WHERE country_name = 'SELECT'; DELETE FROM dim_sessions",
+            "Token proibido",
+        ),
+        # SQL Server-style stacked queries — blocked
+        ("SELECT * FROM dim_sessions; DROP TABLE dim_sessions", "Token proibido"),
+        # UNION-based exfiltration with DDL — blocked
+        (
+            "SELECT * FROM dim_sessions UNION ALL SELECT 1; DROP TABLE t",
+            "Token proibido",
+        ),
+        # DuckDB-specific export/write functions — blocked
+        (
+            "SELECT * FROM dim_sessions; COPY (SELECT 1) TO '/tmp/x.csv'",
+            "Token proibido",
+        ),
+        ("SELECT * FROM dim_sessions; EXPORT DATABASE '/tmp/db'", "Token proibido"),
+        # Comment-stripping bypass — comment containing blocked token stripped
+        (
+            "SELECT /* DROP */ * FROM dim_sessions",
+            None,
+        ),  # safe — token removed with comment
+        (
+            "SELECT * FROM dim_sessions -- DROP TABLE",
+            None,
+        ),  # safe — token in line comment stripped
+        # String-literal bypass — token inside string literal should be fine
+        ("SELECT * FROM dim_sessions WHERE country_name = 'drop off'", None),
+        # Empty query
+        ("", "Query vazia"),
+        ("   ", "Query vazia"),
+        # Non-SELECT/WITH first token
+        ("SHOW TABLES", "Apenas consultas de leitura"),
+        ("PRAGMA table_info('dim_sessions')", "Apenas consultas de leitura"),
+        ("EXPLAIN SELECT * FROM dim_sessions", "Apenas consultas de leitura"),
+        ("SET threads = 8", "Apenas consultas de leitura"),
+    ],
+)
+def test_sql_gateway_injection_blocked(malicious_query, expected_fragment):
+    response = client.post(
+        "/api/analytics/query",
+        json={"query": malicious_query},
+    )
+    if expected_fragment is None:
+        # Query is allowed (safe) — should not return 400 for security reasons
+        # (may still return 400 if table doesn't exist, which is acceptable)
+        if response.status_code == 400:
+            # Verify the error is NOT a security rejection
+            detail = response.json().get("detail", "")
+            assert "Apenas consultas de leitura" not in detail
+            assert "Token proibido" not in detail
+            assert "Query vazia" not in detail
+    else:
+        assert response.status_code == 400
+        data = response.json()
+        assert expected_fragment in data["detail"]
+
+
+def test_sql_gateway_limit_injection():
+    """Queries without LIMIT should have one auto-injected."""
+    response = client.post(
+        "/api/analytics/query",
+        json={"query": "SELECT * FROM dim_sessions"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    # The endpoint returns the structured envelope
+    assert "limit" in data
+    assert data["limit"] == 10_000
+
+
+def test_sql_gateway_preserves_explicit_limit():
+    """Queries with explicit LIMIT should not be modified."""
+    response = client.post(
+        "/api/analytics/query",
+        json={"query": "SELECT * FROM dim_sessions LIMIT 5"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["row_count"] == 1  # Mock only has 1 row; LIMIT 5 is respected
 
 
 def test_execute_chat_query_success():
@@ -473,3 +621,353 @@ def test_get_telemetry_analysis():
     assert data[0]["lap_number"] == 1
     assert data[0]["max_speed"] == 312
     assert data[0]["gear_changes"] == 15
+
+
+def test_race_intelligence_home_page():
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "Race Intelligence" in response.text
+
+
+def test_race_intelligence_session_summary_contract():
+    response = client.get("/api/race_intelligence/session_summary?session_key=10014")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["available"] is True
+    assert data["reason"] == "ok"
+    assert data["data"]["session"]["country_name"] == "Bahrain"
+    assert data["data"]["winner"]["driver"] == "VER"
+    assert data["data"]["driver_count"] == 2
+    assert data["data"]["gold_predictions_available"] is True
+
+
+def test_race_intelligence_session_summary_empty_state():
+    response = client.get("/api/race_intelligence/session_summary?session_key=999")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["available"] is False
+    assert data["reason"] == "no_rows_for_session"
+    assert data["data"] is None
+    assert data["metadata"]["empty_state"]["reason"] == "no_rows_for_session"
+
+
+def test_race_intelligence_driver_options_contract():
+    response = client.get("/api/race_intelligence/driver_options?session_key=10014")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["available"] is True
+    assert data["reason"] == "ok"
+    assert len(data["data"]) == 2
+    assert data["data"][0]["driver_number"] == 44
+    assert data["data"][0]["has_telemetry"] is True
+
+
+def test_race_intelligence_strategy_timeline_contract():
+    response = client.get("/api/race_intelligence/strategy_timeline?session_key=10014")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["available"] is True
+    event_types = {event["event_type"] for event in data["data"]}
+    assert {"race_control", "pit_stop", "overtake"}.issubset(event_types)
+    assert all("source" in event for event in data["data"])
+
+
+def test_race_intelligence_pipeline_health_contract():
+    response = client.get("/api/race_intelligence/pipeline_health?session_key=10014")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["available"] is True
+    assert data["reason"] == "ok"
+    assert data["data"]["latest_execution"]["run_id"] == "uuid-123"
+    assert data["data"]["health_status"] == "healthy"
+
+
+def test_race_intelligence_prediction_status_contract():
+    response = client.get("/api/race_intelligence/prediction_status?session_key=10014")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["available"] is True
+    assert data["reason"] == "ok"
+    assert data["data"]["prediction_count"] == 1
+    assert data["data"]["driver_count"] == 1
+
+
+def test_race_intelligence_driver_duel_contract():
+    response = client.get(
+        "/api/race_intelligence/driver_duel?session_key=10014&driver_1=44&driver_2=1"
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["available"] is True
+    assert data["reason"] == "ok"
+    assert data["data"]["drivers"]["44"]["max_speed"] == 315
+    assert data["data"]["drivers"]["1"]["max_speed"] == 320
+
+
+# ---------------------------------------------------------------------------
+# Health / Readiness Endpoint Tests (Sprint 1.3)
+# ---------------------------------------------------------------------------
+
+
+def test_health_check_liveness():
+    """Liveness probe should return 200 with status=healthy."""
+    response = client.get("/api/health")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "healthy"
+    assert data["check"] == "duckdb_responsive"
+
+
+def test_readiness_check_returns_checks_structure():
+    """Readiness probe should return checks for duckdb, files, and freshness."""
+    # In test environment, the data/ directory may not have the parquet files
+    # so this may return 503. We only assert the response shape.
+    response = client.get("/api/ready")
+    assert response.status_code in (200, 503)
+    data = response.json()
+    if response.status_code == 200:
+        assert data["status"] == "ready"
+        assert "checks" in data
+        assert "duckdb" in data["checks"]
+        assert "required_files" in data["checks"]
+        assert "freshness" in data["checks"]
+        assert "timestamp_epoch" in data
+    else:
+        # Not ready — checks should explain why
+        assert data["detail"]["status"] == "not_ready"
+        assert "checks" in data["detail"]
+
+
+def test_health_check_duckdb_always_responsive():
+    """DuckDB should be responsive in in-memory mode."""
+    response = client.get("/api/health")
+    assert response.status_code == 200
+
+
+def test_request_id_header_returned():
+    """Every response should include X-Request-ID header."""
+    response = client.get("/api/sessions")
+    assert "x-request-id" in response.headers
+    assert len(response.headers["x-request-id"]) > 0
+
+
+def test_request_id_header_propagated_from_client():
+    """If client passes X-Request-ID, it should be echoed back."""
+    custom_id = "test-trace-abc123"
+    response = client.get("/api/sessions", headers={"X-Request-ID": custom_id})
+    assert response.headers["x-request-id"] == custom_id
+
+
+# ---------------------------------------------------------------------------
+# Negative API Tests — 404, 422, 500, schema validation (Sprint 1.5 / 3.3)
+# ---------------------------------------------------------------------------
+
+
+def test_nonexistent_endpoint_returns_404():
+    """Requesting an unknown endpoint should return 404, not crash."""
+    response = client.get("/api/nonexistent_route")
+    assert response.status_code == 404
+
+
+def test_missing_required_query_param_returns_422():
+    """Endpoints requiring query params should return 422 on missing param."""
+    response = client.get("/api/drivers")
+    assert response.status_code == 422
+    data = response.json()
+    assert "detail" in data
+
+
+def test_invalid_session_key_type_returns_422():
+    """Non-integer session_key should return 422 validation error."""
+    response = client.get("/api/drivers?session_key=not_a_number")
+    assert response.status_code == 422
+
+
+def test_empty_query_body_returns_422():
+    """Empty JSON body to /api/analytics/query should return 422."""
+    response = client.post("/api/analytics/query", json={})
+    assert response.status_code == 422
+
+
+def test_empty_query_string_returns_400():
+    """Empty query string should be rejected by SQL gateway."""
+    response = client.post("/api/analytics/query", json={"query": ""})
+    assert response.status_code == 400
+
+
+def test_syntax_error_in_sql_returns_400():
+    """Malformed SQL should return 400 with helpful error."""
+    response = client.post(
+        "/api/analytics/query",
+        json={"query": "SELECT * FRMO nowhere"},
+    )
+    assert response.status_code == 400
+    detail = response.json()["detail"]
+    # Either a DuckDB syntax error or another parser error is acceptable
+    assert len(detail) > 10
+
+
+def test_query_on_nonexistent_table_returns_400():
+    """Querying a table that doesn't exist should return 400, not 500."""
+    response = client.post(
+        "/api/analytics/query",
+        json={"query": "SELECT * FROM completely_made_up_table"},
+    )
+    assert response.status_code == 400
+
+
+def test_session_without_data_returns_empty():
+    """Session 99999 doesn't exist — endpoints should return [], not error."""
+    response = client.get("/api/drivers?session_key=99999")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) == 0
+
+
+def test_weather_without_session_returns_empty():
+    """Weather for non-existent session should return empty, not crash."""
+    response = client.get("/api/weather?session_key=99999")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+
+
+def test_race_control_without_session_returns_empty():
+    """Race control for non-existent session should return empty."""
+    response = client.get("/api/race_control?session_key=99999")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_pit_stops_without_session_returns_empty():
+    """Pit stops for non-existent session should return empty."""
+    response = client.get("/api/pit_stops?session_key=99999")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_overtakes_without_session_returns_empty():
+    """Overtakes for non-existent session should return empty."""
+    response = client.get("/api/overtakes?session_key=99999")
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_duel_with_missing_driver_returns_empty_or_404():
+    """Duel endpoint with non-existent driver should not crash (500)."""
+    response = client.get("/api/duel/location?session_key=99999&driver_number=999")
+    assert response.status_code == 200
+    # Either returns empty data or an empty state
+    data = response.json()
+    assert isinstance(data, list) or isinstance(data, dict)
+
+
+def test_chat_missing_session_in_payload_returns_422():
+    """Chat endpoint without session_key in payload should return 422."""
+    response = client.post("/api/analytics/chat", json={"question": "test"})
+    assert response.status_code == 422
+
+
+def test_chat_missing_question_in_payload_returns_422():
+    """Chat endpoint without question in payload should return 422."""
+    response = client.post("/api/analytics/chat", json={"session_key": 10014})
+    assert response.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# Unit tests for TTLCache and SQL validation helper
+# ---------------------------------------------------------------------------
+
+
+def test_ttlcache_returns_cached_value():
+    """TTLCache should return cached value on subsequent calls."""
+    from src.web.database import TTLCache
+
+    cache = TTLCache(maxsize=10, ttl_seconds=60)
+    call_count = 0
+
+    @cache
+    def expensive(conn, x):
+        nonlocal call_count
+        call_count += 1
+        return x * 2
+
+    # First call — cache miss
+    result1 = expensive("fake_conn", 5)
+    assert result1 == 10
+    assert call_count == 1
+
+    # Second call with same args — cache hit
+    result2 = expensive("fake_conn", 5)
+    assert result2 == 10
+    assert call_count == 1  # Not called again
+
+    # Different args — cache miss
+    result3 = expensive("fake_conn", 7)
+    assert result3 == 14
+    assert call_count == 2
+
+
+def test_ttlcache_exclude_first_arg_from_key():
+    """TTLCache should exclude first arg (connection) from cache key."""
+    from src.web.database import TTLCache
+
+    cache = TTLCache(maxsize=10, ttl_seconds=60)
+    call_count = 0
+
+    @cache
+    def func(conn, value):
+        nonlocal call_count
+        call_count += 1
+        return value
+
+    # Different "connections" but same query params → should hit cache
+    func("conn_a", 42)
+    assert call_count == 1
+    func("conn_b", 42)
+    assert call_count == 1  # Cache hit despite different first arg
+
+
+def test_ttlcache_evicts_oldest_when_full():
+    """TTLCache should evict oldest entry when at maxsize."""
+    from src.web.database import TTLCache
+
+    cache = TTLCache(maxsize=2, ttl_seconds=60)
+    call_count = 0
+
+    @cache
+    def func(conn, x):
+        nonlocal call_count
+        call_count += 1
+        return x
+
+    func("c", 1)  # cache: [1]
+    func("c", 2)  # cache: [1, 2]
+    func("c", 3)  # cache: [2, 3] (1 evicted)
+    assert call_count == 3
+
+    # Re-querying 1 should miss (was evicted)
+    func("c", 1)
+    assert call_count == 4
+
+
+def test_sql_validation_helper_allowlist(sql_query_safe):
+    """Test the SQL validation helper directly from conftest fixture."""
+    from fastapi import HTTPException
+
+    # Valid queries — should pass and return a valid string
+    result = sql_query_safe("SELECT * FROM t")
+    assert "SELECT" in result.upper()
+
+    result = sql_query_safe("WITH x AS (SELECT 1) SELECT * FROM x")
+    assert "WITH" in result.upper()
+
+    # Invalid — should raise
+    with pytest.raises(HTTPException) as exc_info:
+        sql_query_safe("DROP TABLE t")
+    assert exc_info.value.status_code == 400
+
+    with pytest.raises(HTTPException) as exc_info:
+        sql_query_safe("")
+    assert exc_info.value.status_code == 400

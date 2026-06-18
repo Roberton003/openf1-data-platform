@@ -1,3 +1,4 @@
+import glob
 import os
 
 import joblib
@@ -81,9 +82,15 @@ def test_gold_predictions_integrity():
     """
     Verifica a qualidade e integridade lógica das predições de IA da camada Gold.
     """
-    predictions_parquet = os.path.join(DATA_DIR, "gold", "lap_predictions.parquet")
-    if os.path.exists(predictions_parquet):
-        df = pd.read_parquet(predictions_parquet)
+    prediction_files = glob.glob(
+        os.path.join(
+            DATA_DIR, "gold", "lap_predictions", "session_key=*", "data.parquet"
+        )
+    )
+    if prediction_files:
+        df = pd.concat(
+            [pd.read_parquet(path) for path in prediction_files], ignore_index=True
+        )
         assert not df.empty
 
         required_cols = [
@@ -104,6 +111,32 @@ def test_gold_predictions_integrity():
         assert (
             50.0 <= mean_prediction <= 250.0
         ), f"Tempo predito médio de volta irrealista: {mean_prediction}s"
+
+
+def test_gold_features_partitioning():
+    """
+    Valida a persistência particionada da camada Gold de features.
+    """
+    feature_files = glob.glob(
+        os.path.join(
+            DATA_DIR, "gold", "features_lap_data", "session_key=*", "data.parquet"
+        )
+    )
+    if feature_files:
+        df = pd.concat(
+            [pd.read_parquet(path) for path in feature_files], ignore_index=True
+        )
+        assert not df.empty
+        required_cols = [
+            "session_key",
+            "driver_number",
+            "stint_number",
+            "lap_number",
+            "lap_duration_seconds",
+        ]
+        for col in required_cols:
+            assert col in df.columns
+            assert df[col].notna().any()
 
 
 def test_ml_model_serialization():
