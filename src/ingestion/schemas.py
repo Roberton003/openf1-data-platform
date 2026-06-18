@@ -170,3 +170,101 @@ OVERTAKES_SCHEMA = {
     "date": "datetime64[ns]",
     "position": "int64",
 }
+
+# =====================================================================
+# 3. Gold Layer Constraints
+#    Validates physical constraints on Gold tables (NOT NULL, ranges, derivations).
+# =====================================================================
+
+GOLD_TABLE_CONSTRAINTS: dict[str, dict] = {
+    "fct_f1_telemetry_analysis": {
+        "not_null_cols": [
+            "session_key",
+            "driver_number",
+            "lap_number",
+            "max_speed",
+            "avg_speed",
+            "max_rpm",
+            "avg_rpm",
+            "throttle_intensity_pct",
+            "brake_intensity_pct",
+            "drs_activation_pct",
+            "gear_changes",
+        ],
+        "range_checks": {
+            "lap_number": (1, None),
+            "max_speed": (0, 400),
+            "avg_speed": (0, 380),
+            "max_rpm": (0, 18000),
+            "throttle_intensity_pct": (0, 100),
+            "brake_intensity_pct": (0, 100),
+            "drs_activation_pct": (0, 100),
+            "gear_changes": (0, None),
+        },
+    },
+    "gold_features_lap_data": {
+        "not_null_cols": [
+            "session_key",
+            "driver_number",
+            "stint_number",
+            "lap_number",
+            "lap_duration_seconds",
+            "max_speed",
+            "max_rpm",
+            "throttle_intensity_pct",
+            "brake_intensity_pct",
+        ],
+        "range_checks": {
+            "lap_number": (1, None),
+            "lap_duration_seconds": (30.0, 600.0),
+            "max_speed": (0, 400),
+            "max_rpm": (0, 18000),
+            "throttle_intensity_pct": (0, 100),
+            "brake_intensity_pct": (0, 100),
+        },
+    },
+    "gold_lap_predictions": {
+        "not_null_cols": [
+            "session_key",
+            "driver_number",
+            "lap_duration_seconds",
+            "predicted_lap_duration_seconds",
+            "delta_performance_seconds",
+        ],
+        "range_checks": {
+            "lap_duration_seconds": (30.0, 600.0),
+            "predicted_lap_duration_seconds": (30.0, 600.0),
+            "delta_performance_seconds": (-300.0, 300.0),
+        },
+    },
+}
+
+
+def validate_gold_constraints(df: pd.DataFrame, table_name: str) -> list[str]:
+    """
+    Validate a Gold table DataFrame against physical constraints.
+
+    Returns a list of constraint violation messages (empty if compliant).
+    """
+    constraints = GOLD_TABLE_CONSTRAINTS.get(table_name)
+    if constraints is None:
+        return [f"Unknown gold table: {table_name}"]
+
+    violations = []
+
+    for col in constraints["not_null_cols"]:
+        if col not in df.columns:
+            violations.append(f"Missing column: {col}")
+        elif df[col].isna().any():
+            null_count = int(df[col].isna().sum())
+            violations.append(f"Column {col}: {null_count} null values (expected 0)")
+
+    for col, (lo, hi) in constraints["range_checks"].items():
+        if col not in df.columns:
+            continue
+        if lo is not None and (df[col] < lo).any():
+            violations.append(f"Column {col}: values below minimum {lo}")
+        if hi is not None and (df[col] > hi).any():
+            violations.append(f"Column {col}: values above maximum {hi}")
+
+    return violations

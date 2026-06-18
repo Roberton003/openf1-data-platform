@@ -24,6 +24,24 @@ DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data")
 QUARANTINE_DIR = os.path.join(DATA_DIR, "quarantine")
 
 
+def _calc_freshness_minutes(base_dir: str | None) -> float | None:
+    if not base_dir or not os.path.isdir(base_dir):
+        return None
+    latest = 0.0
+    for root, _dirs, files in os.walk(base_dir):
+        for f in files:
+            fp = os.path.join(root, f)
+            try:
+                mtime = os.path.getmtime(fp)
+                if mtime > latest:
+                    latest = mtime
+            except OSError:
+                continue
+    if latest == 0.0:
+        return None
+    return round((time.time() - latest) / 60.0, 2)
+
+
 def _write_session_partition(df: pd.DataFrame, target_dir: str) -> None:
 
     atomic_write_dataframe(df, os.path.join(target_dir, "data.parquet"))
@@ -1111,10 +1129,14 @@ def process_medallion_pipeline(
                 else 0.0
             ),
             "records_rejected": int(total_rows_quarantine),
-            "data_freshness_minutes": 0.0,
+            "data_freshness_minutes": _calc_freshness_minutes(partition_path),
             "sla_runtime_status": "COMPLIANT",
             "sla_quality_status": "COMPLIANT",
-            "sla_freshness_status": "COMPLIANT",
+            "sla_freshness_status": (
+                "COMPLIANT"
+                if _calc_freshness_minutes(partition_path) is not None
+                else "NO_DATA"
+            ),
         }
 
         execution_root = os.path.join(DATA_DIR, "silver", "fact_pipeline_execution")
@@ -1156,10 +1178,19 @@ def process_medallion_pipeline(
                     else 0.0
                 ),
                 "records_rejected": int(total_rows_quarantine),
-                "data_freshness_minutes": 0.0,
+                "data_freshness_minutes": _calc_freshness_minutes(
+                    partition_path if "partition_path" in locals() else None
+                ),
                 "sla_runtime_status": "COMPLIANT",
                 "sla_quality_status": "COMPLIANT",
-                "sla_freshness_status": "COMPLIANT",
+                "sla_freshness_status": (
+                    "COMPLIANT"
+                    if _calc_freshness_minutes(
+                        partition_path if "partition_path" in locals() else None
+                    )
+                    is not None
+                    else "NO_DATA"
+                ),
             }
 
             skey_val = int(session_key) if "session_key" in locals() else 0
@@ -1185,7 +1216,9 @@ def process_medallion_pipeline(
     conn.close()
 
     print(
-        f"Processamento CLI concluído com sucesso. Bronze: {total_rows_bronze} | Silver: {total_rows_silver} | Quarentena: {total_rows_quarantine} | Tempo: {duration:.2f}s\n"
+        "Processamento CLI concluído com sucesso."
+        f" Bronze: {total_rows_bronze} | Silver: {total_rows_silver}"
+        f" | Quarentena: {total_rows_quarantine} | Tempo: {duration:.2f}s\n"
     )
 
 

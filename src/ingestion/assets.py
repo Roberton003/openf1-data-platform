@@ -29,6 +29,24 @@ DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data")
 MODELS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../models"))
 
 
+def _calc_freshness_minutes(base_dir: str | None) -> float | None:
+    if not base_dir or not os.path.isdir(base_dir):
+        return None
+    latest = 0.0
+    for root, _dirs, files in os.walk(base_dir):
+        for f in files:
+            fp = os.path.join(root, f)
+            try:
+                mtime = os.path.getmtime(fp)
+                if mtime > latest:
+                    latest = mtime
+            except OSError:
+                continue
+    if latest == 0.0:
+        return None
+    return round((time.time() - latest) / 60.0, 2)
+
+
 def _write_session_partition(df: pd.DataFrame, target_dir: str) -> None:
 
     atomic_write_dataframe(df, os.path.join(target_dir, "data.parquet"))
@@ -966,6 +984,9 @@ def silver_telemetry_location_aligned(context: AssetExecutionContext) -> None:
 
         skey = gp_cfg["session_key"]
 
+        bronze_path = os.path.join(DATA_DIR, "bronze", f"session_key={skey}")
+        freshness = _calc_freshness_minutes(bronze_path)
+
         run_record = {
             "run_id": str(uuid.uuid4()),
             "pipeline_name": "dagster",
@@ -979,7 +1000,7 @@ def silver_telemetry_location_aligned(context: AssetExecutionContext) -> None:
             "total_rows_quarantine": 0,
             "quarantine_rate": 0.0,
             "records_rejected": 0,
-            "data_freshness_minutes": 0.0,
+            "data_freshness_minutes": freshness,
             "sla_runtime_status": "COMPLIANT",
             "sla_quality_status": "COMPLIANT",
             "sla_freshness_status": "COMPLIANT",

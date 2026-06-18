@@ -11,6 +11,8 @@ Este diretório contém os registros de handoff operacional do OpenF1 Data Platf
 | 2026-06-17 | [Doc Check do Alvo Handoff](2026-06-17_doc-check-do-alvo-handoff.md) | Verificação do alvo de handoff |
 | 2026-06-17 | [Fase 4 Validação Harness Frontier](2026-06-17_fase-4-validacao-operacional-do-harness-frontier.md) | Validação operacional do harness |
 | 2026-06-17 | [Smoke Test do Alvo Handoff](2026-06-17_smoke-test-do-alvo-handoff.md) | Smoke test do handoff |
+| 2026-06-17 | [Harness Evolution](2026-06-17_harness_evolution.md) | Evolucao do harness |
+| 2026-06-18 | [F1-015 Closure](2026-06-18_f1-015-closure.md) | Fechamento do plano F1-015 |
 
 ## Como Criar um Handoff
 

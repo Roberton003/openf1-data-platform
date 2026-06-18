@@ -1,7 +1,8 @@
 # OpenF1 Data Platform Agent Rules
 
-Estas regras complementam o protocolo global (`~/.opencode/opencode.md`).
+Estas regras complementam o protocolo global (`~/.opencode/opencode-core.md`).
 Quando houver conflito, regras mais proximas do arquivo trabalhado prevalecem.
+O harness ativo tem 18 skills e 20 agents (8 core + 12 domain) em `~/.opencode/`.
 
 ## Roberto
 

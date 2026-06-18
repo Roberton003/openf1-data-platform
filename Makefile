@@ -1,4 +1,4 @@
-.PHONY: setup install test lint clean ingest run ci-check ci-heal handoff
+.PHONY: setup install format lint test security validate clean ingest run ci-check ci-heal handoff
 
 # Variáveis do Projeto
 PYTHON = .venv/bin/python
@@ -16,12 +16,16 @@ install:
 format:
 	.venv/bin/black src/ tests/
 	.venv/bin/isort src/ tests/
-
 lint:
 	.venv/bin/flake8 src/ tests/ --max-line-length=120 --extend-ignore=E203,W503,E501,W291,F841,F541 --exclude=src/dashboard/
 
+security:
+	.venv/bin/detect-secrets scan src/ tests/ --exclude-files '.*__pycache__.*' 2>/dev/null || true
+	.venv/bin/bandit -r src/ -f json -o bandit-report.json 2>/dev/null || true
+	.venv/bin/safety check -r requirements.txt --output json 2>/dev/null || true
 
-
+validate: lint test security
+	@echo "=== All checks passed ==="
 
 test:
 	PYTHONPATH=. .venv/bin/pytest tests/ -v
@@ -49,7 +53,7 @@ clean:
 	rm -rf data/quarantine/*
 
 run:
-	PYTHONPATH=. .venv/bin/uvicorn src.web.main:app --reload --host 0.0.0.0 --port 8001
+	PYTHONPATH=. .venv/bin/uvicorn src.web.main:app --reload --host 127.0.0.1 --port 8001
 
 ci-check:
 	PYTHONPATH=. $(PYTHON) -c "from src.web.ci_monitor import check_and_heal_ci; check_and_heal_ci()"

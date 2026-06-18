@@ -3,11 +3,8 @@ from datetime import datetime
 import pandas as pd
 from pydantic import BaseModel
 
-from src.ingestion.process import (
-    TELEMETRY_SCHEMA,
-    validate_pydantic_batch,
-    validate_vectorized_batch,
-)
+from src.ingestion.process import (TELEMETRY_SCHEMA, validate_pydantic_batch,
+                                   validate_vectorized_batch)
 from src.ingestion.schemas import DriverContract
 
 
