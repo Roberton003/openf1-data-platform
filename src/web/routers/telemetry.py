@@ -6,9 +6,7 @@ from src.web.database import get_db, run_query_async
 router = APIRouter(prefix="/api")
 
 
-def fetch_telemetry_from_db(
-    conn: duckdb.DuckDBPyConnection, session_key: int, driver_number: int
-) -> list[dict]:
+def fetch_telemetry_from_db(conn: duckdb.DuckDBPyConnection, session_key: int, driver_number: int) -> list[dict]:
     """
     Blocking DuckDB query to retrieve telemetry for a driver.
     """
@@ -52,7 +50,7 @@ def fetch_telemetry_from_db(
             }
             for r in results
         ]
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=500,
             detail="Erro interno ao buscar telemetria. Consulte os logs do servidor.",
@@ -69,6 +67,4 @@ async def get_telemetry(
     Returns high-frequency telemetry data for the selected driver and session.
     Delegates database execution to a worker thread.
     """
-    return await run_query_async(
-        fetch_telemetry_from_db, db, session_key, driver_number
-    )
+    return await run_query_async(fetch_telemetry_from_db, db, session_key, driver_number)

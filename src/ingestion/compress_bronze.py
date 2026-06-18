@@ -4,9 +4,7 @@ import tarfile
 
 
 def compress_bronze_layer(data_base_dir=None) -> None:
-    base_dir = data_base_dir or os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "../../data")
-    )
+    base_dir = data_base_dir or os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data"))
     bronze_dir = os.path.join(base_dir, "bronze")
     archive_dir = os.path.join(bronze_dir, "archive")
 
@@ -47,9 +45,7 @@ def compress_bronze_layer(data_base_dir=None) -> None:
             for json_file in json_files:
                 os.remove(os.path.join(root, json_file))
 
-            print(
-                f"Partição {rel_path} arquivada e compactada com sucesso em: {archive_name}"
-            )
+            print(f"Partição {rel_path} arquivada e compactada com sucesso em: {archive_name}")
         except Exception as e:
             print(f"Erro ao compactar partição {rel_path}: {str(e)}")
 

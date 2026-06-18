@@ -14,10 +14,9 @@ install:
 	pre-commit install
 
 format:
-	.venv/bin/black src/ tests/
-	.venv/bin/isort src/ tests/
+	.venv/bin/ruff format src/ tests/
 lint:
-	.venv/bin/flake8 src/ tests/ --max-line-length=120 --extend-ignore=E203,W503,E501,W291,F841,F541 --exclude=src/dashboard/
+	.venv/bin/ruff check src/ tests/
 
 security:
 	.venv/bin/detect-secrets scan src/ tests/ --exclude-files '.*__pycache__.*' 2>/dev/null || true

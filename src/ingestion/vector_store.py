@@ -60,9 +60,7 @@ def index_race_control_messages(session_key: int | str, df_rc) -> None:
         df["date_str"] = ""
 
     ids = [f"rc_{skey_str}_{i}" for i in range(len(df))]
-    documents = (
-        df["message"].fillna("").tolist() if "message" in df.columns else [""] * len(df)
-    )
+    documents = df["message"].fillna("").tolist() if "message" in df.columns else [""] * len(df)
     metadatas = [
         {
             "session_key": skey_str,
@@ -77,9 +75,7 @@ def index_race_control_messages(session_key: int | str, df_rc) -> None:
     collection.add(ids=ids, documents=documents, metadatas=metadatas)
 
 
-def query_race_control(
-    session_key: int | str, question: str, n_results: int = 5
-) -> list[dict[str, Any]]:
+def query_race_control(session_key: int | str, question: str, n_results: int = 5) -> list[dict[str, Any]]:
     collection = get_race_control_collection()
     skey_str = str(session_key)
 
@@ -106,11 +102,7 @@ def query_race_control(
                     "category": meta.get("category", ""),
                     "flag": meta.get("flag", ""),
                     "date_str": meta.get("date_str", ""),
-                    "relevance": (
-                        float(results["distances"][0][i])
-                        if results.get("distances")
-                        else 0.0
-                    ),
+                    "relevance": (float(results["distances"][0][i]) if results.get("distances") else 0.0),
                 }
             )
     return output

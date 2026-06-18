@@ -3,7 +3,6 @@ import os
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Optional
 
 import pandas as pd
 import requests
@@ -40,7 +39,7 @@ def fetch_endpoint(endpoint: str, params: dict = None) -> list:
             raise e
 
 
-def get_session_info(year: int, gp_name: Optional[str], session_name: str) -> dict:
+def get_session_info(year: int, gp_name: str | None, session_name: str) -> dict:
     """
     Pesquisa a sessão correspondente ao ano, gp e tipo na API.
     Executa fallback automático para 2024 se não encontrar registros de 2025.
@@ -48,9 +47,7 @@ def get_session_info(year: int, gp_name: Optional[str], session_name: str) -> di
     sessions = fetch_endpoint("sessions", {"year": year})
 
     if not sessions and year == 2025:
-        print(
-            f"Nenhum dado encontrado para a temporada de 2025. Executando fallback para 2024..."
-        )
+        print("Nenhum dado encontrado para a temporada de 2025. Executando fallback para 2024...")
         year = 2024
         sessions = fetch_endpoint("sessions", {"year": year})
 
@@ -66,9 +63,7 @@ def get_session_info(year: int, gp_name: Optional[str], session_name: str) -> di
         ].str.contains(gp_name, case=False, na=False)
         df_gp = df[gp_mask]
         if df_gp.empty:
-            print(
-                f"GP '{gp_name}' não mapeado na API. Usando GP mais recente disponível."
-            )
+            print(f"GP '{gp_name}' não mapeado na API. Usando GP mais recente disponível.")
         else:
             df = df_gp
 
@@ -78,15 +73,11 @@ def get_session_info(year: int, gp_name: Optional[str], session_name: str) -> di
 
     if df_session.empty:
         # Se não achar a sessão específica, pega a última ordenada por data
-        print(
-            f"Sessão '{session_name}' não encontrada. Selecionando a mais recente do GP/Temporada."
-        )
+        print(f"Sessão '{session_name}' não encontrada. Selecionando a mais recente do GP/Temporada.")
         df = df.sort_values("date_start", ascending=False)
         latest_session = df.iloc[0].to_dict()
     else:
-        latest_session = (
-            df_session.sort_values("date_start", ascending=False).iloc[0].to_dict()
-        )
+        latest_session = df_session.sort_values("date_start", ascending=False).iloc[0].to_dict()
 
     latest_session["year_actual"] = year
     return latest_session
@@ -100,9 +91,7 @@ def get_all_sessions(year: int, session_name: str) -> list:
     sessions = fetch_endpoint("sessions", {"year": year})
 
     if not sessions and year == 2025:
-        print(
-            f"Nenhum dado encontrado para a temporada de 2025. Executando fallback para 2024..."
-        )
+        print("Nenhum dado encontrado para a temporada de 2025. Executando fallback para 2024...")
         year = 2024
         sessions = fetch_endpoint("sessions", {"year": year})
 
@@ -117,9 +106,7 @@ def get_all_sessions(year: int, session_name: str) -> list:
 
     if df_session.empty:
         # Se não houver correspondência exata, retornar tudo ordenado por data
-        print(
-            f"Nenhuma sessão contendo '{session_name}' encontrada. Retornando todas as sessões."
-        )
+        print(f"Nenhuma sessão contendo '{session_name}' encontrada. Retornando todas as sessões.")
         df_session = df.sort_values("date_start", ascending=False)
     else:
         df_session = df_session.sort_values("date_start", ascending=True)
@@ -132,15 +119,11 @@ def get_all_sessions(year: int, session_name: str) -> list:
     return sessions_list
 
 
-def extract_driver_telemetry(
-    session_key: int, driver_number: int, driver_name: str
-) -> tuple:
+def extract_driver_telemetry(session_key: int, driver_number: int, driver_name: str) -> tuple:
     """
     Worker para extração paralela de telemetria física (car_data), intervalos e localização por piloto.
     """
-    print(
-        f" -> [{driver_name} - #{driver_number}] Iniciando extração de telemetria e localização..."
-    )
+    print(f" -> [{driver_name} - #{driver_number}] Iniciando extração de telemetria e localização...")
 
     params = {
         "session_key": session_key,
@@ -151,9 +134,7 @@ def extract_driver_telemetry(
     telemetry = fetch_endpoint("car_data", params)
 
     # 2. Extração de intervalos (intervals)
-    intervals = fetch_endpoint(
-        "intervals", {"session_key": session_key, "driver_number": driver_number}
-    )
+    intervals = fetch_endpoint("intervals", {"session_key": session_key, "driver_number": driver_number})
 
     # 3. Extração de localização espacial (location)
     location = fetch_endpoint("location", params)
@@ -164,9 +145,7 @@ def extract_driver_telemetry(
     return (driver_number, telemetry, intervals, location)
 
 
-def run_extraction_for_session(
-    session_info: dict, focus_drivers: dict[int, str]
-) -> str:
+def run_extraction_for_session(session_info: dict, focus_drivers: dict[int, str]) -> str:
     """
     Executa a extração para uma única sessão específica.
     """
@@ -262,9 +241,7 @@ def run_extraction_for_session(
         df_tel.to_parquet(output_tel, index=False)
         print(f"Consolidado car_data: {len(df_tel)} linhas salvas em {output_tel}")
     else:
-        print(
-            "Aviso: Nenhuma telemetria extraída para os pilotos focados nesta sessão."
-        )
+        print("Aviso: Nenhuma telemetria extraída para os pilotos focados nesta sessão.")
 
     # 5.1 Salvar localização espacial consolidada
     if all_location:
@@ -275,17 +252,13 @@ def run_extraction_for_session(
         # Tratar e garantir tipo numérico inteiro para coordenadas espaciais
         for col in ["x", "y", "z"]:
             if col in df_loc.columns:
-                df_loc[col] = (
-                    pd.to_numeric(df_loc[col], errors="coerce").fillna(0).astype(int)
-                )
+                df_loc[col] = pd.to_numeric(df_loc[col], errors="coerce").fillna(0).astype(int)
 
         output_loc = os.path.join(partition_path, "location.parquet")
         df_loc.to_parquet(output_loc, index=False)
         print(f"Consolidado location: {len(df_loc)} linhas salvas em {output_loc}")
     else:
-        print(
-            "Aviso: Nenhuma localização extraída para os pilotos focados nesta sessão."
-        )
+        print("Aviso: Nenhuma localização extraída para os pilotos focados nesta sessão.")
 
     # 6. Salvar intervalos consolidados da sessão
     if all_intervals:
@@ -308,13 +281,11 @@ def run_extraction_for_session(
     return partition_path
 
 
-def run_extraction(
-    year: int, gp_name: Optional[str], session_name: str, focus_drivers: dict[int, str]
-):
+def run_extraction(year: int, gp_name: str | None, session_name: str, focus_drivers: dict[int, str]):
     """
     Pipeline de Ingestão da Camada Bronze.
     """
-    print(f"=== 🏎️ OpenF1 Data Ingestion: Bronze Layer ===")
+    print("=== 🏎️ OpenF1 Data Ingestion: Bronze Layer ===")
     print(f"Temporada: {year} | GP: {gp_name or 'Último'} | Sessão: {session_name}")
 
     if gp_name == "all":
@@ -332,25 +303,15 @@ def run_extraction(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Pipeline de Ingestão F1 - Camada Bronze"
-    )
-    parser.add_argument(
-        "--year", type=int, default=2025, help="Ano da temporada F1 (padrão: 2025)"
-    )
-    parser.add_argument(
-        "--gp", type=str, default=None, help="Nome do GP ou País da corrida"
-    )
-    parser.add_argument(
-        "--session", type=str, default="Race", help="Nome da sessão (padrão: Race)"
-    )
+    parser = argparse.ArgumentParser(description="Pipeline de Ingestão F1 - Camada Bronze")
+    parser.add_argument("--year", type=int, default=2025, help="Ano da temporada F1 (padrão: 2025)")
+    parser.add_argument("--gp", type=str, default=None, help="Nome do GP ou País da corrida")
+    parser.add_argument("--session", type=str, default="Race", help="Nome da sessão (padrão: Race)")
     parser.add_argument(
         "--focus-drivers",
         type=str,
         default=None,
-        help=(
-            "Lista opcional de pilotos de foco no formato '44:Lewis Hamilton,1:Max Verstappen'"
-        ),
+        help=("Lista opcional de pilotos de foco no formato '44:Lewis Hamilton,1:Max Verstappen'"),
     )
 
     args = parser.parse_args()

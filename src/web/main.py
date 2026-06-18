@@ -17,10 +17,8 @@ from fastapi.staticfiles import StaticFiles
 from src.web.auth import rate_limit_middleware, verify_api_key
 from src.web.database import close_shared_connection
 from src.web.health import router as health_router
-from src.web.logging import (configure_logging, generate_request_id,
-                             get_request_logger)
-from src.web.routers import (analytics, ci_alerts, race_intelligence, sla,
-                             telemetry)
+from src.web.logging import configure_logging, generate_request_id, get_request_logger
+from src.web.routers import analytics, ci_alerts, race_intelligence, sla, telemetry
 
 _log_level = _os.environ.get("OPENF1_LOG_LEVEL", "INFO")
 _json_logs = _os.environ.get("OPENF1_JSON_LOGS", "true").lower() != "false"
@@ -55,9 +53,7 @@ app = FastAPI(
 )
 
 # CORS middleware config — restricted via env var
-_cors_origins = _os.environ.get(
-    "CORS_ORIGINS", "http://localhost:8001,http://localhost:8501"
-)
+_cors_origins = _os.environ.get("CORS_ORIGINS", "http://localhost:8001,http://localhost:8501")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[o.strip() for o in _cors_origins.split(",")],

@@ -24,10 +24,7 @@ def override_get_db():
         )
     """
     )
-    conn.execute(
-        "INSERT INTO dim_sessions VALUES "
-        "(10014, 2025, 'Race', 'Race', 12, 'Bahrain GP', 'Bahrain')"
-    )
+    conn.execute("INSERT INTO dim_sessions VALUES (10014, 2025, 'Race', 'Race', 12, 'Bahrain GP', 'Bahrain')")
 
     # 2. Setup mock dim_drivers
     conn.execute(
@@ -41,14 +38,8 @@ def override_get_db():
         )
     """
     )
-    conn.execute(
-        "INSERT INTO dim_drivers VALUES "
-        "(44, 'Lewis Hamilton', 'HAM', 'Ferrari', 'GBR')"
-    )
-    conn.execute(
-        "INSERT INTO dim_drivers VALUES "
-        "(1, 'Max Verstappen', 'VER', 'Red Bull Racing', 'NED')"
-    )
+    conn.execute("INSERT INTO dim_drivers VALUES (44, 'Lewis Hamilton', 'HAM', 'Ferrari', 'GBR')")
+    conn.execute("INSERT INTO dim_drivers VALUES (1, 'Max Verstappen', 'VER', 'Red Bull Racing', 'NED')")
 
     # 3. Setup mock dim_stints
     conn.execute(
@@ -84,16 +75,13 @@ def override_get_db():
     """
     )
     conn.execute(
-        "INSERT INTO fact_car_telemetry VALUES "
-        "(10014, 44, '2025-03-16 12:00:00.000', 312, 11800, 7, 98.5, 0.0, 12)"
+        "INSERT INTO fact_car_telemetry VALUES (10014, 44, '2025-03-16 12:00:00.000', 312, 11800, 7, 98.5, 0.0, 12)"
     )
     conn.execute(
-        "INSERT INTO fact_car_telemetry VALUES "
-        "(10014, 44, '2025-03-16 12:00:01.000', 315, 12000, 7, 99.0, 0.0, 12)"
+        "INSERT INTO fact_car_telemetry VALUES (10014, 44, '2025-03-16 12:00:01.000', 315, 12000, 7, 99.0, 0.0, 12)"
     )
     conn.execute(
-        "INSERT INTO fact_car_telemetry VALUES "
-        "(10014, 1, '2025-03-16 12:00:00.000', 320, 12100, 8, 100.0, 0.0, 12)"
+        "INSERT INTO fact_car_telemetry VALUES (10014, 1, '2025-03-16 12:00:00.000', 320, 12100, 8, 100.0, 0.0, 12)"
     )
 
     # 5. Setup mock fact_car_location
@@ -109,18 +97,9 @@ def override_get_db():
         )
     """
     )
-    conn.execute(
-        "INSERT INTO fact_car_location VALUES "
-        "(10014, 44, '2025-03-16 12:00:00.005', 1000, 2000, 100)"
-    )
-    conn.execute(
-        "INSERT INTO fact_car_location VALUES "
-        "(10014, 44, '2025-03-16 12:00:01.005', 1010, 2010, 100)"
-    )
-    conn.execute(
-        "INSERT INTO fact_car_location VALUES "
-        "(10014, 1, '2025-03-16 12:00:00.005', 990, 1990, 100)"
-    )
+    conn.execute("INSERT INTO fact_car_location VALUES (10014, 44, '2025-03-16 12:00:00.005', 1000, 2000, 100)")
+    conn.execute("INSERT INTO fact_car_location VALUES (10014, 44, '2025-03-16 12:00:01.005', 1010, 2010, 100)")
+    conn.execute("INSERT INTO fact_car_location VALUES (10014, 1, '2025-03-16 12:00:00.005', 990, 1990, 100)")
 
     # 6. Setup mock fact_intervals
     conn.execute(
@@ -134,10 +113,7 @@ def override_get_db():
         )
     """
     )
-    conn.execute(
-        "INSERT INTO fact_intervals VALUES "
-        "(10014, 44, '+2.451s', '+0.150s', '2025-03-16 12:00:01')"
-    )
+    conn.execute("INSERT INTO fact_intervals VALUES (10014, 44, '+2.451s', '+0.150s', '2025-03-16 12:00:01')")
 
     # 7. Setup mock fact_pit_stops
     conn.execute(
@@ -153,14 +129,8 @@ def override_get_db():
         )
     """
     )
-    conn.execute(
-        "INSERT INTO fact_pit_stops VALUES "
-        "(10014, 44, 15, 2.3, 16.5, 18.8, '2025-03-16 12:30:00')"
-    )
-    conn.execute(
-        "INSERT INTO fact_pit_stops VALUES "
-        "(10014, 1, 14, 2.1, 15.9, 18.0, '2025-03-16 12:28:00')"
-    )
+    conn.execute("INSERT INTO fact_pit_stops VALUES (10014, 44, 15, 2.3, 16.5, 18.8, '2025-03-16 12:30:00')")
+    conn.execute("INSERT INTO fact_pit_stops VALUES (10014, 1, 14, 2.1, 15.9, 18.0, '2025-03-16 12:28:00')")
 
     # 8. Setup mock fact_pipeline_execution
     conn.execute(
@@ -198,7 +168,7 @@ def override_get_db():
         )
     """
     )
-    conn.execute("INSERT INTO fact_session_results VALUES " "(10014, 1, 1, 25.0, 57)")
+    conn.execute("INSERT INTO fact_session_results VALUES (10014, 1, 1, 25.0, 57)")
 
     # 10. Setup mock dim_weather
     conn.execute(
@@ -214,10 +184,7 @@ def override_get_db():
         )
     """
     )
-    conn.execute(
-        "INSERT INTO dim_weather VALUES "
-        "(10014, '2025-03-16 12:00:00.000', 21.5, 31.2, 45.0, 12.0, 0)"
-    )
+    conn.execute("INSERT INTO dim_weather VALUES (10014, '2025-03-16 12:00:00.000', 21.5, 31.2, 45.0, 12.0, 0)")
 
     # 11. Setup mock fact_race_control
     conn.execute(
@@ -233,8 +200,7 @@ def override_get_db():
     """
     )
     conn.execute(
-        "INSERT INTO fact_race_control VALUES "
-        "(10014, 44, 'Flag', 'GREEN', 'Green flag', '2025-03-16 12:05:00.000')"
+        "INSERT INTO fact_race_control VALUES (10014, 44, 'Flag', 'GREEN', 'Green flag', '2025-03-16 12:05:00.000')"
     )
 
     # 12. Setup mock fact_overtakes
@@ -249,10 +215,7 @@ def override_get_db():
         )
     """
     )
-    conn.execute(
-        "INSERT INTO fact_overtakes VALUES "
-        "(10014, 1, 44, 1, '2025-03-16 12:10:00.000')"
-    )
+    conn.execute("INSERT INTO fact_overtakes VALUES (10014, 1, 44, 1, '2025-03-16 12:10:00.000')")
 
     # 13. Setup mock gold_lap_predictions
     conn.execute(
@@ -269,10 +232,7 @@ def override_get_db():
         )
     """
     )
-    conn.execute(
-        "INSERT INTO gold_lap_predictions VALUES "
-        "(10014, 44, 1, 'SOFT', 0, 92.5, 91.9, 0.6)"
-    )
+    conn.execute("INSERT INTO gold_lap_predictions VALUES (10014, 44, 1, 'SOFT', 0, 92.5, 91.9, 0.6)")
 
     # 14. Setup mock fct_f1_telemetry_analysis
     conn.execute(
@@ -293,8 +253,7 @@ def override_get_db():
     """
     )
     conn.execute(
-        "INSERT INTO fct_f1_telemetry_analysis VALUES "
-        "(10014, 44, 1, 312, 280.5, 11800, 11000.0, 98.5, 0.0, 10.0, 15)"
+        "INSERT INTO fct_f1_telemetry_analysis VALUES (10014, 44, 1, 312, 280.5, 11800, 11000.0, 98.5, 0.0, 10.0, 15)"
     )
 
     try:
@@ -368,9 +327,7 @@ def test_get_pipeline_execution():
 
 
 def test_get_lap_predictions():
-    response = client.get(
-        "/api/predictions/lap_time?session_key=10014&driver_number=44"
-    )
+    response = client.get("/api/predictions/lap_time?session_key=10014&driver_number=44")
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
@@ -452,9 +409,7 @@ def test_get_overtakes():
 def test_execute_adhoc_query_success():
     response = client.post(
         "/api/analytics/query",
-        json={
-            "query": "SELECT session_key, country_name FROM dim_sessions ORDER BY session_key"
-        },
+        json={"query": "SELECT session_key, country_name FROM dim_sessions ORDER BY session_key"},
     )
     assert response.status_code == 200
     data = response.json()
@@ -611,9 +566,7 @@ def test_execute_chat_query():
 
 
 def test_get_telemetry_analysis():
-    response = client.get(
-        "/api/analytics/telemetry_analysis?session_key=10014&driver_number=44"
-    )
+    response = client.get("/api/analytics/telemetry_analysis?session_key=10014&driver_number=44")
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
@@ -694,9 +647,7 @@ def test_race_intelligence_prediction_status_contract():
 
 
 def test_race_intelligence_driver_duel_contract():
-    response = client.get(
-        "/api/race_intelligence/driver_duel?session_key=10014&driver_1=44&driver_2=1"
-    )
+    response = client.get("/api/race_intelligence/driver_duel?session_key=10014&driver_1=44&driver_2=1")
     assert response.status_code == 200
     data = response.json()
     assert data["available"] is True

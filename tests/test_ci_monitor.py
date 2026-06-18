@@ -37,16 +37,12 @@ def test_fetch_github_api_success(mock_get):
 @patch("src.web.ci_monitor.fetch_github_api")
 def test_get_latest_runs(mock_fetch):
     """Verifies retrieval of action runs list from the API response."""
-    mock_fetch.return_value = {
-        "workflow_runs": [{"id": 123, "status": "completed", "conclusion": "success"}]
-    }
+    mock_fetch.return_value = {"workflow_runs": [{"id": 123, "status": "completed", "conclusion": "success"}]}
 
     runs = ci_monitor.get_latest_runs("test-owner/test-repo", token="abc")
     assert len(runs) == 1
     assert runs[0]["id"] == 123
-    mock_fetch.assert_called_once_with(
-        "https://api.github.com/repos/test-owner/test-repo/actions/runs", "abc"
-    )
+    mock_fetch.assert_called_once_with("https://api.github.com/repos/test-owner/test-repo/actions/runs", "abc")
 
 
 @patch("src.web.ci_monitor.fetch_github_api")
@@ -82,9 +78,7 @@ def test_check_and_heal_ci_success(mock_email, mock_sub, mock_fetch, monkeypatch
 @patch("src.web.ci_monitor.fetch_github_api")
 @patch("src.web.ci_monitor.subprocess.run")
 @patch("src.web.ci_monitor.send_alert_email")
-def test_check_and_heal_ci_failure_triggers_healing(
-    mock_email, mock_sub, mock_fetch, monkeypatch
-):
+def test_check_and_heal_ci_failure_triggers_healing(mock_email, mock_sub, mock_fetch, monkeypatch):
     """If the pipeline failed, alerts should be sent and auto-healing should execute."""
     monkeypatch.setattr(settings, "GITHUB_REPO", "owner/repo")
     monkeypatch.setattr(settings, "AUTO_HEAL_CI", True)
@@ -139,9 +133,7 @@ def test_check_and_heal_ci_failure_triggers_healing(
     assert report["auto_healing_executed"] is True
 
     # Verify email alert triggered
-    mock_email.assert_called_once_with(
-        888, "CI Pipeline", "failure", "sha_fail", ["Code Formatting Check (Black)"]
-    )
+    mock_email.assert_called_once_with(888, "CI Pipeline", "failure", "sha_fail", ["Code Formatting Check (Black)"])
 
     # Verify subprocess calls (first is notify-send, second is make format)
     assert mock_sub.call_count == 2
@@ -151,7 +143,7 @@ def test_check_and_heal_ci_failure_triggers_healing(
     # Verify report was written to file
     report_file = os.path.join(ci_monitor.ALERTS_DIR, "ci_healing_report_888.json")
     assert os.path.exists(report_file)
-    with open(report_file, "r") as f:
+    with open(report_file) as f:
         saved_report = json.load(f)
         assert saved_report["evaluated_run_id"] == 888
         assert saved_report["alert_triggered"] is True

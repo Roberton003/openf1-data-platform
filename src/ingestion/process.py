@@ -9,14 +9,20 @@ import pandas as pd
 from pydantic import ValidationError
 
 from src.ingestion.config import get_focus_drivers
-from src.ingestion.schemas import (INTERVALS_SCHEMA, LOCATION_SCHEMA,
-                                   PIT_STOP_SCHEMA, STINTS_SCHEMA,
-                                   TELEMETRY_SCHEMA, WEATHER_SCHEMA,
-                                   DriverContract, OvertakeContract,
-                                   RaceControlContract, SessionContract,
-                                   SessionResultContract)
-from src.ingestion.storage import (atomic_append_partitioned_file,
-                                   atomic_write_dataframe)
+from src.ingestion.schemas import (
+    INTERVALS_SCHEMA,
+    LOCATION_SCHEMA,
+    PIT_STOP_SCHEMA,
+    STINTS_SCHEMA,
+    TELEMETRY_SCHEMA,
+    WEATHER_SCHEMA,
+    DriverContract,
+    OvertakeContract,
+    RaceControlContract,
+    SessionContract,
+    SessionResultContract,
+)
+from src.ingestion.storage import atomic_append_partitioned_file, atomic_write_dataframe
 from src.ingestion.vector_store import index_race_control_messages
 
 DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data"))
@@ -49,14 +55,10 @@ def _write_session_partition(df: pd.DataFrame, target_dir: str) -> None:
 
 def _append_execution_record(part_exec_path: str, run_record: dict) -> None:
 
-    atomic_append_partitioned_file(
-        os.path.join(part_exec_path, "data.parquet"), pd.DataFrame([run_record])
-    )
+    atomic_append_partitioned_file(os.path.join(part_exec_path, "data.parquet"), pd.DataFrame([run_record]))
 
 
-def quarantine_invalid_rows(
-    df: pd.DataFrame, table_name: str, reason: str, partition_quarantine_dir: str
-):
+def quarantine_invalid_rows(df: pd.DataFrame, table_name: str, reason: str, partition_quarantine_dir: str):
     """
 
     Grava registros inválidos/corrompidos na pasta de quarentena particionada por sessão.
@@ -64,7 +66,6 @@ def quarantine_invalid_rows(
     """
 
     if df.empty:
-
         return
 
     os.makedirs(partition_quarantine_dir, exist_ok=True)
@@ -75,20 +76,14 @@ def quarantine_invalid_rows(
 
     df_quarantine["quarantine_reason"] = reason
 
-    quarantine_file = os.path.join(
-        partition_quarantine_dir, f"{table_name}_corrupt.parquet"
-    )
+    quarantine_file = os.path.join(partition_quarantine_dir, f"{table_name}_corrupt.parquet")
 
     df_quarantine.to_parquet(quarantine_file, index=False)
 
-    print(
-        f" -> [Quarentena] Isoladas {len(df)} linhas de {table_name} em {quarantine_file} por: {reason}"
-    )
+    print(f" -> [Quarentena] Isoladas {len(df)} linhas de {table_name} em {quarantine_file} por: {reason}")
 
 
-def validate_pydantic_batch(
-    df: pd.DataFrame, contract_cls, table_name: str
-) -> tuple[pd.DataFrame, pd.DataFrame]:
+def validate_pydantic_batch(df: pd.DataFrame, contract_cls, table_name: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
 
     Validação linha a linha usando Pydantic para tabelas de metadados estáticos.
@@ -98,7 +93,6 @@ def validate_pydantic_batch(
     """
 
     if df.empty:
-
         return pd.DataFrame(), pd.DataFrame()
 
     valid_rows = []
@@ -106,45 +100,35 @@ def validate_pydantic_batch(
     invalid_rows = []
 
     for idx, row in df.iterrows():
-
         row_dict = row.to_dict()
 
         # Converte timestamps nativos do pandas para datetime padrão do python antes de passar ao Pydantic
 
         for k, v in row_dict.items():
-
             if isinstance(v, pd.Timestamp):
-
                 row_dict[k] = v.to_pydatetime()
 
             elif pd.isna(v):
-
                 row_dict[k] = None
 
         try:
-
             contract_cls(**row_dict)
 
             valid_rows.append(row_dict)
 
         except ValidationError as e:
-
             row_dict["error_detail"] = str(e)
 
             invalid_rows.append(row_dict)
 
-    df_valid = (
-        pd.DataFrame(valid_rows) if valid_rows else pd.DataFrame(columns=df.columns)
-    )
+    df_valid = pd.DataFrame(valid_rows) if valid_rows else pd.DataFrame(columns=df.columns)
 
     df_invalid = pd.DataFrame(invalid_rows) if invalid_rows else pd.DataFrame()
 
     return df_valid, df_invalid
 
 
-def validate_vectorized_batch(
-    df: pd.DataFrame, schema: dict, required_cols: list
-) -> tuple[pd.DataFrame, pd.DataFrame]:
+def validate_vectorized_batch(df: pd.DataFrame, schema: dict, required_cols: list) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
 
     Validação vetorizada baseada em tipos do Pandas (e ausência de nulos em colunas chave).
@@ -154,7 +138,6 @@ def validate_vectorized_batch(
     """
 
     if df.empty:
-
         return pd.DataFrame(), pd.DataFrame()
 
     # 1. Verificar nulos em colunas obrigatórias
@@ -166,10 +149,7 @@ def validate_vectorized_batch(
     df_valid = df[~null_mask].copy()
 
     if not df_invalid_null.empty:
-
-        df_invalid_null["error_detail"] = (
-            "Valor nulo em coluna mandatória de chave ou telemetria"
-        )
+        df_invalid_null["error_detail"] = "Valor nulo em coluna mandatória de chave ou telemetria"
 
     # 2. Conversão coerente de tipos
 
@@ -178,57 +158,39 @@ def validate_vectorized_batch(
     valid_rows = []
 
     for col, col_type in schema.items():
-
         if col in df_valid.columns:
-
             try:
-
                 if col_type.startswith("datetime"):
-
                     df_valid[col] = pd.to_datetime(df_valid[col], format="ISO8601")
 
                 elif col_type == "string":
-
                     df_valid[col] = df_valid[col].astype(str)
 
                 else:
-
                     df_valid[col] = df_valid[col].astype(col_type)
 
             except Exception as e:
-
                 # Se falhar o cast da coluna inteira, fazemos um fallback defensivo linha a linha para isolar
 
-                print(
-                    f"Aviso: Falha de cast da coluna {col} para {col_type}. Executando isolamento de linhas."
-                )
+                print(f"Aviso: Falha de cast da coluna {col} para {col_type}. Executando isolamento de linhas.")
 
                 for idx, row in df_valid.iterrows():
-
                     try:
-
                         pd.Series([row[col]]).astype(col_type)
 
                         valid_rows.append(row.to_dict())
 
                     except Exception:
-
                         row_dict = row.to_dict()
 
-                        row_dict["error_detail"] = (
-                            f"Falha de cast na coluna {col} para {col_type}: {e}"
-                        )
+                        row_dict["error_detail"] = f"Falha de cast na coluna {col} para {col_type}: {e}"
 
                         df_invalid_types = pd.concat(
                             [df_invalid_types, pd.DataFrame([row_dict])],
                             ignore_index=True,
                         )
 
-                df_valid = (
-                    pd.DataFrame(valid_rows)
-                    if valid_rows
-                    else pd.DataFrame(columns=df.columns)
-                )
+                df_valid = pd.DataFrame(valid_rows) if valid_rows else pd.DataFrame(columns=df.columns)
 
     df_invalid = (
         pd.concat([df_invalid_null, df_invalid_types], ignore_index=True)
@@ -265,23 +227,15 @@ def process_medallion_pipeline(
 
     sess_dir = session_name.replace(" ", "_")
 
-    partition_path = os.path.join(
-        DATA_DIR, "bronze", f"year={year}", f"gp={gp_dir}", f"session={sess_dir}"
-    )
+    partition_path = os.path.join(DATA_DIR, "bronze", f"year={year}", f"gp={gp_dir}", f"session={sess_dir}")
 
-    partition_quarantine_path = os.path.join(
-        QUARANTINE_DIR, f"year={year}", f"gp={gp_dir}", f"session={sess_dir}"
-    )
+    partition_quarantine_path = os.path.join(QUARANTINE_DIR, f"year={year}", f"gp={gp_dir}", f"session={sess_dir}")
 
     if not os.path.exists(partition_path):
-
         # Fallback de ano
 
         if year == 2025:
-
-            print(
-                f"Partição 2025 não localizada em {partition_path}. Tentando fallback de verificação para 2024..."
-            )
+            print(f"Partição 2025 não localizada em {partition_path}. Tentando fallback de verificação para 2024...")
 
             year = 2024
 
@@ -294,7 +248,6 @@ def process_medallion_pipeline(
             )
 
     if not os.path.exists(partition_path):
-
         raise FileNotFoundError(
             f"Caminho da partição Bronze não encontrado: {partition_path}. Execute o extract.py primeiro."
         )
@@ -320,23 +273,18 @@ def process_medallion_pipeline(
     conn = duckdb.connect(database=":memory:", read_only=False)
 
     try:
-
         # 3. Processar tabela dim_sessions (Pydantic validation)
 
         sess_file = os.path.join(partition_path, "sessions.parquet")
 
         if os.path.exists(sess_file):
-
             df = pd.read_parquet(sess_file)
 
             total_rows_bronze += len(df)
 
-            df_valid, df_invalid = validate_pydantic_batch(
-                df, SessionContract, "sessions"
-            )
+            df_valid, df_invalid = validate_pydantic_batch(df, SessionContract, "sessions")
 
             if not df_invalid.empty:
-
                 quarantine_invalid_rows(
                     df_invalid,
                     "sessions",
@@ -347,7 +295,6 @@ def process_medallion_pipeline(
                 total_rows_quarantine += len(df_invalid)
 
             if not df_valid.empty:
-
                 session_key = int(df_valid.iloc[0]["session_key"])
 
                 # Salvar dim_sessions de forma idempotente (merge incremental)
@@ -355,7 +302,6 @@ def process_medallion_pipeline(
                 dim_sess_file = os.path.join(DATA_DIR, "silver", "dim_sessions.parquet")
 
                 if os.path.exists(dim_sess_file):
-
                     df_existing = pd.read_parquet(dim_sess_file)
 
                     df_existing = df_existing[df_existing["session_key"] != session_key]
@@ -363,7 +309,6 @@ def process_medallion_pipeline(
                     df_final = pd.concat([df_existing, df_valid], ignore_index=True)
 
                 else:
-
                     df_final = df_valid
 
                 df_final.to_parquet(dim_sess_file, index=False)
@@ -371,27 +316,20 @@ def process_medallion_pipeline(
                 total_rows_silver += len(df_valid)
 
         else:
-
-            raise FileNotFoundError(
-                "sessions.parquet é obrigatório para identificação da session_key."
-            )
+            raise FileNotFoundError("sessions.parquet é obrigatório para identificação da session_key.")
 
         # 4. Processar dim_drivers (Pydantic validation)
 
         drivers_file = os.path.join(partition_path, "drivers.parquet")
 
         if os.path.exists(drivers_file):
-
             df = pd.read_parquet(drivers_file)
 
             total_rows_bronze += len(df)
 
-            df_valid, df_invalid = validate_pydantic_batch(
-                df, DriverContract, "drivers"
-            )
+            df_valid, df_invalid = validate_pydantic_batch(df, DriverContract, "drivers")
 
             if not df_invalid.empty:
-
                 quarantine_invalid_rows(
                     df_invalid,
                     "drivers",
@@ -402,7 +340,6 @@ def process_medallion_pipeline(
                 total_rows_quarantine += len(df_invalid)
 
             if not df_valid.empty:
-
                 # Merge incremental de drivers
 
                 dim_drv_file = os.path.join(DATA_DIR, "silver", "dim_drivers.parquet")
@@ -410,17 +347,13 @@ def process_medallion_pipeline(
                 driver_nums = df_valid["driver_number"].tolist()
 
                 if os.path.exists(dim_drv_file):
-
                     df_existing = pd.read_parquet(dim_drv_file)
 
-                    df_existing = df_existing[
-                        ~df_existing["driver_number"].isin(driver_nums)
-                    ]
+                    df_existing = df_existing[~df_existing["driver_number"].isin(driver_nums)]
 
                     df_final = pd.concat([df_existing, df_valid], ignore_index=True)
 
                 else:
-
                     df_final = df_valid
 
                 df_final.to_parquet(dim_drv_file, index=False)
@@ -432,17 +365,13 @@ def process_medallion_pipeline(
         rc_file = os.path.join(partition_path, "race_control.parquet")
 
         if os.path.exists(rc_file):
-
             df = pd.read_parquet(rc_file)
 
             total_rows_bronze += len(df)
 
-            df_valid, df_invalid = validate_pydantic_batch(
-                df, RaceControlContract, "race_control"
-            )
+            df_valid, df_invalid = validate_pydantic_batch(df, RaceControlContract, "race_control")
 
             if not df_invalid.empty:
-
                 quarantine_invalid_rows(
                     df_invalid,
                     "race_control",
@@ -453,7 +382,6 @@ def process_medallion_pipeline(
                 total_rows_quarantine += len(df_invalid)
 
             if not df_valid.empty:
-
                 df_valid["date"] = pd.to_datetime(df_valid["date"], format="ISO8601")
 
                 # Salvar particionado por session_key
@@ -476,7 +404,6 @@ def process_medallion_pipeline(
         pit_file = os.path.join(partition_path, "pit_stops.parquet")
 
         if os.path.exists(pit_file):
-
             df = pd.read_parquet(pit_file)
 
             total_rows_bronze += len(df)
@@ -486,7 +413,6 @@ def process_medallion_pipeline(
             )
 
             if not df_invalid.empty:
-
                 quarantine_invalid_rows(
                     df_invalid,
                     "pit_stops",
@@ -497,10 +423,7 @@ def process_medallion_pipeline(
                 total_rows_quarantine += len(df_invalid)
 
             if not df_valid.empty:
-
-                target_dir = os.path.join(
-                    DATA_DIR, "silver", "fact_pit_stops", f"session_key={session_key}"
-                )
+                target_dir = os.path.join(DATA_DIR, "silver", "fact_pit_stops", f"session_key={session_key}")
 
                 _write_session_partition(df_valid, target_dir)
 
@@ -511,7 +434,6 @@ def process_medallion_pipeline(
         stints_file = os.path.join(partition_path, "stints.parquet")
 
         if os.path.exists(stints_file):
-
             df = pd.read_parquet(stints_file)
 
             total_rows_bronze += len(df)
@@ -521,7 +443,6 @@ def process_medallion_pipeline(
             )
 
             if not df_invalid.empty:
-
                 quarantine_invalid_rows(
                     df_invalid,
                     "stints",
@@ -532,11 +453,9 @@ def process_medallion_pipeline(
                 total_rows_quarantine += len(df_invalid)
 
             if not df_valid.empty:
-
                 dim_stints_file = os.path.join(DATA_DIR, "silver", "dim_stints.parquet")
 
                 if os.path.exists(dim_stints_file):
-
                     df_existing = pd.read_parquet(dim_stints_file)
 
                     df_existing = df_existing[df_existing["session_key"] != session_key]
@@ -544,7 +463,6 @@ def process_medallion_pipeline(
                     df_final = pd.concat([df_existing, df_valid], ignore_index=True)
 
                 else:
-
                     df_final = df_valid
 
                 df_final.to_parquet(dim_stints_file, index=False)
@@ -556,17 +474,13 @@ def process_medallion_pipeline(
         weather_file = os.path.join(partition_path, "weather.parquet")
 
         if os.path.exists(weather_file):
-
             df = pd.read_parquet(weather_file)
 
             total_rows_bronze += len(df)
 
-            df_valid, df_invalid = validate_vectorized_batch(
-                df, WEATHER_SCHEMA, ["session_key", "date"]
-            )
+            df_valid, df_invalid = validate_vectorized_batch(df, WEATHER_SCHEMA, ["session_key", "date"])
 
             if not df_invalid.empty:
-
                 quarantine_invalid_rows(
                     df_invalid,
                     "weather",
@@ -577,13 +491,9 @@ def process_medallion_pipeline(
                 total_rows_quarantine += len(df_invalid)
 
             if not df_valid.empty:
-
-                dim_weather_file = os.path.join(
-                    DATA_DIR, "silver", "dim_weather.parquet"
-                )
+                dim_weather_file = os.path.join(DATA_DIR, "silver", "dim_weather.parquet")
 
                 if os.path.exists(dim_weather_file):
-
                     df_existing = pd.read_parquet(dim_weather_file)
 
                     df_existing = df_existing[df_existing["session_key"] != session_key]
@@ -591,7 +501,6 @@ def process_medallion_pipeline(
                     df_final = pd.concat([df_existing, df_valid], ignore_index=True)
 
                 else:
-
                     df_final = df_valid
 
                 df_final.to_parquet(dim_weather_file, index=False)
@@ -603,7 +512,6 @@ def process_medallion_pipeline(
         intervals_file = os.path.join(partition_path, "intervals.parquet")
 
         if os.path.exists(intervals_file):
-
             df = pd.read_parquet(intervals_file)
 
             total_rows_bronze += len(df)
@@ -613,7 +521,6 @@ def process_medallion_pipeline(
             )
 
             if not df_invalid.empty:
-
                 quarantine_invalid_rows(
                     df_invalid,
                     "intervals",
@@ -624,10 +531,7 @@ def process_medallion_pipeline(
                 total_rows_quarantine += len(df_invalid)
 
             if not df_valid.empty:
-
-                target_dir = os.path.join(
-                    DATA_DIR, "silver", "fact_intervals", f"session_key={session_key}"
-                )
+                target_dir = os.path.join(DATA_DIR, "silver", "fact_intervals", f"session_key={session_key}")
 
                 _write_session_partition(df_valid, target_dir)
 
@@ -638,17 +542,13 @@ def process_medallion_pipeline(
         res_file = os.path.join(partition_path, "session_result.parquet")
 
         if os.path.exists(res_file):
-
             df = pd.read_parquet(res_file)
 
             total_rows_bronze += len(df)
 
-            df_valid, df_invalid = validate_pydantic_batch(
-                df, SessionResultContract, "session_result"
-            )
+            df_valid, df_invalid = validate_pydantic_batch(df, SessionResultContract, "session_result")
 
             if not df_invalid.empty:
-
                 quarantine_invalid_rows(
                     df_invalid,
                     "session_result",
@@ -659,7 +559,6 @@ def process_medallion_pipeline(
                 total_rows_quarantine += len(df_invalid)
 
             if not df_valid.empty:
-
                 target_dir = os.path.join(
                     DATA_DIR,
                     "silver",
@@ -676,17 +575,13 @@ def process_medallion_pipeline(
         ov_file = os.path.join(partition_path, "overtakes.parquet")
 
         if os.path.exists(ov_file):
-
             df = pd.read_parquet(ov_file)
 
             total_rows_bronze += len(df)
 
-            df_valid, df_invalid = validate_pydantic_batch(
-                df, OvertakeContract, "overtakes"
-            )
+            df_valid, df_invalid = validate_pydantic_batch(df, OvertakeContract, "overtakes")
 
             if not df_invalid.empty:
-
                 quarantine_invalid_rows(
                     df_invalid,
                     "overtakes",
@@ -697,12 +592,9 @@ def process_medallion_pipeline(
                 total_rows_quarantine += len(df_invalid)
 
             if not df_valid.empty:
-
                 df_valid["date"] = pd.to_datetime(df_valid["date"], format="ISO8601")
 
-                target_dir = os.path.join(
-                    DATA_DIR, "silver", "fact_overtakes", f"session_key={session_key}"
-                )
+                target_dir = os.path.join(DATA_DIR, "silver", "fact_overtakes", f"session_key={session_key}")
 
                 _write_session_partition(df_valid, target_dir)
 
@@ -715,7 +607,6 @@ def process_medallion_pipeline(
         loc_file = os.path.join(partition_path, "location.parquet")
 
         if os.path.exists(tel_file) and os.path.exists(loc_file):
-
             df_tel_raw = pd.read_parquet(tel_file)
 
             df_loc_raw = pd.read_parquet(loc_file)
@@ -735,7 +626,6 @@ def process_medallion_pipeline(
             )
 
             if not df_tel_inv.empty:
-
                 quarantine_invalid_rows(
                     df_tel_inv,
                     "car_data",
@@ -746,7 +636,6 @@ def process_medallion_pipeline(
                 total_rows_quarantine += len(df_tel_inv)
 
             if not df_loc_inv.empty:
-
                 quarantine_invalid_rows(
                     df_loc_inv,
                     "location",
@@ -757,33 +646,23 @@ def process_medallion_pipeline(
                 total_rows_quarantine += len(df_loc_inv)
 
             if not df_tel_val.empty and not df_loc_val.empty:
-
                 # Filtrar apenas os 6 pilotos foco
 
                 foco_drivers = list(focus_drivers.keys())
 
-                df_tel_foco = df_tel_val[
-                    df_tel_val["driver_number"].isin(foco_drivers)
-                ].copy()
+                df_tel_foco = df_tel_val[df_tel_val["driver_number"].isin(foco_drivers)].copy()
 
-                df_loc_foco = df_loc_val[
-                    df_loc_val["driver_number"].isin(foco_drivers)
-                ].copy()
+                df_loc_foco = df_loc_val[df_loc_val["driver_number"].isin(foco_drivers)].copy()
 
-                df_tel_foco["date"] = pd.to_datetime(
-                    df_tel_foco["date"], format="ISO8601"
-                )
+                df_tel_foco["date"] = pd.to_datetime(df_tel_foco["date"], format="ISO8601")
 
-                df_loc_foco["date"] = pd.to_datetime(
-                    df_loc_foco["date"], format="ISO8601"
-                )
+                df_loc_foco["date"] = pd.to_datetime(df_loc_foco["date"], format="ISO8601")
 
                 # Salvar localização crua filtrada
 
                 location_root = os.path.join(DATA_DIR, "silver", "fact_car_location")
 
                 for dnum in df_loc_foco["driver_number"].unique():
-
                     df_drv_loc = df_loc_foco[df_loc_foco["driver_number"] == dnum]
 
                     part_loc_path = os.path.join(
@@ -801,13 +680,11 @@ def process_medallion_pipeline(
                 telemetry_root = os.path.join(DATA_DIR, "silver", "fact_car_telemetry")
 
                 for dnum in df_tel_foco["driver_number"].unique():
-
                     df_tel_d = df_tel_foco[df_tel_foco["driver_number"] == dnum]
 
                     df_loc_d = df_loc_foco[df_loc_foco["driver_number"] == dnum]
 
                     if not df_tel_d.empty and not df_loc_d.empty:
-
                         # Registrar views temporárias para o JOIN
 
                         conn.register("df_tel_d", df_tel_d)
@@ -868,9 +745,7 @@ def process_medallion_pipeline(
 
         # 12. Rodar a Camada Gold (Predições da IA) diretamente no CLI
 
-        print(
-            "=== ⚙️ F1 Data Platform: Executing Gold Layer features and ML predictions ==="
-        )
+        print("=== ⚙️ F1 Data Platform: Executing Gold Layer features and ML predictions ===")
 
         import joblib
         import numpy as np
@@ -880,10 +755,7 @@ def process_medallion_pipeline(
 
         # Telemetria agregada por piloto e sessão usando DuckDB in-memory
 
-        if os.path.exists(stints_file) and os.path.exists(
-            os.path.join(DATA_DIR, "silver", "fact_car_telemetry")
-        ):
-
+        if os.path.exists(stints_file) and os.path.exists(os.path.join(DATA_DIR, "silver", "fact_car_telemetry")):
             df_stints = pd.read_parquet(stints_file)
 
             # Buscar telemetria
@@ -913,7 +785,6 @@ def process_medallion_pipeline(
             ).df()
 
             if not df_features_base.empty:
-
                 compound_mapping = {
                     "SOFT": 1,
                     "MEDIUM": 2,
@@ -922,9 +793,7 @@ def process_medallion_pipeline(
                     "WET": 5,
                 }
 
-                df_stints["compound_num"] = (
-                    df_stints["compound"].str.upper().map(compound_mapping).fillna(2)
-                )
+                df_stints["compound_num"] = df_stints["compound"].str.upper().map(compound_mapping).fillna(2)
 
                 gp_base_times = {10014: 92.0, 9979: 76.0, 9693: 84.0}
 
@@ -933,32 +802,24 @@ def process_medallion_pipeline(
                 np.random.seed(42)
 
                 for _, stint in df_stints.iterrows():
-
                     skey = int(stint["session_key"])
 
                     dnum = int(stint["driver_number"])
 
                     base_tel = df_features_base[
-                        (df_features_base["session_key"] == skey)
-                        & (df_features_base["driver_number"] == dnum)
+                        (df_features_base["session_key"] == skey) & (df_features_base["driver_number"] == dnum)
                     ]
 
                     if base_tel.empty:
-
                         continue
 
                     base_row = base_tel.iloc[0]
 
                     lap_start = int(stint["lap_start"])
 
-                    lap_end = (
-                        int(stint["lap_end"])
-                        if not pd.isna(stint["lap_end"])
-                        else int(lap_start + 10)
-                    )
+                    lap_end = int(stint["lap_end"]) if not pd.isna(stint["lap_end"]) else int(lap_start + 10)
 
                     if lap_end < lap_start:
-
                         lap_end = lap_start + 5
 
                     num_laps = lap_end - lap_start + 1
@@ -968,7 +829,6 @@ def process_medallion_pipeline(
                     speed_factor = (330.0 - base_row["max_speed"]) * 0.05
 
                     for lap_idx in range(num_laps):
-
                         lap_num = lap_start + lap_idx
 
                         tyre_age = int(stint["tyre_age_at_start"]) + lap_idx
@@ -976,15 +836,12 @@ def process_medallion_pipeline(
                         comp_penalty = 0.0
 
                         if stint["compound"] == "MEDIUM":
-
                             comp_penalty = 0.8
 
                         elif stint["compound"] == "HARD":
-
                             comp_penalty = 1.8
 
                         elif stint["compound"] in ["INTERMEDIATE", "WET"]:
-
                             comp_penalty = 5.0
 
                         wear_penalty = tyre_age * 0.12
@@ -997,8 +854,7 @@ def process_medallion_pipeline(
                             0.0,
                             min(
                                 100.0,
-                                base_row["throttle_intensity_pct"]
-                                + np.random.normal(0, 2.0),
+                                base_row["throttle_intensity_pct"] + np.random.normal(0, 2.0),
                             ),
                         )
 
@@ -1006,18 +862,11 @@ def process_medallion_pipeline(
                             0.0,
                             min(
                                 100.0,
-                                base_row["brake_intensity_pct"]
-                                + np.random.normal(0, 1.0),
+                                base_row["brake_intensity_pct"] + np.random.normal(0, 1.0),
                             ),
                         )
 
-                        lap_time = (
-                            pista_base
-                            + comp_penalty
-                            + wear_penalty
-                            + speed_factor
-                            + np.random.normal(0, 0.4)
-                        )
+                        lap_time = pista_base + comp_penalty + wear_penalty + speed_factor + np.random.normal(0, 0.4)
 
                         expanded_rows.append(
                             {
@@ -1037,18 +886,12 @@ def process_medallion_pipeline(
                         )
 
                 if expanded_rows:
-
                     df_gold_feat = pd.DataFrame(expanded_rows)
 
-                    features_output = os.path.join(
-                        DATA_DIR, "gold", "features_lap_data"
-                    )
+                    features_output = os.path.join(DATA_DIR, "gold", "features_lap_data")
 
                     for skey, df_session in df_gold_feat.groupby("session_key"):
-
-                        part_dir = os.path.join(
-                            features_output, f"session_key={int(skey)}"
-                        )
+                        part_dir = os.path.join(features_output, f"session_key={int(skey)}")
 
                         _write_session_partition(df_session, part_dir)
 
@@ -1077,9 +920,7 @@ def process_medallion_pipeline(
                         exist_ok=True,
                     )
 
-                    model_path = os.path.join(
-                        DATA_DIR, "../models", "lap_regressor.joblib"
-                    )
+                    model_path = os.path.join(DATA_DIR, "../models", "lap_regressor.joblib")
 
                     joblib.dump(model, model_path)
 
@@ -1090,19 +931,13 @@ def process_medallion_pipeline(
                     df_gold_feat["predicted_lap_duration_seconds"] = model.predict(X)
 
                     df_gold_feat["delta_performance_seconds"] = (
-                        df_gold_feat["lap_duration_seconds"]
-                        - df_gold_feat["predicted_lap_duration_seconds"]
+                        df_gold_feat["lap_duration_seconds"] - df_gold_feat["predicted_lap_duration_seconds"]
                     )
 
-                    predictions_output = os.path.join(
-                        DATA_DIR, "gold", "lap_predictions"
-                    )
+                    predictions_output = os.path.join(DATA_DIR, "gold", "lap_predictions")
 
                     for skey, df_session in df_gold_feat.groupby("session_key"):
-
-                        part_dir = os.path.join(
-                            predictions_output, f"session_key={int(skey)}"
-                        )
+                        part_dir = os.path.join(predictions_output, f"session_key={int(skey)}")
 
                         _write_session_partition(df_session, part_dir)
 
@@ -1123,20 +958,12 @@ def process_medallion_pipeline(
             "total_rows_bronze": int(total_rows_bronze),
             "total_rows_silver": int(total_rows_silver),
             "total_rows_quarantine": int(total_rows_quarantine),
-            "quarantine_rate": (
-                float(total_rows_quarantine / total_rows_bronze)
-                if total_rows_bronze
-                else 0.0
-            ),
+            "quarantine_rate": (float(total_rows_quarantine / total_rows_bronze) if total_rows_bronze else 0.0),
             "records_rejected": int(total_rows_quarantine),
             "data_freshness_minutes": _calc_freshness_minutes(partition_path),
             "sla_runtime_status": "COMPLIANT",
             "sla_quality_status": "COMPLIANT",
-            "sla_freshness_status": (
-                "COMPLIANT"
-                if _calc_freshness_minutes(partition_path) is not None
-                else "NO_DATA"
-            ),
+            "sla_freshness_status": ("COMPLIANT" if _calc_freshness_minutes(partition_path) is not None else "NO_DATA"),
         }
 
         execution_root = os.path.join(DATA_DIR, "silver", "fact_pipeline_execution")
@@ -1152,7 +979,6 @@ def process_medallion_pipeline(
         print("Linhagem de execução gravada na Silver.")
 
     except Exception as e:
-
         # Grava a linhagem de erro de forma persistente
 
         duration = time.time() - start_time
@@ -1160,7 +986,6 @@ def process_medallion_pipeline(
         print(f"Erro no processamento do pipeline: {e}")
 
         try:
-
             run_record = {
                 "run_id": run_id,
                 "pipeline_name": f"cli_pipeline_{gp_dir}_{sess_dir}",
@@ -1172,11 +997,7 @@ def process_medallion_pipeline(
                 "total_rows_bronze": int(total_rows_bronze),
                 "total_rows_silver": int(total_rows_silver),
                 "total_rows_quarantine": int(total_rows_quarantine),
-                "quarantine_rate": (
-                    float(total_rows_quarantine / total_rows_bronze)
-                    if total_rows_bronze
-                    else 0.0
-                ),
+                "quarantine_rate": (float(total_rows_quarantine / total_rows_bronze) if total_rows_bronze else 0.0),
                 "records_rejected": int(total_rows_quarantine),
                 "data_freshness_minutes": _calc_freshness_minutes(
                     partition_path if "partition_path" in locals() else None
@@ -1185,10 +1006,7 @@ def process_medallion_pipeline(
                 "sla_quality_status": "COMPLIANT",
                 "sla_freshness_status": (
                     "COMPLIANT"
-                    if _calc_freshness_minutes(
-                        partition_path if "partition_path" in locals() else None
-                    )
-                    is not None
+                    if _calc_freshness_minutes(partition_path if "partition_path" in locals() else None) is not None
                     else "NO_DATA"
                 ),
             }
@@ -1206,7 +1024,6 @@ def process_medallion_pipeline(
             _append_execution_record(part_exec_path, run_record)
 
         except Exception as lineage_err:
-
             print(f"Erro ao salvar linhagem de erro: {lineage_err}")
 
         conn.close()
@@ -1223,10 +1040,7 @@ def process_medallion_pipeline(
 
 
 if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser(
-        description="Processador analítico F1 - Camada Silver"
-    )
+    parser = argparse.ArgumentParser(description="Processador analítico F1 - Camada Silver")
 
     parser.add_argument("--year", type=int, default=2025, help="Ano da temporada F1")
 
@@ -1243,9 +1057,7 @@ if __name__ == "__main__":
         "--focus-drivers",
         type=str,
         default=None,
-        help=(
-            "Lista opcional de pilotos de foco no formato '44:Lewis Hamilton,1:Max Verstappen'"
-        ),
+        help=("Lista opcional de pilotos de foco no formato '44:Lewis Hamilton,1:Max Verstappen'"),
     )
 
     args = parser.parse_args()
@@ -1253,47 +1065,33 @@ if __name__ == "__main__":
     focus_drivers = get_focus_drivers(args.focus_drivers)
 
     if args.gp == "all":
-
         import glob
 
-        search_pattern = os.path.join(
-            DATA_DIR, "bronze", f"year={args.year}", "gp=*", f"session={args.session}"
-        )
+        search_pattern = os.path.join(DATA_DIR, "bronze", f"year={args.year}", "gp=*", f"session={args.session}")
 
         partitions = glob.glob(search_pattern)
 
         if not partitions:
-
             # Fallback para 2024 se não achar partições em 2025
 
             if args.year == 2025:
+                print("Nenhuma partição de 2025 encontrada. Buscando partições de 2024...")
 
-                print(
-                    "Nenhuma partição de 2025 encontrada. Buscando partições de 2024..."
-                )
-
-                search_pattern = os.path.join(
-                    DATA_DIR, "bronze", "year=2024", "gp=*", f"session={args.session}"
-                )
+                search_pattern = os.path.join(DATA_DIR, "bronze", "year=2024", "gp=*", f"session={args.session}")
 
                 partitions = glob.glob(search_pattern)
 
                 args.year = 2024
 
         if not partitions:
-
-            print(
-                f"Nenhuma partição encontrada para year={args.year} e session={args.session} na Bronze."
-            )
+            print(f"Nenhuma partição encontrada para year={args.year} e session={args.session} na Bronze.")
 
         else:
-
             print(f"Iniciando processamento em lote de {len(partitions)} partições.")
 
             # Ordenar para manter ordem lógica
 
             for p in sorted(partitions):
-
                 # Extrair o gp do caminho
 
                 parts = p.split(os.sep)
@@ -1305,15 +1103,10 @@ if __name__ == "__main__":
                 print(f"\n--- Processando GP em lote: {gp_val} ---")
 
                 try:
-
-                    process_medallion_pipeline(
-                        args.year, gp_val, args.session, focus_drivers
-                    )
+                    process_medallion_pipeline(args.year, gp_val, args.session, focus_drivers)
 
                 except Exception as e:
-
                     print(f"Erro ao processar {gp_val}: {e}")
 
     else:
-
         process_medallion_pipeline(args.year, args.gp, args.session, focus_drivers)

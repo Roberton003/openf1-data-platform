@@ -2,8 +2,9 @@ import asyncio
 import os
 import threading
 import time
+from collections.abc import Callable, Generator
 from functools import wraps
-from typing import Any, Callable, Generator
+from typing import Any
 
 import duckdb
 
@@ -196,10 +197,7 @@ def _has_parquet_files(directory: str) -> bool:
     """
     try:
         with os.scandir(directory) as it:
-            return any(
-                entry.is_file(follow_symlinks=False) and entry.name.endswith(".parquet")
-                for entry in it
-            )
+            return any(entry.is_file(follow_symlinks=False) and entry.name.endswith(".parquet") for entry in it)
     except OSError:
         return False
 
@@ -221,26 +219,14 @@ def _resolve_views_map() -> dict[str, str]:
         "fact_pit_stops": os.path.join(silver_dir, "fact_pit_stops/*/*.parquet"),
         "fact_race_control": os.path.join(silver_dir, "fact_race_control/*/*.parquet"),
         "fact_intervals": os.path.join(silver_dir, "fact_intervals/*/*.parquet"),
-        "fact_session_results": os.path.join(
-            silver_dir, "fact_session_results/*/*.parquet"
-        ),
+        "fact_session_results": os.path.join(silver_dir, "fact_session_results/*/*.parquet"),
         "fact_overtakes": os.path.join(silver_dir, "fact_overtakes/*/*.parquet"),
-        "fact_pipeline_execution": os.path.join(
-            silver_dir, "fact_pipeline_execution/*/*.parquet"
-        ),
-        "fact_car_telemetry": os.path.join(
-            silver_dir, "fact_car_telemetry/*/*/*.parquet"
-        ),
-        "fact_car_location": os.path.join(
-            silver_dir, "fact_car_location/*/*/*.parquet"
-        ),
-        "gold_features_lap_data": os.path.join(
-            gold_dir, "features_lap_data/*/*.parquet"
-        ),
+        "fact_pipeline_execution": os.path.join(silver_dir, "fact_pipeline_execution/*/*.parquet"),
+        "fact_car_telemetry": os.path.join(silver_dir, "fact_car_telemetry/*/*/*.parquet"),
+        "fact_car_location": os.path.join(silver_dir, "fact_car_location/*/*/*.parquet"),
+        "gold_features_lap_data": os.path.join(gold_dir, "features_lap_data/*/*.parquet"),
         "gold_lap_predictions": os.path.join(gold_dir, "lap_predictions/*/*.parquet"),
-        "fct_f1_telemetry_analysis": os.path.join(
-            gold_dir, "fct_f1_telemetry_analysis.parquet"
-        ),
+        "fct_f1_telemetry_analysis": os.path.join(gold_dir, "fct_f1_telemetry_analysis.parquet"),
     }
 
 
@@ -257,18 +243,12 @@ def _create_shared_connection() -> duckdb.DuckDBPyConnection:
             if "*" in file_pattern:
                 base_path = file_pattern.split("*")[0]
                 if os.path.exists(base_path) and _has_parquet_files(base_path):
-                    conn.execute(
-                        f"CREATE OR REPLACE VIEW {table_name} AS "
-                        f"SELECT * FROM read_parquet('{file_pattern}')"
-                    )
+                    conn.execute(f"CREATE OR REPLACE VIEW {table_name} AS SELECT * FROM read_parquet('{file_pattern}')")
                 else:
                     _create_empty_table(conn, table_name)
             else:
                 if os.path.exists(file_pattern):
-                    conn.execute(
-                        f"CREATE OR REPLACE VIEW {table_name} AS "
-                        f"SELECT * FROM read_parquet('{file_pattern}')"
-                    )
+                    conn.execute(f"CREATE OR REPLACE VIEW {table_name} AS SELECT * FROM read_parquet('{file_pattern}')")
                 else:
                     _create_empty_table(conn, table_name)
         except Exception:

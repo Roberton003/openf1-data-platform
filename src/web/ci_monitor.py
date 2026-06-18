@@ -65,17 +65,13 @@ def get_run_jobs(repo: str, run_id: int, token: str = None) -> list:
         data = fetch_github_api(url, token)
         return data.get("jobs", [])
     except Exception as e:
-        logger.error(
-            f"Error fetching jobs for run {run_id} from GitHub Actions API: {e}"
-        )
+        logger.error(f"Error fetching jobs for run {run_id} from GitHub Actions API: {e}")
         return []
 
 
 def notify_local(workflow_name: str, conclusion: str, run_id: int):
     """Sends a desktop notification on Linux or falls back to system logs."""
-    message = (
-        f"Workflow '{workflow_name}' failed with status: {conclusion} (ID: {run_id})"
-    )
+    message = f"Workflow '{workflow_name}' failed with status: {conclusion} (ID: {run_id})"
     logger.warning(f"[CI ALERT] {message}")
 
     try:
@@ -97,9 +93,7 @@ def notify_local(workflow_name: str, conclusion: str, run_id: int):
         logger.info("Local GUI notification sent successfully.")
     except Exception as e:
         # Fallback if notify-send or desktop environment is missing
-        logger.info(
-            f"Local GUI notification skipped or unavailable (headless environment). Reason: {e}"
-        )
+        logger.info(f"Local GUI notification skipped or unavailable (headless environment). Reason: {e}")
 
 
 def send_alert_email(
@@ -153,9 +147,7 @@ def send_alert_email(
                 server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
                 server.sendmail(msg["From"], msg["To"], msg.as_string())
 
-            logger.info(
-                f"Alert email sent successfully to {settings.ALERT_EMAIL_RECEIVER}."
-            )
+            logger.info(f"Alert email sent successfully to {settings.ALERT_EMAIL_RECEIVER}.")
             result["sent"] = True
         except Exception as e:
             logger.error(f"SMTP sending failed, falling back to local file. Error: {e}")
@@ -194,9 +186,7 @@ def execute_healing_action(failed_steps: list, run_id: int) -> list:
 
     # 1. Format healing: Run 'make format'
     if has_format_fail:
-        logger.info(
-            "Triggering Auto-Healing: format issue detected. Running 'make format'..."
-        )
+        logger.info("Triggering Auto-Healing: format issue detected. Running 'make format'...")
         try:
             res = subprocess.run(
                 ["make", "format"],
@@ -212,24 +202,16 @@ def execute_healing_action(failed_steps: list, run_id: int) -> list:
                     "stderr": res.stderr,
                 }
             )
-            logger.info(
-                f"Auto-Healing: 'make format' completed with exit code {res.returncode}"
-            )
+            logger.info(f"Auto-Healing: 'make format' completed with exit code {res.returncode}")
         except Exception as e:
             logger.error(f"Failed to run 'make format': {e}")
-            actions_taken.append(
-                {"action": "make format", "status": "error", "error": str(e)}
-            )
+            actions_taken.append({"action": "make format", "status": "error", "error": str(e)})
 
     # 2. Lint healing: Run 'make lint' and log results
     if has_lint_fail:
-        logger.info(
-            "Triggering Auto-Healing: lint issue detected. Logging 'make lint'..."
-        )
+        logger.info("Triggering Auto-Healing: lint issue detected. Logging 'make lint'...")
         try:
-            res = subprocess.run(
-                ["make", "lint"], cwd=settings.BASE_DIR, capture_output=True, text=True
-            )
+            res = subprocess.run(["make", "lint"], cwd=settings.BASE_DIR, capture_output=True, text=True)
             lint_file = os.path.join(ALERTS_DIR, f"flake8_errors_{run_id}.txt")
             with open(lint_file, "w", encoding="utf-8") as f:
                 f.write(f"Flake8 execution logs for Run {run_id}:\n")
@@ -237,25 +219,17 @@ def execute_healing_action(failed_steps: list, run_id: int) -> list:
                 f.write("-" * 50 + "\n")
                 f.write(res.stdout or "")
                 f.write(res.stderr or "")
-            actions_taken.append(
-                {"action": "make lint", "status": "logged", "file_path": lint_file}
-            )
+            actions_taken.append({"action": "make lint", "status": "logged", "file_path": lint_file})
             logger.info(f"Auto-Healing: 'make lint' logged to {lint_file}")
         except Exception as e:
             logger.error(f"Failed to run 'make lint': {e}")
-            actions_taken.append(
-                {"action": "make lint", "status": "error", "error": str(e)}
-            )
+            actions_taken.append({"action": "make lint", "status": "error", "error": str(e)})
 
     # 3. Test healing: Run 'make test' and log traceback details
     if has_test_fail:
-        logger.info(
-            "Triggering Auto-Healing: test issue detected. Logging failing tracebacks..."
-        )
+        logger.info("Triggering Auto-Healing: test issue detected. Logging failing tracebacks...")
         try:
-            res = subprocess.run(
-                ["make", "test"], cwd=settings.BASE_DIR, capture_output=True, text=True
-            )
+            res = subprocess.run(["make", "test"], cwd=settings.BASE_DIR, capture_output=True, text=True)
             test_file = os.path.join(ALERTS_DIR, f"pytest_errors_{run_id}.txt")
             with open(test_file, "w", encoding="utf-8") as f:
                 f.write(f"Pytest execution tracebacks for Run {run_id}:\n")
@@ -263,15 +237,11 @@ def execute_healing_action(failed_steps: list, run_id: int) -> list:
                 f.write("-" * 50 + "\n")
                 f.write(res.stdout or "")
                 f.write(res.stderr or "")
-            actions_taken.append(
-                {"action": "make test", "status": "logged", "file_path": test_file}
-            )
+            actions_taken.append({"action": "make test", "status": "logged", "file_path": test_file})
             logger.info(f"Auto-Healing: 'make test' logged to {test_file}")
         except Exception as e:
             logger.error(f"Failed to run 'make test': {e}")
-            actions_taken.append(
-                {"action": "make test", "status": "error", "error": str(e)}
-            )
+            actions_taken.append({"action": "make test", "status": "error", "error": str(e)})
 
     return actions_taken
 
@@ -295,9 +265,7 @@ def check_and_heal_ci(target_run_id: int = None) -> dict:
                 selected_run = r
                 break
         if not selected_run:
-            logger.warning(
-                f"Target Run ID {target_run_id} not found in retrieved list. Defaulting to latest."
-            )
+            logger.warning(f"Target Run ID {target_run_id} not found in retrieved list. Defaulting to latest.")
 
     if not selected_run:
         selected_run = runs[0]
@@ -308,9 +276,7 @@ def check_and_heal_ci(target_run_id: int = None) -> dict:
     conclusion = selected_run.get("conclusion")
     commit_sha = selected_run.get("head_sha", "Unknown")
 
-    logger.info(
-        f"Latest run evaluated: ID={run_id}, Name={workflow_name}, Status={status}, Conclusion={conclusion}"
-    )
+    logger.info(f"Latest run evaluated: ID={run_id}, Name={workflow_name}, Status={status}, Conclusion={conclusion}")
 
     report = {
         "evaluated_run_id": run_id,
@@ -342,16 +308,12 @@ def check_and_heal_ci(target_run_id: int = None) -> dict:
         notify_local(workflow_name, conclusion, run_id)
 
         # 3. Send email alert
-        email_info = send_alert_email(
-            run_id, workflow_name, conclusion, commit_sha, failed_steps
-        )
+        email_info = send_alert_email(run_id, workflow_name, conclusion, commit_sha, failed_steps)
         report["email_alert"] = email_info
 
         # 4. Auto-Healing
         if settings.AUTO_HEAL_CI:
-            logger.info(
-                f"Auto-healing is enabled. Starting corrective actions for Run {run_id}..."
-            )
+            logger.info(f"Auto-healing is enabled. Starting corrective actions for Run {run_id}...")
             actions = execute_healing_action(failed_steps, run_id)
             report["auto_healing_executed"] = True
             report["actions"] = actions
@@ -367,8 +329,6 @@ def check_and_heal_ci(target_run_id: int = None) -> dict:
         else:
             logger.info("Auto-healing is disabled by configuration.")
     else:
-        logger.info(
-            f"Pipeline status is '{status}' with conclusion '{conclusion}'. No alerts triggered."
-        )
+        logger.info(f"Pipeline status is '{status}' with conclusion '{conclusion}'. No alerts triggered.")
 
     return report

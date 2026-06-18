@@ -1,8 +1,7 @@
 import pandas as pd
 import pytest
 
-from src.ingestion.schemas import (GOLD_TABLE_CONSTRAINTS,
-                                   validate_gold_constraints)
+from src.ingestion.schemas import GOLD_TABLE_CONSTRAINTS, validate_gold_constraints
 
 
 def test_known_table_definitions():

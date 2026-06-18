@@ -17,17 +17,12 @@ def empty_db():
         "session_name VARCHAR, session_type VARCHAR, circuit_key INTEGER, "
         "circuit_short_name VARCHAR, country_name VARCHAR)"
     )
-    conn.execute(
-        "INSERT INTO dim_sessions VALUES "
-        "(10014, 2025, 'Race', 'Race', 12, 'Bahrain GP', 'Bahrain')"
-    )
+    conn.execute("INSERT INTO dim_sessions VALUES (10014, 2025, 'Race', 'Race', 12, 'Bahrain GP', 'Bahrain')")
     conn.execute(
         "CREATE TABLE dim_drivers (driver_number INTEGER, full_name VARCHAR, "
         "name_acronym VARCHAR, team_name VARCHAR, country_code VARCHAR)"
     )
-    conn.execute(
-        "INSERT INTO dim_drivers VALUES (1, 'Max Verstappen', 'VER', 'Red Bull Racing', 'NED')"
-    )
+    conn.execute("INSERT INTO dim_drivers VALUES (1, 'Max Verstappen', 'VER', 'Red Bull Racing', 'NED')")
     conn.execute(
         "CREATE TABLE dim_stints (session_key INTEGER, driver_number INTEGER, "
         "stint_number INTEGER, compound VARCHAR, lap_start INTEGER, "
@@ -136,9 +131,7 @@ def test_dim_drivers_schema_contract():
 
 def test_fact_car_telemetry_schema_contract():
     conn = duckdb.connect(database=":memory:")
-    conn.execute(
-        f"CREATE TABLE fact_car_telemetry ({EMPTY_TABLE_SCHEMAS['fact_car_telemetry']})"
-    )
+    conn.execute(f"CREATE TABLE fact_car_telemetry ({EMPTY_TABLE_SCHEMAS['fact_car_telemetry']})")
     columns = [col[0] for col in conn.execute("DESCRIBE fact_car_telemetry").fetchall()]
     required = {"session_key", "driver_number", "speed"}
     assert required.issubset(columns), f"Missing: {required - set(columns)}"

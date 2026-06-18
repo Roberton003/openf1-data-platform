@@ -14,8 +14,7 @@ def test_mlflow_import_and_api():
 
 def test_mlflow_metrics_work():
     import numpy as np
-    from sklearn.metrics import (mean_absolute_error, mean_squared_error,
-                                 r2_score)
+    from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
     y_true = np.array([90.0, 92.0, 88.0])
     y_pred = np.array([91.0, 91.5, 89.0])

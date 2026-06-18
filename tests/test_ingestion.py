@@ -3,8 +3,7 @@ from datetime import datetime
 import pandas as pd
 from pydantic import BaseModel
 
-from src.ingestion.process import (TELEMETRY_SCHEMA, validate_pydantic_batch,
-                                   validate_vectorized_batch)
+from src.ingestion.process import TELEMETRY_SCHEMA, validate_pydantic_batch, validate_vectorized_batch
 from src.ingestion.schemas import DriverContract
 
 
@@ -63,9 +62,7 @@ def test_validate_vectorized_batch():
         ]
     )
 
-    df_v, df_i = validate_vectorized_batch(
-        df_tel, TELEMETRY_SCHEMA, ["session_key", "driver_number", "date"]
-    )
+    df_v, df_i = validate_vectorized_batch(df_tel, TELEMETRY_SCHEMA, ["session_key", "driver_number", "date"])
 
     assert not df_v.empty
     assert df_i.empty
@@ -85,9 +82,7 @@ def test_validate_vectorized_batch():
         ]
     )
 
-    df_v, df_i = validate_vectorized_batch(
-        df_tel_invalid, TELEMETRY_SCHEMA, ["session_key", "driver_number", "date"]
-    )
+    df_v, df_i = validate_vectorized_batch(df_tel_invalid, TELEMETRY_SCHEMA, ["session_key", "driver_number", "date"])
 
     assert df_v.empty
     assert not df_i.empty

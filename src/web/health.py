@@ -105,8 +105,6 @@ async def health_check() -> dict[str, Any]:
     Lightweight — no filesystem I/O on the data directory.
     """
     ok, info = _check_duckdb_responsive()
-    status_code = 200 if ok else 503
-    # Force FastAPI to return the status code directly by raising if unhealthy
     from fastapi import HTTPException
 
     if not ok:

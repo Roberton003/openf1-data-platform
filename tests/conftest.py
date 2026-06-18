@@ -64,10 +64,7 @@ def _seed_mock_data(conn: duckdb.DuckDBPyConnection) -> None:
         )
     """
     )
-    conn.execute(
-        "INSERT INTO dim_sessions VALUES "
-        "(10014, 2025, 'Race', 'Race', 12, 'Bahrain GP', 'Bahrain')"
-    )
+    conn.execute("INSERT INTO dim_sessions VALUES (10014, 2025, 'Race', 'Race', 12, 'Bahrain GP', 'Bahrain')")
 
     # dim_drivers
     conn.execute(
@@ -78,13 +75,8 @@ def _seed_mock_data(conn: duckdb.DuckDBPyConnection) -> None:
         )
     """
     )
-    conn.execute(
-        "INSERT INTO dim_drivers VALUES (44, 'Lewis Hamilton', 'HAM', 'Ferrari', 'GBR')"
-    )
-    conn.execute(
-        "INSERT INTO dim_drivers VALUES "
-        "(1, 'Max Verstappen', 'VER', 'Red Bull Racing', 'NED')"
-    )
+    conn.execute("INSERT INTO dim_drivers VALUES (44, 'Lewis Hamilton', 'HAM', 'Ferrari', 'GBR')")
+    conn.execute("INSERT INTO dim_drivers VALUES (1, 'Max Verstappen', 'VER', 'Red Bull Racing', 'NED')")
 
     # dim_stints
     conn.execute(
@@ -142,10 +134,7 @@ def _seed_mock_data(conn: duckdb.DuckDBPyConnection) -> None:
         )
     """
     )
-    conn.execute(
-        "INSERT INTO fact_intervals VALUES "
-        "(10014, 44, '+2.451s', '+0.150s', '2025-03-16 12:00:01')"
-    )
+    conn.execute("INSERT INTO fact_intervals VALUES (10014, 44, '+2.451s', '+0.150s', '2025-03-16 12:00:01')")
 
     # fact_pit_stops
     conn.execute(
@@ -202,10 +191,7 @@ def _seed_mock_data(conn: duckdb.DuckDBPyConnection) -> None:
         )
     """
     )
-    conn.execute(
-        "INSERT INTO dim_weather VALUES "
-        "(10014, '2025-03-16 12:00:00.000', 21.5, 31.2, 45.0, 12.0, 0)"
-    )
+    conn.execute("INSERT INTO dim_weather VALUES (10014, '2025-03-16 12:00:00.000', 21.5, 31.2, 45.0, 12.0, 0)")
 
     # fact_race_control
     conn.execute(
@@ -217,8 +203,7 @@ def _seed_mock_data(conn: duckdb.DuckDBPyConnection) -> None:
     """
     )
     conn.execute(
-        "INSERT INTO fact_race_control VALUES "
-        "(10014, 44, 'Flag', 'GREEN', 'Green flag', '2025-03-16 12:05:00.000')"
+        "INSERT INTO fact_race_control VALUES (10014, 44, 'Flag', 'GREEN', 'Green flag', '2025-03-16 12:05:00.000')"
     )
 
     # fact_overtakes
@@ -231,10 +216,7 @@ def _seed_mock_data(conn: duckdb.DuckDBPyConnection) -> None:
         )
     """
     )
-    conn.execute(
-        "INSERT INTO fact_overtakes VALUES "
-        "(10014, 1, 44, 1, '2025-03-16 12:10:00.000')"
-    )
+    conn.execute("INSERT INTO fact_overtakes VALUES (10014, 1, 44, 1, '2025-03-16 12:10:00.000')")
 
     # gold_lap_predictions
     conn.execute(
@@ -248,10 +230,7 @@ def _seed_mock_data(conn: duckdb.DuckDBPyConnection) -> None:
         )
     """
     )
-    conn.execute(
-        "INSERT INTO gold_lap_predictions VALUES "
-        "(10014, 44, 1, 'SOFT', 0, 92.5, 91.9, 0.6)"
-    )
+    conn.execute("INSERT INTO gold_lap_predictions VALUES (10014, 44, 1, 'SOFT', 0, 92.5, 91.9, 0.6)")
 
     # fct_f1_telemetry_analysis
     conn.execute(
@@ -266,8 +245,7 @@ def _seed_mock_data(conn: duckdb.DuckDBPyConnection) -> None:
     """
     )
     conn.execute(
-        "INSERT INTO fct_f1_telemetry_analysis VALUES "
-        "(10014, 44, 1, 312, 280.5, 11800, 11000.0, 98.5, 0.0, 10.0, 15)"
+        "INSERT INTO fct_f1_telemetry_analysis VALUES (10014, 44, 1, 312, 280.5, 11800, 11000.0, 98.5, 0.0, 10.0, 15)"
     )
 
 
@@ -437,19 +415,9 @@ def mock_db_with_sla_columns(
     mock_db: duckdb.DuckDBPyConnection,
 ) -> duckdb.DuckDBPyConnection:
     """Return mock_db with SLA columns added to fact_pipeline_execution."""
-    mock_db.execute(
-        "ALTER TABLE fact_pipeline_execution ADD COLUMN IF NOT EXISTS records_rejected INTEGER"
-    )
-    mock_db.execute(
-        "ALTER TABLE fact_pipeline_execution ADD COLUMN IF NOT EXISTS data_freshness_minutes DOUBLE"
-    )
-    mock_db.execute(
-        "ALTER TABLE fact_pipeline_execution ADD COLUMN IF NOT EXISTS sla_runtime_status VARCHAR"
-    )
-    mock_db.execute(
-        "ALTER TABLE fact_pipeline_execution ADD COLUMN IF NOT EXISTS sla_quality_status VARCHAR"
-    )
-    mock_db.execute(
-        "ALTER TABLE fact_pipeline_execution ADD COLUMN IF NOT EXISTS sla_freshness_status VARCHAR"
-    )
+    mock_db.execute("ALTER TABLE fact_pipeline_execution ADD COLUMN IF NOT EXISTS records_rejected INTEGER")
+    mock_db.execute("ALTER TABLE fact_pipeline_execution ADD COLUMN IF NOT EXISTS data_freshness_minutes DOUBLE")
+    mock_db.execute("ALTER TABLE fact_pipeline_execution ADD COLUMN IF NOT EXISTS sla_runtime_status VARCHAR")
+    mock_db.execute("ALTER TABLE fact_pipeline_execution ADD COLUMN IF NOT EXISTS sla_quality_status VARCHAR")
+    mock_db.execute("ALTER TABLE fact_pipeline_execution ADD COLUMN IF NOT EXISTS sla_freshness_status VARCHAR")
     return mock_db

@@ -10,9 +10,7 @@ router = APIRouter(prefix="/api/ci", tags=["CI Monitor"])
 
 
 @router.post("/check")
-def trigger_ci_check(
-    run_id: int = Query(None, description="Optional specific workflow run ID to verify")
-):
+def trigger_ci_check(run_id: int = Query(None, description="Optional specific workflow run ID to verify")):
     """Triggers an on-demand polling and auto-healing check for the CI/CD pipeline."""
     try:
         report = check_and_heal_ci(target_run_id=run_id)
@@ -29,7 +27,7 @@ def get_ci_status():
 
     for filepath in glob.glob(pattern):
         try:
-            with open(filepath, "r", encoding="utf-8") as f:
+            with open(filepath, encoding="utf-8") as f:
                 reports.append(json.load(f))
         except Exception:
             # Silently skip corrupted reports to keep endpoint stable

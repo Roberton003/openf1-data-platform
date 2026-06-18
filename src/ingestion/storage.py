@@ -17,9 +17,7 @@ def atomic_write_dataframe(df: pd.DataFrame, target_file: str) -> None:
     os.replace(tmp_path, target_path)
 
 
-def atomic_write_partitioned_parquet(
-    df: pd.DataFrame, target_dir: str, partition_cols: list[str]
-) -> None:
+def atomic_write_partitioned_parquet(df: pd.DataFrame, target_dir: str, partition_cols: list[str]) -> None:
     """Write a partitioned Parquet dataset atomically by directory replacement."""
     target_path = Path(target_dir)
     target_path.parent.mkdir(parents=True, exist_ok=True)

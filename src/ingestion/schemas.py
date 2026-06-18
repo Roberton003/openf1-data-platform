@@ -1,5 +1,4 @@
 from datetime import datetime
-from typing import Optional
 
 import pandas as pd
 from pydantic import BaseModel, Field, field_validator
@@ -31,20 +30,14 @@ class DriverContract(BaseModel):
     full_name: str = Field(..., description="Nome completo do piloto")
     name_acronym: str = Field(..., description="Acrônimo do piloto (ex: VER, HAM)")
     team_name: str = Field(..., description="Nome da escuderia")
-    country_code: Optional[str] = Field(
-        None, description="Código de país do piloto (ex: GBR, MON)"
-    )
+    country_code: str | None = Field(None, description="Código de país do piloto (ex: GBR, MON)")
 
 
 class RaceControlContract(BaseModel):
     session_key: int = Field(..., description="Chave da sessão vinculada")
-    driver_number: Optional[int] = Field(
-        None, description="Número do piloto envolvido, se aplicável"
-    )
+    driver_number: int | None = Field(None, description="Número do piloto envolvido, se aplicável")
     category: str = Field(..., description="Categoria do evento de pista")
-    flag: Optional[str] = Field(
-        None, description="Bandeira exibida (ex: GREEN, RED, YELLOW)"
-    )
+    flag: str | None = Field(None, description="Bandeira exibida (ex: GREEN, RED, YELLOW)")
     message: str = Field(..., description="Mensagem oficial do controle de prova")
     date: datetime = Field(..., description="Timestamp do incidente")
 
@@ -52,28 +45,20 @@ class RaceControlContract(BaseModel):
 class SessionResultContract(BaseModel):
     session_key: int = Field(..., description="Chave da sessão")
     driver_number: int = Field(..., description="Número do piloto")
-    position: Optional[int] = Field(None, description="Posição final obtida")
-    number_of_laps: Optional[int] = Field(
-        None, description="Número de voltas completadas"
-    )
-    points: Optional[float] = Field(None, description="Pontos obtidos")
-    dnf: Optional[bool] = Field(None, description="Did Not Finish")
-    dns: Optional[bool] = Field(None, description="Did Not Start")
-    dsq: Optional[bool] = Field(None, description="Disqualified")
-    duration: Optional[float] = Field(None, description="Tempo total de corrida")
-    gap_to_leader: Optional[str] = Field(
-        None, description="Tempo de gap para o líder da prova"
-    )
+    position: int | None = Field(None, description="Posição final obtida")
+    number_of_laps: int | None = Field(None, description="Número de voltas completadas")
+    points: float | None = Field(None, description="Pontos obtidos")
+    dnf: bool | None = Field(None, description="Did Not Finish")
+    dns: bool | None = Field(None, description="Did Not Start")
+    dsq: bool | None = Field(None, description="Disqualified")
+    duration: float | None = Field(None, description="Tempo total de corrida")
+    gap_to_leader: str | None = Field(None, description="Tempo de gap para o líder da prova")
 
 
 class OvertakeContract(BaseModel):
     session_key: int = Field(..., description="Chave da sessão")
-    overtaking_driver_number: int = Field(
-        ..., description="Número do piloto que ultrapassou"
-    )
-    overtaken_driver_number: int = Field(
-        ..., description="Número do piloto ultrapassado"
-    )
+    overtaking_driver_number: int = Field(..., description="Número do piloto que ultrapassou")
+    overtaken_driver_number: int = Field(..., description="Número do piloto ultrapassado")
     date: datetime = Field(..., description="Timestamp da ultrapassagem")
     position: int = Field(..., description="Posição no grid após ultrapassagem")
 

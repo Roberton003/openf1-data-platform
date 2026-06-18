@@ -11,9 +11,7 @@ class Settings(BaseSettings):
     DATABASE_PATH: str = os.path.join(BASE_DIR, "data/silver/openf1_silver.duckdb")
 
     # GitHub API integration config
-    GITHUB_REPO: str = os.getenv(
-        "OPENF1_GITHUB_REPO", "Roberton003/openf1-data-platform"
-    )
+    GITHUB_REPO: str = os.getenv("OPENF1_GITHUB_REPO", "Roberton003/openf1-data-platform")
     GITHUB_TOKEN: str = os.getenv("OPENF1_GITHUB_TOKEN", "")
 
     # SMTP Server configurations for alerts

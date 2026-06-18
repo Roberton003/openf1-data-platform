@@ -5,8 +5,7 @@ import duckdb
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from src.ingestion.vector_store import (index_race_control_messages,
-                                        query_race_control)
+from src.ingestion.vector_store import index_race_control_messages, query_race_control
 from src.web.database import get_db, result_cache, run_query_async
 
 router = APIRouter(prefix="/api")
@@ -40,9 +39,7 @@ _SQL_BLOCKED_TOKENS = re.compile(
     re.IGNORECASE,
 )
 
-_COMMENT_STRIP_RE = re.compile(
-    r"(--.*?$|/\*.*?\*/)", re.IGNORECASE | re.DOTALL | re.MULTILINE
-)
+_COMMENT_STRIP_RE = re.compile(r"(--.*?$|/\*.*?\*/)", re.IGNORECASE | re.DOTALL | re.MULTILINE)
 
 # Strip string literals before validating tokens so tokens inside a string
 # literal (e.g. "drop") do not trigger the blocklist.
@@ -72,10 +69,7 @@ def _validate_and_prepare_sql(raw_query: str) -> str:
     if not first_token_match:
         raise HTTPException(
             status_code=400,
-            detail=(
-                "Operação não autorizada. Apenas consultas de leitura "
-                "(SELECT, WITH) são permitidas."
-            ),
+            detail=("Operação não autorizada. Apenas consultas de leitura (SELECT, WITH) são permitidas."),
         )
 
     # 2. Blocklist — dangerous tokens anywhere in the query (regex word-boundary)
@@ -83,10 +77,7 @@ def _validate_and_prepare_sql(raw_query: str) -> str:
     if blocked_match:
         raise HTTPException(
             status_code=400,
-            detail=(
-                "Operação não autorizada. Token proibido detectado: "
-                f"'{blocked_match.group(0).upper()}'."
-            ),
+            detail=(f"Operação não autorizada. Token proibido detectado: '{blocked_match.group(0).upper()}'."),
         )
 
     # 3. LIMIT injection — ensure bounded result size
@@ -149,9 +140,7 @@ def fetch_sessions_from_db(conn: duckdb.DuckDBPyConnection) -> list[dict]:
 
 
 @result_cache
-def fetch_drivers_from_db(
-    conn: duckdb.DuckDBPyConnection, session_key: int
-) -> list[dict]:
+def fetch_drivers_from_db(conn: duckdb.DuckDBPyConnection, session_key: int) -> list[dict]:
     try:
         # Get active drivers who have stint data in this session
         query = """
@@ -185,9 +174,7 @@ def fetch_drivers_from_db(
 
 
 @result_cache
-def fetch_intervals_from_db(
-    conn: duckdb.DuckDBPyConnection, session_key: int
-) -> list[dict]:
+def fetch_intervals_from_db(conn: duckdb.DuckDBPyConnection, session_key: int) -> list[dict]:
     try:
         query = """
             SELECT
@@ -220,9 +207,7 @@ def fetch_intervals_from_db(
 
 
 @result_cache
-def fetch_pit_stops_from_db(
-    conn: duckdb.DuckDBPyConnection, session_key: int
-) -> list[dict]:
+def fetch_pit_stops_from_db(conn: duckdb.DuckDBPyConnection, session_key: int) -> list[dict]:
     try:
         query = """
             SELECT
@@ -300,9 +285,7 @@ async def get_pit_stops(
 
 
 @result_cache
-def fetch_weather_from_db(
-    conn: duckdb.DuckDBPyConnection, session_key: int
-) -> list[dict]:
+def fetch_weather_from_db(conn: duckdb.DuckDBPyConnection, session_key: int) -> list[dict]:
     try:
         query = """
             SELECT
@@ -347,9 +330,7 @@ async def get_weather(
 
 
 @result_cache
-def fetch_stints_from_db(
-    conn: duckdb.DuckDBPyConnection, session_key: int
-) -> list[dict]:
+def fetch_stints_from_db(conn: duckdb.DuckDBPyConnection, session_key: int) -> list[dict]:
     try:
         query = """
             SELECT
@@ -396,9 +377,7 @@ async def get_stints(
     return await run_query_async(fetch_stints_from_db, db, session_key)
 
 
-def fetch_race_control_from_db(
-    conn: duckdb.DuckDBPyConnection, session_key: int
-) -> list[dict]:
+def fetch_race_control_from_db(conn: duckdb.DuckDBPyConnection, session_key: int) -> list[dict]:
     try:
         query = """
             SELECT
@@ -441,9 +420,7 @@ async def get_race_control(
     return await run_query_async(fetch_race_control_from_db, db, session_key)
 
 
-def fetch_winner_from_db(
-    conn: duckdb.DuckDBPyConnection, session_key: int
-) -> list[dict]:
+def fetch_winner_from_db(conn: duckdb.DuckDBPyConnection, session_key: int) -> list[dict]:
     try:
         query = """
             SELECT
@@ -488,9 +465,7 @@ async def get_winner(
 
 
 @result_cache
-def fetch_duel_location_from_db(
-    conn: duckdb.DuckDBPyConnection, session_key: int, driver_number: int
-) -> list[dict]:
+def fetch_duel_location_from_db(conn: duckdb.DuckDBPyConnection, session_key: int, driver_number: int) -> list[dict]:
     try:
         # 1. Achar o primeiro timestamp unificado da sessão (speed > 100 para qualquer piloto)
         t_query = """
@@ -509,9 +484,7 @@ def fetch_duel_location_from_db(
             FROM fact_car_location
             WHERE session_key = ? AND driver_number = ? AND date >= ?
         """
-        count_res = conn.execute(
-            count_query, (session_key, driver_number, start_date)
-        ).fetchone()
+        count_res = conn.execute(count_query, (session_key, driver_number, start_date)).fetchone()
         total_records = count_res[0] if count_res else 0
         if total_records == 0:
             return []
@@ -595,15 +568,11 @@ async def get_duel_location(
     Retorna a trajetória 2D consecutiva (volta representativa) e
     telemetria do piloto para o Speed Track Map.
     """
-    return await run_query_async(
-        fetch_duel_location_from_db, db, session_key, driver_number
-    )
+    return await run_query_async(fetch_duel_location_from_db, db, session_key, driver_number)
 
 
 @result_cache
-def fetch_duel_metrics_from_db(
-    conn: duckdb.DuckDBPyConnection, session_key: int, driver_1: int, driver_2: int
-) -> dict:
+def fetch_duel_metrics_from_db(conn: duckdb.DuckDBPyConnection, session_key: int, driver_1: int, driver_2: int) -> dict:
     try:
         # Obter métricas de telemetria agregadas
         query = """
@@ -627,9 +596,7 @@ def fetch_duel_metrics_from_db(
             WHERE session_key = ? AND driver_number IN (?, ?)
             GROUP BY driver_number
         """
-        pit_results = conn.execute(
-            pit_query, (session_key, driver_1, driver_2)
-        ).fetchall()
+        pit_results = conn.execute(pit_query, (session_key, driver_1, driver_2)).fetchall()
         pits = {r[0]: r[1] for r in pit_results}
 
         metrics = {}
@@ -661,14 +628,10 @@ async def get_duel_metrics(
     """
     Retorna métricas comparativas agregadas para o duelo de dois pilotos.
     """
-    return await run_query_async(
-        fetch_duel_metrics_from_db, db, session_key, driver_1, driver_2
-    )
+    return await run_query_async(fetch_duel_metrics_from_db, db, session_key, driver_1, driver_2)
 
 
-def fetch_lap_predictions_from_db(
-    conn: duckdb.DuckDBPyConnection, session_key: int, driver_number: int
-) -> list[dict]:
+def fetch_lap_predictions_from_db(conn: duckdb.DuckDBPyConnection, session_key: int, driver_number: int) -> list[dict]:
     try:
         # Consulta as predições de IA gravadas na camada Gold
         query = """
@@ -709,14 +672,10 @@ async def get_lap_predictions(
     """
     Retorna os tempos de volta reais vs preditos pela IA na camada Gold para a sessão.
     """
-    return await run_query_async(
-        fetch_lap_predictions_from_db, db, session_key, driver_number
-    )
+    return await run_query_async(fetch_lap_predictions_from_db, db, session_key, driver_number)
 
 
-def fetch_overtakes_from_db(
-    conn: duckdb.DuckDBPyConnection, session_key: int
-) -> list[dict]:
+def fetch_overtakes_from_db(conn: duckdb.DuckDBPyConnection, session_key: int) -> list[dict]:
     try:
         # Join com dim_drivers para obter os acrônimos dos pilotos
         query = """
@@ -812,9 +771,7 @@ class SQLQueryRequest(BaseModel):
     query: str
 
 
-def execute_safe_sql_query(
-    conn: duckdb.DuckDBPyConnection, raw_query: str
-) -> dict[str, Any]:
+def execute_safe_sql_query(conn: duckdb.DuckDBPyConnection, raw_query: str) -> dict[str, Any]:
     # 🛡️ Validação robusta de segurança analítica
     # - Allowlist: SELECT ou WITH apenas
     # - Blocklist com word boundaries para tokens DDL/DML
@@ -869,9 +826,7 @@ def execute_safe_sql_query(
 
 
 @router.post("/analytics/query")
-async def execute_adhoc_query(
-    request: SQLQueryRequest, db: duckdb.DuckDBPyConnection = Depends(get_db)
-):
+async def execute_adhoc_query(request: SQLQueryRequest, db: duckdb.DuckDBPyConnection = Depends(get_db)):
     """
     Data Gateway de Analytics para execução segura de queries SQL (SELECT/WITH)
     diretamente no Lakehouse mapeado via DuckDB.
@@ -884,9 +839,7 @@ class ChatRequest(BaseModel):
     question: str
 
 
-def execute_hybrid_semantic_search(
-    conn: duckdb.DuckDBPyConnection, session_key: int, question: str
-) -> dict:
+def execute_hybrid_semantic_search(conn: duckdb.DuckDBPyConnection, session_key: int, question: str) -> dict:
     chroma_results = query_race_control(session_key, question, n_results=5)
 
     if not chroma_results:
@@ -1021,15 +974,11 @@ def execute_hybrid_semantic_search(
                       AND date >= ?::TIMESTAMP
                       AND date <= ?::TIMESTAMP + INTERVAL '15 seconds'
                 """
-                tg_row = conn.execute(
-                    query_telemetry_global, (session_key, event_date, event_date)
-                ).fetchone()
+                tg_row = conn.execute(query_telemetry_global, (session_key, event_date, event_date)).fetchone()
                 if tg_row and tg_row[0] is not None:
                     telemetry_data = {
                         "avg_speed": round(tg_row[0], 1),
-                        "min_speed": (
-                            round(tg_row[1], 1) if tg_row[1] is not None else None
-                        ),
+                        "min_speed": (round(tg_row[1], 1) if tg_row[1] is not None else None),
                     }
                     telemetry_summary = (
                         "\n**Impacto de Velocidade Média na Pista "
@@ -1042,9 +991,7 @@ def execute_hybrid_semantic_search(
                     )
     except Exception:
         # Se a tabela de telemetria estiver vazia ou indisponível
-        telemetry_summary = (
-            "\n*(Telemetria física indisponível no DuckDB para o instante do evento)*"
-        )
+        telemetry_summary = "\n*(Telemetria física indisponível no DuckDB para o instante do evento)*"
 
     # 4. Formata a resposta analítica híbrida rica em Markdown
     markdown_answer = (
@@ -1079,15 +1026,11 @@ def execute_hybrid_semantic_search(
 
 
 @router.post("/analytics/chat")
-async def execute_chat_query(
-    request: ChatRequest, db: duckdb.DuckDBPyConnection = Depends(get_db)
-):
+async def execute_chat_query(request: ChatRequest, db: duckdb.DuckDBPyConnection = Depends(get_db)):
     """
     Endpoint conversacional analítico local RAG (TF-IDF + DuckDB SQL) de custo zero.
     """
-    return await run_query_async(
-        execute_hybrid_semantic_search, db, request.session_key, request.question
-    )
+    return await run_query_async(execute_hybrid_semantic_search, db, request.session_key, request.question)
 
 
 def fetch_telemetry_analysis_from_db(
@@ -1144,6 +1087,4 @@ async def get_telemetry_analysis(
     """
     Retorna os KPIs agregados de telemetria (Gold) por piloto, GP e volta.
     """
-    return await run_query_async(
-        fetch_telemetry_analysis_from_db, db, session_key, driver_number
-    )
+    return await run_query_async(fetch_telemetry_analysis_from_db, db, session_key, driver_number)

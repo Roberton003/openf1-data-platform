@@ -54,12 +54,8 @@ def test_silver_telemetry_partitioning(tmp_path):
             "brake": [10.0, 0.0, 5.0],
         }
     )
-    _write_silver_telemetry(
-        tmp_path, session_key=10014, driver_number=44, df=telemetry_data
-    )
-    _write_silver_telemetry(
-        tmp_path, session_key=10014, driver_number=1, df=telemetry_data
-    )
+    _write_silver_telemetry(tmp_path, session_key=10014, driver_number=44, df=telemetry_data)
+    _write_silver_telemetry(tmp_path, session_key=10014, driver_number=1, df=telemetry_data)
 
     telemetry_root = tmp_path / "silver" / "fact_car_telemetry"
     sessions = sorted(telemetry_root.iterdir())
@@ -94,13 +90,9 @@ def test_gold_predictions_integrity(tmp_path):
     )
     _write_gold_partitioned(tmp_path, "gold", "lap_predictions", 10014, gold_df)
 
-    prediction_files = sorted(
-        (tmp_path / "gold" / "lap_predictions").rglob("data.parquet")
-    )
+    prediction_files = sorted((tmp_path / "gold" / "lap_predictions").rglob("data.parquet"))
     assert len(prediction_files) > 0
-    df = pd.concat(
-        [pd.read_parquet(path) for path in prediction_files], ignore_index=True
-    )
+    df = pd.concat([pd.read_parquet(path) for path in prediction_files], ignore_index=True)
     assert not df.empty
 
     required_cols = [
@@ -130,9 +122,7 @@ def test_gold_features_partitioning(tmp_path):
     )
     _write_gold_partitioned(tmp_path, "gold", "features_lap_data", 10014, features_df)
 
-    feature_files = sorted(
-        (tmp_path / "gold" / "features_lap_data").rglob("data.parquet")
-    )
+    feature_files = sorted((tmp_path / "gold" / "features_lap_data").rglob("data.parquet"))
     assert len(feature_files) > 0
     df = pd.concat([pd.read_parquet(path) for path in feature_files], ignore_index=True)
     assert not df.empty

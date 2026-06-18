@@ -10,12 +10,18 @@ from sklearn.ensemble import RandomForestRegressor
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.ingestion.config import get_focus_drivers
-from src.ingestion.schemas import (DriverContract, OvertakeContract,
-                                   RaceControlContract, SessionContract,
-                                   SessionResultContract)
-from src.ingestion.storage import (atomic_append_partitioned_file,
-                                   atomic_write_dataframe,
-                                   atomic_write_partitioned_parquet)
+from src.ingestion.schemas import (
+    DriverContract,
+    OvertakeContract,
+    RaceControlContract,
+    SessionContract,
+    SessionResultContract,
+)
+from src.ingestion.storage import (
+    atomic_append_partitioned_file,
+    atomic_write_dataframe,
+    atomic_write_partitioned_parquet,
+)
 from src.ingestion.vector_store import index_race_control_messages
 from src.web.model_loader import get_model_loader
 
@@ -54,9 +60,7 @@ def _write_session_partition(df: pd.DataFrame, target_dir: str) -> None:
 
 def _append_execution_record(part_exec_path: str, run_record: dict) -> None:
 
-    atomic_append_partitioned_file(
-        os.path.join(part_exec_path, "data.parquet"), pd.DataFrame([run_record])
-    )
+    atomic_append_partitioned_file(os.path.join(part_exec_path, "data.parquet"), pd.DataFrame([run_record]))
 
 
 # GPs Estratégicos Selecionados (ADR 003)
@@ -94,7 +98,6 @@ def fetch_api(endpoint: str, params: dict = None) -> list:
     url = f"{BASE_URL}/{endpoint}"
 
     try:
-
         response = requests.get(url, params=params, timeout=15)
 
         response.raise_for_status()
@@ -102,15 +105,12 @@ def fetch_api(endpoint: str, params: dict = None) -> list:
         return response.json()
 
     except requests.exceptions.HTTPError as e:
-
         if e.response.status_code == 404:
-
             return []
 
         raise e
 
     except requests.exceptions.RequestException as e:
-
         raise e
 
 
@@ -134,21 +134,16 @@ def bronze_sessions(context: AssetExecutionContext) -> None:
     all_sess = []
 
     for gp_cfg in SESSIONS_TO_PROCESS:
-
-        context.log.info(
-            f"Ingerindo metadado de sessão para GP {gp_cfg['gp']} ({gp_cfg['session_key']})"
-        )
+        context.log.info(f"Ingerindo metadado de sessão para GP {gp_cfg['gp']} ({gp_cfg['session_key']})")
 
         data = fetch_api("sessions", {"session_key": gp_cfg["session_key"]})
 
         if data:
-
             all_sess.extend(data)
 
             time.sleep(1.0)
 
     if all_sess:
-
         df = pd.DataFrame(all_sess)
 
         output_file = os.path.join(DATA_DIR, "bronze", "sessions.parquet")
@@ -169,22 +164,17 @@ def bronze_drivers(context: AssetExecutionContext) -> None:
     all_drivers = []
 
     for gp_cfg in SESSIONS_TO_PROCESS:
-
         context.log.info(f"Ingerindo pilotos para session_key {gp_cfg['session_key']}")
 
         data = fetch_api("drivers", {"session_key": gp_cfg["session_key"]})
 
         if data:
-
             all_drivers.extend(data)
 
             time.sleep(1.0)
 
     if all_drivers:
-
-        df = pd.DataFrame(all_drivers).drop_duplicates(
-            subset=["driver_number", "session_key"]
-        )
+        df = pd.DataFrame(all_drivers).drop_duplicates(subset=["driver_number", "session_key"])
 
         output_file = os.path.join(DATA_DIR, "bronze", "drivers.parquet")
 
@@ -202,29 +192,21 @@ def bronze_race_control_and_stints(context: AssetExecutionContext) -> None:
     """
 
     for gp_cfg in SESSIONS_TO_PROCESS:
-
         skey = gp_cfg["session_key"]
 
         gp_name = gp_cfg["gp"]
 
-        context.log.info(
-            f"Ingerindo Stints, Pits e Race Control para {gp_name} ({skey})"
-        )
+        context.log.info(f"Ingerindo Stints, Pits e Race Control para {gp_name} ({skey})")
 
         # 1. Stints
 
         stints = fetch_api("stints", {"session_key": skey})
 
         if stints:
-
-            os.makedirs(
-                os.path.join(DATA_DIR, "bronze", f"session_key={skey}"), exist_ok=True
-            )
+            os.makedirs(os.path.join(DATA_DIR, "bronze", f"session_key={skey}"), exist_ok=True)
 
             pd.DataFrame(stints).to_parquet(
-                os.path.join(
-                    DATA_DIR, "bronze", f"session_key={skey}", "stints.parquet"
-                ),
+                os.path.join(DATA_DIR, "bronze", f"session_key={skey}", "stints.parquet"),
                 index=False,
             )
 
@@ -233,11 +215,8 @@ def bronze_race_control_and_stints(context: AssetExecutionContext) -> None:
         pits = fetch_api("pit", {"session_key": skey})
 
         if pits:
-
             pd.DataFrame(pits).to_parquet(
-                os.path.join(
-                    DATA_DIR, "bronze", f"session_key={skey}", "pit_stops.parquet"
-                ),
+                os.path.join(DATA_DIR, "bronze", f"session_key={skey}", "pit_stops.parquet"),
                 index=False,
             )
 
@@ -246,11 +225,8 @@ def bronze_race_control_and_stints(context: AssetExecutionContext) -> None:
         rc = fetch_api("race_control", {"session_key": skey})
 
         if rc:
-
             pd.DataFrame(rc).to_parquet(
-                os.path.join(
-                    DATA_DIR, "bronze", f"session_key={skey}", "race_control.parquet"
-                ),
+                os.path.join(DATA_DIR, "bronze", f"session_key={skey}", "race_control.parquet"),
                 index=False,
             )
 
@@ -259,11 +235,8 @@ def bronze_race_control_and_stints(context: AssetExecutionContext) -> None:
         weather = fetch_api("weather", {"session_key": skey})
 
         if weather:
-
             pd.DataFrame(weather).to_parquet(
-                os.path.join(
-                    DATA_DIR, "bronze", f"session_key={skey}", "weather.parquet"
-                ),
+                os.path.join(DATA_DIR, "bronze", f"session_key={skey}", "weather.parquet"),
                 index=False,
             )
 
@@ -272,21 +245,16 @@ def bronze_race_control_and_stints(context: AssetExecutionContext) -> None:
         res = fetch_api("session_result", {"session_key": skey})
 
         if res:
-
             df_res = pd.DataFrame(res)
 
             # Cast de colunas com tipos mistos para evitar inconsistências no PyArrow
 
             for col in ["gap_to_leader", "interval"]:
-
                 if col in df_res.columns:
-
                     df_res[col] = df_res[col].astype(str)
 
             df_res.to_parquet(
-                os.path.join(
-                    DATA_DIR, "bronze", f"session_key={skey}", "session_result.parquet"
-                ),
+                os.path.join(DATA_DIR, "bronze", f"session_key={skey}", "session_result.parquet"),
                 index=False,
             )
 
@@ -295,13 +263,10 @@ def bronze_race_control_and_stints(context: AssetExecutionContext) -> None:
         ov = fetch_api("overtakes", {"session_key": skey})
 
         if ov:
-
             df_ov = pd.DataFrame(ov)
 
             df_ov.to_parquet(
-                os.path.join(
-                    DATA_DIR, "bronze", f"session_key={skey}", "overtakes.parquet"
-                ),
+                os.path.join(DATA_DIR, "bronze", f"session_key={skey}", "overtakes.parquet"),
                 index=False,
             )
 
@@ -321,7 +286,6 @@ def bronze_telemetry_spatial(context: AssetExecutionContext) -> None:
     drivers_file = os.path.join(DATA_DIR, "bronze", "drivers.parquet")
 
     if not os.path.exists(drivers_file):
-
         context.log.warn("Arquivo de pilotos brutos ausente. Abortando telemetria.")
 
         return
@@ -329,16 +293,13 @@ def bronze_telemetry_spatial(context: AssetExecutionContext) -> None:
     df_drv = pd.read_parquet(drivers_file)
 
     for gp_cfg in SESSIONS_TO_PROCESS:
-
         skey = gp_cfg["session_key"]
 
         gp_name = gp_cfg["gp"]
 
         # Pegar apenas os pilotos registrados nesta sessão
 
-        drivers_in_session = df_drv[df_drv["session_key"] == skey][
-            "driver_number"
-        ].tolist()
+        drivers_in_session = df_drv[df_drv["session_key"] == skey]["driver_number"].tolist()
 
         # Para evitar estourar a API com requisições simultâneas de todos os 20 pilotos,
 
@@ -350,15 +311,10 @@ def bronze_telemetry_spatial(context: AssetExecutionContext) -> None:
 
         # Garante que criamos a pasta da partição
 
-        os.makedirs(
-            os.path.join(DATA_DIR, "bronze", f"session_key={skey}"), exist_ok=True
-        )
+        os.makedirs(os.path.join(DATA_DIR, "bronze", f"session_key={skey}"), exist_ok=True)
 
         for dnum in active_drivers:
-
-            context.log.info(
-                f"Ingerindo dados espaciais e telemetria para GP {gp_name} - Piloto #{dnum}"
-            )
+            context.log.info(f"Ingerindo dados espaciais e telemetria para GP {gp_name} - Piloto #{dnum}")
 
             params = {"session_key": skey, "driver_number": dnum}
 
@@ -367,7 +323,6 @@ def bronze_telemetry_spatial(context: AssetExecutionContext) -> None:
             tel_data = fetch_api("car_data", params)
 
             if tel_data:
-
                 pd.DataFrame(tel_data).to_parquet(
                     os.path.join(
                         DATA_DIR,
@@ -383,20 +338,13 @@ def bronze_telemetry_spatial(context: AssetExecutionContext) -> None:
             loc_data = fetch_api("location", params)
 
             if loc_data:
-
                 df_loc = pd.DataFrame(loc_data)
 
                 # Cast de coordenadas
 
                 for col in ["x", "y", "z"]:
-
                     if col in df_loc.columns:
-
-                        df_loc[col] = (
-                            pd.to_numeric(df_loc[col], errors="coerce")
-                            .fillna(0)
-                            .astype(int)
-                        )
+                        df_loc[col] = pd.to_numeric(df_loc[col], errors="coerce").fillna(0).astype(int)
 
                 df_loc.to_parquet(
                     os.path.join(
@@ -413,13 +361,10 @@ def bronze_telemetry_spatial(context: AssetExecutionContext) -> None:
             int_data = fetch_api("intervals", params)
 
             if int_data:
-
                 df_int = pd.DataFrame(int_data)
 
                 for col in ["gap_to_leader", "interval"]:
-
                     if col in df_int.columns:
-
                         df_int[col] = df_int[col].astype(str)
 
                 df_int.to_parquet(
@@ -453,7 +398,6 @@ def silver_sessions(context: AssetExecutionContext) -> None:
     src = os.path.join(DATA_DIR, "bronze", "sessions.parquet")
 
     if not os.path.exists(src):
-
         return
 
     df = pd.read_parquet(src)
@@ -461,28 +405,20 @@ def silver_sessions(context: AssetExecutionContext) -> None:
     valid_records = []
 
     for _, row in df.iterrows():
-
         row_dict = row.to_dict()
 
         try:
-
             SessionContract(**row_dict)
 
             valid_records.append(row_dict)
 
         except Exception as e:
-
-            context.log.warn(
-                f"Sessão {row_dict.get('session_key')} falhou no contrato: {e}"
-            )
+            context.log.warn(f"Sessão {row_dict.get('session_key')} falhou no contrato: {e}")
 
     if valid_records:
-
         os.makedirs(os.path.join(DATA_DIR, "silver"), exist_ok=True)
 
-        pd.DataFrame(valid_records).to_parquet(
-            os.path.join(DATA_DIR, "silver", "dim_sessions.parquet"), index=False
-        )
+        pd.DataFrame(valid_records).to_parquet(os.path.join(DATA_DIR, "silver", "dim_sessions.parquet"), index=False)
 
         context.log.info("Sessões gravadas na Silver.")
 
@@ -498,7 +434,6 @@ def silver_drivers(context: AssetExecutionContext) -> None:
     src = os.path.join(DATA_DIR, "bronze", "drivers.parquet")
 
     if not os.path.exists(src):
-
         return
 
     df = pd.read_parquet(src)
@@ -506,28 +441,20 @@ def silver_drivers(context: AssetExecutionContext) -> None:
     valid_records = []
 
     for _, row in df.iterrows():
-
         row_dict = row.to_dict()
 
         try:
-
             DriverContract(**row_dict)
 
             valid_records.append(row_dict)
 
         except Exception as e:
-
-            context.log.warn(
-                f"Piloto {row_dict.get('driver_number')} falhou no contrato: {e}"
-            )
+            context.log.warn(f"Piloto {row_dict.get('driver_number')} falhou no contrato: {e}")
 
     if valid_records:
-
         df_valid = pd.DataFrame(valid_records).drop_duplicates(subset=["driver_number"])
 
-        pd.DataFrame(df_valid).to_parquet(
-            os.path.join(DATA_DIR, "silver", "dim_drivers.parquet"), index=False
-        )
+        pd.DataFrame(df_valid).to_parquet(os.path.join(DATA_DIR, "silver", "dim_drivers.parquet"), index=False)
 
         context.log.info("Pilotos gravados na Silver.")
 
@@ -555,13 +482,11 @@ def silver_metadata_tables(context: AssetExecutionContext) -> None:
     ov_all = []
 
     for gp_cfg in SESSIONS_TO_PROCESS:
-
         skey = gp_cfg["session_key"]
 
         base_path = os.path.join(DATA_DIR, "bronze", f"session_key={skey}")
 
         if not os.path.exists(base_path):
-
             continue
 
         # 1. Stints
@@ -569,7 +494,6 @@ def silver_metadata_tables(context: AssetExecutionContext) -> None:
         sf = os.path.join(base_path, "stints.parquet")
 
         if os.path.exists(sf):
-
             st_df = pd.read_parquet(sf)
 
             st_df["session_key"] = st_df["session_key"].astype(int)
@@ -583,7 +507,6 @@ def silver_metadata_tables(context: AssetExecutionContext) -> None:
         wf = os.path.join(base_path, "weather.parquet")
 
         if os.path.exists(wf):
-
             w_df = pd.read_parquet(wf)
 
             w_df["session_key"] = w_df["session_key"].astype(int)
@@ -597,7 +520,6 @@ def silver_metadata_tables(context: AssetExecutionContext) -> None:
         pf = os.path.join(base_path, "pit_stops.parquet")
 
         if os.path.exists(pf):
-
             p_df = pd.read_parquet(pf)
 
             p_df["session_key"] = p_df["session_key"].astype(int)
@@ -611,7 +533,6 @@ def silver_metadata_tables(context: AssetExecutionContext) -> None:
         rcf = os.path.join(base_path, "race_control.parquet")
 
         if os.path.exists(rcf):
-
             rc_df = pd.read_parquet(rcf)
 
             rc_df["session_key"] = rc_df["session_key"].astype(int)
@@ -625,7 +546,6 @@ def silver_metadata_tables(context: AssetExecutionContext) -> None:
         res_f = os.path.join(base_path, "session_result.parquet")
 
         if os.path.exists(res_f):
-
             res_df = pd.read_parquet(res_f)
 
             res_df["session_key"] = res_df["session_key"].astype(int)
@@ -639,18 +559,13 @@ def silver_metadata_tables(context: AssetExecutionContext) -> None:
         ov_f = os.path.join(base_path, "overtakes.parquet")
 
         if os.path.exists(ov_f):
-
             ov_df = pd.read_parquet(ov_f)
 
             ov_df["session_key"] = ov_df["session_key"].astype(int)
 
-            ov_df["overtaking_driver_number"] = ov_df[
-                "overtaking_driver_number"
-            ].astype(int)
+            ov_df["overtaking_driver_number"] = ov_df["overtaking_driver_number"].astype(int)
 
-            ov_df["overtaken_driver_number"] = ov_df["overtaken_driver_number"].astype(
-                int
-            )
+            ov_df["overtaken_driver_number"] = ov_df["overtaken_driver_number"].astype(int)
 
             ov_df["date"] = pd.to_datetime(ov_df["date"], format="ISO8601")
 
@@ -659,21 +574,14 @@ def silver_metadata_tables(context: AssetExecutionContext) -> None:
     # Salvar consolidados (Dimensões)
 
     if stints_all:
-
-        pd.concat(stints_all).to_parquet(
-            os.path.join(DATA_DIR, "silver", "dim_stints.parquet"), index=False
-        )
+        pd.concat(stints_all).to_parquet(os.path.join(DATA_DIR, "silver", "dim_stints.parquet"), index=False)
 
     if weather_all:
-
-        pd.concat(weather_all).to_parquet(
-            os.path.join(DATA_DIR, "silver", "dim_weather.parquet"), index=False
-        )
+        pd.concat(weather_all).to_parquet(os.path.join(DATA_DIR, "silver", "dim_weather.parquet"), index=False)
 
     # Salvar particionados (Fatos)
 
     if pits_all:
-
         pits_df = pd.concat(pits_all)
 
         target = os.path.join(DATA_DIR, "silver", "fact_pit_stops")
@@ -681,7 +589,6 @@ def silver_metadata_tables(context: AssetExecutionContext) -> None:
         atomic_write_partitioned_parquet(pits_df, target, ["session_key"])
 
     if rc_all:
-
         # Validar via contrato Pydantic para logs de race control
 
         df_rc = pd.concat(rc_all)
@@ -689,19 +596,15 @@ def silver_metadata_tables(context: AssetExecutionContext) -> None:
         valid_rc = []
 
         for _, r in df_rc.iterrows():
-
             r_dict = r.to_dict()
 
             if isinstance(r_dict["date"], pd.Timestamp):
-
                 r_dict["date"] = r_dict["date"].to_pydatetime()
 
             try:
-
                 # Tratar chaves nulas do piloto antes de validar
 
                 if pd.isna(r_dict.get("driver_number")):
-
                     r_dict["driver_number"] = None
 
                 RaceControlContract(**r_dict)
@@ -709,11 +612,9 @@ def silver_metadata_tables(context: AssetExecutionContext) -> None:
                 valid_rc.append(r_dict)
 
             except Exception:
-
                 pass
 
         if valid_rc:
-
             rc_df = pd.DataFrame(valid_rc)
 
             target = os.path.join(DATA_DIR, "silver", "fact_race_control")
@@ -721,13 +622,11 @@ def silver_metadata_tables(context: AssetExecutionContext) -> None:
             atomic_write_partitioned_parquet(rc_df, target, ["session_key"])
 
             for skey in rc_df["session_key"].unique():
-
                 subset = rc_df[rc_df["session_key"] == skey]
 
                 index_race_control_messages(int(skey), subset)
 
     if res_all:
-
         # Validar via contrato Pydantic para resultados de sessão
 
         df_res = pd.concat(res_all)
@@ -735,15 +634,12 @@ def silver_metadata_tables(context: AssetExecutionContext) -> None:
         valid_res = []
 
         for _, r in df_res.iterrows():
-
             r_dict = r.to_dict()
 
             if pd.isna(r_dict.get("position")):
-
                 r_dict["position"] = None
 
             else:
-
                 r_dict["position"] = int(r_dict["position"])
 
             r_dict["session_key"] = int(r_dict["session_key"])
@@ -759,37 +655,28 @@ def silver_metadata_tables(context: AssetExecutionContext) -> None:
                 "duration",
                 "gap_to_leader",
             ]:
-
                 if k in r_dict:
-
                     if pd.isna(r_dict[k]):
-
                         r_dict[k] = None
 
                     elif k in ["dn", "dns", "dsq"]:
-
                         r_dict[k] = bool(r_dict[k])
 
                     elif k in ["number_of_laps"]:
-
                         r_dict[k] = int(r_dict[k])
 
                     elif k in ["points", "duration"]:
-
                         r_dict[k] = float(r_dict[k])
 
             try:
-
                 SessionResultContract(**r_dict)
 
                 valid_res.append(r_dict)
 
             except Exception:
-
                 pass
 
         if valid_res:
-
             res_df = pd.DataFrame(valid_res)
 
             target = os.path.join(DATA_DIR, "silver", "fact_session_results")
@@ -797,7 +684,6 @@ def silver_metadata_tables(context: AssetExecutionContext) -> None:
             atomic_write_partitioned_parquet(res_df, target, ["session_key"])
 
     if ov_all:
-
         # Validar via contrato Pydantic para ultrapassagens
 
         df_ov = pd.concat(ov_all)
@@ -805,11 +691,9 @@ def silver_metadata_tables(context: AssetExecutionContext) -> None:
         valid_ov = []
 
         for _, r in df_ov.iterrows():
-
             r_dict = r.to_dict()
 
             if isinstance(r_dict["date"], pd.Timestamp):
-
                 r_dict["date"] = r_dict["date"].to_pydatetime()
 
             r_dict["session_key"] = int(r_dict["session_key"])
@@ -819,25 +703,20 @@ def silver_metadata_tables(context: AssetExecutionContext) -> None:
             r_dict["overtaken_driver_number"] = int(r_dict["overtaken_driver_number"])
 
             if pd.isna(r_dict.get("position")):
-
                 r_dict["position"] = 0
 
             else:
-
                 r_dict["position"] = int(r_dict["position"])
 
             try:
-
                 OvertakeContract(**r_dict)
 
                 valid_ov.append(r_dict)
 
             except Exception:
-
                 pass
 
         if valid_ov:
-
             ov_df = pd.DataFrame(valid_ov)
 
             target = os.path.join(DATA_DIR, "silver", "fact_overtakes")
@@ -874,26 +753,20 @@ def silver_telemetry_location_aligned(context: AssetExecutionContext) -> None:
     foco_drivers = list(get_focus_drivers().keys())
 
     for gp_cfg in SESSIONS_TO_PROCESS:
-
         skey = gp_cfg["session_key"]
 
         base_path = os.path.join(DATA_DIR, "bronze", f"session_key={skey}")
 
         if not os.path.exists(base_path):
-
             continue
 
         for dnum in foco_drivers:
-
             t_file = os.path.join(base_path, f"car_data_{dnum}.parquet")
 
             l_file = os.path.join(base_path, f"location_{dnum}.parquet")
 
             if os.path.exists(t_file) and os.path.exists(l_file):
-
-                context.log.info(
-                    f"Alinhando dados espaciais via ASOF JOIN para session_key {skey} - Piloto #{dnum}"
-                )
+                context.log.info(f"Alinhando dados espaciais via ASOF JOIN para session_key {skey} - Piloto #{dnum}")
 
                 # Registrar tabelas do Pandas temporariamente
 
@@ -955,17 +828,13 @@ def silver_telemetry_location_aligned(context: AssetExecutionContext) -> None:
 
                 # Salvar de forma particionada
 
-                part_tel_path = os.path.join(
-                    telemetry_root, f"session_key={skey}", f"driver_number={dnum}"
-                )
+                part_tel_path = os.path.join(telemetry_root, f"session_key={skey}", f"driver_number={dnum}")
 
                 _write_session_partition(aligned_df, part_tel_path)
 
                 # Também salvamos a localização Silver isolada particionada
 
-                part_loc_path = os.path.join(
-                    location_root, f"session_key={skey}", f"driver_number={dnum}"
-                )
+                part_loc_path = os.path.join(location_root, f"session_key={skey}", f"driver_number={dnum}")
 
                 _write_session_partition(df_loc, part_loc_path)
 
@@ -981,7 +850,6 @@ def silver_telemetry_location_aligned(context: AssetExecutionContext) -> None:
     os.makedirs(execution_root, exist_ok=True)
 
     for gp_cfg in SESSIONS_TO_PROCESS:
-
         skey = gp_cfg["session_key"]
 
         bronze_path = os.path.join(DATA_DIR, "bronze", f"session_key={skey}")
@@ -1033,9 +901,7 @@ def gold_f1_telemetry_analysis(context: AssetExecutionContext) -> None:
 
     """
 
-    context.log.info(
-        "Iniciando processamento da tabela Gold fct_f1_telemetry_analysis..."
-    )
+    context.log.info("Iniciando processamento da tabela Gold fct_f1_telemetry_analysis...")
 
     os.makedirs(os.path.join(DATA_DIR, "gold"), exist_ok=True)
 
@@ -1175,9 +1041,7 @@ def gold_f1_telemetry_analysis(context: AssetExecutionContext) -> None:
 
     res_df.to_parquet(target_path, index=False)
 
-    context.log.info(
-        f"Tabela Gold gravada em {target_path} com {len(res_df)} registros."
-    )
+    context.log.info(f"Tabela Gold gravada em {target_path} com {len(res_df)} registros.")
 
 
 @asset(
@@ -1200,7 +1064,6 @@ def gold_feature_engineering_lap_data(context: AssetExecutionContext) -> None:
     telemetry_root = os.path.join(DATA_DIR, "silver", "fact_car_telemetry")
 
     if not os.path.exists(stints_file) or not os.path.exists(telemetry_root):
-
         context.log.warn("Dados Silver insuficientes para engenharia de features.")
 
         return
@@ -1239,9 +1102,7 @@ def gold_feature_engineering_lap_data(context: AssetExecutionContext) -> None:
 
     compound_mapping = {"SOFT": 1, "MEDIUM": 2, "HARD": 3, "INTERMEDIATE": 4, "WET": 5}
 
-    df_stints["compound_num"] = (
-        df_stints["compound"].str.upper().map(compound_mapping).fillna(2)
-    )
+    df_stints["compound_num"] = df_stints["compound"].str.upper().map(compound_mapping).fillna(2)
 
     # Tempos base de voltas por session_key (Bahrain 10014 = 92s, Monaco 9979 = 76s, Australia 9693 = 84s)
 
@@ -1254,7 +1115,6 @@ def gold_feature_engineering_lap_data(context: AssetExecutionContext) -> None:
     np.random.seed(42)  # Garantir reprodutibilidade
 
     for _, stint in df_stints.iterrows():
-
         skey = int(stint["session_key"])
 
         dnum = int(stint["driver_number"])
@@ -1262,12 +1122,10 @@ def gold_feature_engineering_lap_data(context: AssetExecutionContext) -> None:
         # Encontrar telemetria base para o piloto e sessão
 
         base_tel = df_features_base[
-            (df_features_base["session_key"] == skey)
-            & (df_features_base["driver_number"] == dnum)
+            (df_features_base["session_key"] == skey) & (df_features_base["driver_number"] == dnum)
         ]
 
         if base_tel.empty:
-
             continue
 
         base_row = base_tel.iloc[0]
@@ -1276,16 +1134,11 @@ def gold_feature_engineering_lap_data(context: AssetExecutionContext) -> None:
 
         lap_start = int(stint["lap_start"])
 
-        lap_end = (
-            int(stint["lap_end"])
-            if not pd.isna(stint["lap_end"])
-            else int(lap_start + 10)
-        )
+        lap_end = int(stint["lap_end"]) if not pd.isna(stint["lap_end"]) else int(lap_start + 10)
 
         # Forçar limite realista se o número de voltas for muito alto ou inconsistente
 
         if lap_end < lap_start:
-
             lap_end = lap_start + 5
 
         num_laps = lap_end - lap_start + 1
@@ -1301,7 +1154,6 @@ def gold_feature_engineering_lap_data(context: AssetExecutionContext) -> None:
         speed_factor = (330.0 - base_row["max_speed"]) * 0.05
 
         for lap_idx in range(num_laps):
-
             lap_num = lap_start + lap_idx
 
             tyre_age = int(stint["tyre_age_at_start"]) + lap_idx
@@ -1311,15 +1163,12 @@ def gold_feature_engineering_lap_data(context: AssetExecutionContext) -> None:
             comp_penalty = 0.0
 
             if stint["compound"] == "MEDIUM":
-
                 comp_penalty = 0.8
 
             elif stint["compound"] == "HARD":
-
                 comp_penalty = 1.8
 
             elif stint["compound"] in ["INTERMEDIATE", "WET"]:
-
                 comp_penalty = 5.0
 
             # Efeito do desgaste do pneu (+0.12 segundos por volta de idade)
@@ -1334,9 +1183,7 @@ def gold_feature_engineering_lap_data(context: AssetExecutionContext) -> None:
 
             lap_throttle = max(
                 0.0,
-                min(
-                    100.0, base_row["throttle_intensity_pct"] + np.random.normal(0, 2.0)
-                ),
+                min(100.0, base_row["throttle_intensity_pct"] + np.random.normal(0, 2.0)),
             )
 
             lap_brake = max(
@@ -1346,13 +1193,7 @@ def gold_feature_engineering_lap_data(context: AssetExecutionContext) -> None:
 
             # Cálculo final do tempo da volta real simulado
 
-            lap_time = (
-                pista_base
-                + comp_penalty
-                + wear_penalty
-                + speed_factor
-                + np.random.normal(0, 0.4)
-            )
+            lap_time = pista_base + comp_penalty + wear_penalty + speed_factor + np.random.normal(0, 0.4)
 
             expanded_rows.append(
                 {
@@ -1372,23 +1213,18 @@ def gold_feature_engineering_lap_data(context: AssetExecutionContext) -> None:
             )
 
     if expanded_rows:
-
         merged = pd.DataFrame(expanded_rows)
 
         output_root = os.path.join(DATA_DIR, "gold", "features_lap_data")
 
         for skey, df_session in merged.groupby("session_key"):
-
             part_dir = os.path.join(output_root, f"session_key={int(skey)}")
 
             _write_session_partition(df_session, part_dir)
 
-        context.log.info(
-            f"Criadas {len(merged)} linhas de features para a IA em {output_root}"
-        )
+        context.log.info(f"Criadas {len(merged)} linhas de features para a IA em {output_root}")
 
     else:
-
         context.log.warn("Nenhuma linha de feature expandida gerada.")
 
 
@@ -1405,13 +1241,11 @@ def gold_lap_time_prediction_model(context: AssetExecutionContext) -> None:
     src_file = os.path.join(DATA_DIR, "gold", "features_lap_data")
 
     if not os.path.exists(src_file):
-
         return
 
     df = pd.read_parquet(src_file)
 
     if len(df) < 5:
-
         context.log.warn("Volume insuficiente para treinar o regressor de IA.")
 
         return
@@ -1447,24 +1281,17 @@ def gold_lap_time_prediction_model(context: AssetExecutionContext) -> None:
     # MLflow tracking e registry
 
     try:
-
         import mlflow
         from mlflow.models import infer_signature
 
-        mlflow.set_tracking_uri(
-            os.environ.get("MLFLOW_TRACKING_URI", "sqlite:///data/mlflow/mlflow.db")
-        )
+        mlflow.set_tracking_uri(os.environ.get("MLFLOW_TRACKING_URI", "sqlite:///data/mlflow/mlflow.db"))
 
         with mlflow.start_run(run_name="gold_lap_time_prediction_model"):
-
-            mlflow.log_params(
-                {"n_estimators": 50, "random_state": 42, "features": features}
-            )
+            mlflow.log_params({"n_estimators": 50, "random_state": 42, "features": features})
 
             y_pred = model.predict(X)
 
-            from sklearn.metrics import (mean_absolute_error,
-                                         mean_squared_error, r2_score)
+            from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
             mse = mean_squared_error(y, y_pred)
 
@@ -1478,26 +1305,19 @@ def gold_lap_time_prediction_model(context: AssetExecutionContext) -> None:
 
             mlflow.sklearn.log_model(model, "model", signature=signature)
 
-            mlflow.register_model(
-                f"runs:/{mlflow.active_run().info.run_id}/model", "lap_regressor"
-            )
+            mlflow.register_model(f"runs:/{mlflow.active_run().info.run_id}/model", "lap_regressor")
 
             try:
-
                 client = mlflow.tracking.MlflowClient()
 
                 client.transition_model_version_stage("lap_regressor", 1, "Production")
 
             except Exception:
-
                 pass
 
-            context.log.info(
-                f"MLflow tracking: MSE={mse:.4f}, MAE={mae:.4f}, R2={r2:.4f}"
-            )
+            context.log.info(f"MLflow tracking: MSE={mse:.4f}, MAE={mae:.4f}, R2={r2:.4f}")
 
     except Exception as e:
-
         context.log.warn(f"MLflow tracking skipped: {e}")
 
 
@@ -1515,7 +1335,6 @@ def gold_lap_predictions(context: AssetExecutionContext) -> None:
     src_file = os.path.join(DATA_DIR, "gold", "features_lap_data")
 
     if not os.path.exists(src_file):
-
         return
 
     loader = get_model_loader()
@@ -1523,10 +1342,7 @@ def gold_lap_predictions(context: AssetExecutionContext) -> None:
     model = loader.load()
 
     if model is None:
-
-        context.log.warn(
-            "Nenhum modelo disponível (MLflow e joblib fallback falharam)."
-        )
+        context.log.warn("Nenhum modelo disponível (MLflow e joblib fallback falharam).")
 
         return
 
@@ -1548,14 +1364,11 @@ def gold_lap_predictions(context: AssetExecutionContext) -> None:
 
     # Delta de performance (diferença entre o tempo real e o ideal físico estimado pela IA)
 
-    df["delta_performance_seconds"] = (
-        df["lap_duration_seconds"] - df["predicted_lap_duration_seconds"]
-    )
+    df["delta_performance_seconds"] = df["lap_duration_seconds"] - df["predicted_lap_duration_seconds"]
 
     output_root = os.path.join(DATA_DIR, "gold", "lap_predictions")
 
     for skey, df_session in df.groupby("session_key"):
-
         part_dir = os.path.join(output_root, f"session_key={int(skey)}")
 
         _write_session_partition(df_session, part_dir)

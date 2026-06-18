@@ -46,9 +46,7 @@ async def verify_api_key(request: Request, call_next):
         if not token or not hmac.compare_digest(token, api_key):
             return JSONResponse(
                 status_code=401,
-                content={
-                    "detail": "API key inválida ou ausente. Forneça X-API-Key ou Authorization: Bearer <key>."
-                },
+                content={"detail": "API key inválida ou ausente. Forneça X-API-Key ou Authorization: Bearer <key>."},
             )
 
     return await call_next(request)
@@ -67,9 +65,7 @@ async def rate_limit_middleware(request: Request, call_next):
         if len(_rate_store[client_ip]) >= rate_limit:
             return JSONResponse(
                 status_code=429,
-                content={
-                    "detail": f"Limite de taxa excedido. Máximo de {rate_limit} requisições por minuto."
-                },
+                content={"detail": f"Limite de taxa excedido. Máximo de {rate_limit} requisições por minuto."},
             )
 
         _rate_store[client_ip].append(now)

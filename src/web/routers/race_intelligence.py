@@ -175,9 +175,7 @@ class DriverDuelResponse(BaseModel):
 
 
 def _session_exists(conn: duckdb.DuckDBPyConnection, session_key: int) -> bool:
-    row = conn.execute(
-        "SELECT COUNT(*) FROM dim_sessions WHERE session_key = ?", (session_key,)
-    ).fetchone()
+    row = conn.execute("SELECT COUNT(*) FROM dim_sessions WHERE session_key = ?", (session_key,)).fetchone()
     return bool(row and row[0] > 0)
 
 
@@ -186,11 +184,7 @@ def _empty_response(reason: AvailabilityReason, message: str) -> dict[str, Any]:
         "available": False,
         "reason": reason,
         "data": None,
-        "metadata": {
-            "empty_state": EmptyState(
-                available=False, reason=reason, message=message
-            ).model_dump()
-        },
+        "metadata": {"empty_state": EmptyState(available=False, reason=reason, message=message).model_dump()},
     }
 
 
@@ -222,9 +216,7 @@ def _severity_for_flag(flag: str | None) -> Literal["info", "warning", "critical
     return "info"
 
 
-def fetch_session_summary(
-    conn: duckdb.DuckDBPyConnection, session_key: int
-) -> dict[str, Any]:
+def fetch_session_summary(conn: duckdb.DuckDBPyConnection, session_key: int) -> dict[str, Any]:
     session_row = conn.execute(
         """
         SELECT session_key, year, session_name, session_type, circuit_short_name, country_name
@@ -234,9 +226,7 @@ def fetch_session_summary(
         (session_key,),
     ).fetchone()
     if not session_row:
-        return _empty_response(
-            "no_rows_for_session", "Sessão não encontrada no lakehouse."
-        )
+        return _empty_response("no_rows_for_session", "Sessão não encontrada no lakehouse.")
 
     winner_row = conn.execute(
         """
@@ -307,9 +297,7 @@ def fetch_session_summary(
     }
 
 
-def fetch_driver_options(
-    conn: duckdb.DuckDBPyConnection, session_key: int
-) -> dict[str, Any]:
+def fetch_driver_options(conn: duckdb.DuckDBPyConnection, session_key: int) -> dict[str, Any]:
     if not _session_exists(conn, session_key):
         return {
             "available": False,
@@ -356,9 +344,7 @@ def fetch_driver_options(
     }
 
 
-def fetch_strategy_timeline(
-    conn: duckdb.DuckDBPyConnection, session_key: int
-) -> dict[str, Any]:
+def fetch_strategy_timeline(conn: duckdb.DuckDBPyConnection, session_key: int) -> dict[str, Any]:
     if not _session_exists(conn, session_key):
         return {
             "available": False,
@@ -451,13 +437,9 @@ def fetch_strategy_timeline(
     }
 
 
-def fetch_pipeline_health(
-    conn: duckdb.DuckDBPyConnection, session_key: int
-) -> dict[str, Any]:
+def fetch_pipeline_health(conn: duckdb.DuckDBPyConnection, session_key: int) -> dict[str, Any]:
     if not _session_exists(conn, session_key):
-        return _empty_response(
-            "no_rows_for_session", "Sessão não encontrada no lakehouse."
-        )
+        return _empty_response("no_rows_for_session", "Sessão não encontrada no lakehouse.")
 
     columns = _table_columns(conn, "fact_pipeline_execution")
     select_columns = [
@@ -508,13 +490,9 @@ def fetch_pipeline_health(
     latest = history[0]
     latest_status = (latest.status or "").upper()
     health_status: Literal["healthy", "warning", "unavailable"] = (
-        "healthy"
-        if "SUCCESS" in latest_status or "SUCCESS" == latest_status
-        else "warning"
+        "healthy" if "SUCCESS" in latest_status or latest_status == "SUCCESS" else "warning"
     )
-    data = PipelineHealthData(
-        latest_execution=latest, history=history, health_status=health_status
-    )
+    data = PipelineHealthData(latest_execution=latest, history=history, health_status=health_status)
     return {
         "available": True,
         "reason": "ok",
@@ -523,13 +501,9 @@ def fetch_pipeline_health(
     }
 
 
-def fetch_prediction_status(
-    conn: duckdb.DuckDBPyConnection, session_key: int
-) -> dict[str, Any]:
+def fetch_prediction_status(conn: duckdb.DuckDBPyConnection, session_key: int) -> dict[str, Any]:
     if not _session_exists(conn, session_key):
-        return _empty_response(
-            "no_rows_for_session", "Sessão não encontrada no lakehouse."
-        )
+        return _empty_response("no_rows_for_session", "Sessão não encontrada no lakehouse.")
 
     row = conn.execute(
         """
@@ -545,9 +519,7 @@ def fetch_prediction_status(
     ).fetchone()
     prediction_count = int(row[0] or 0)
     if prediction_count == 0:
-        data = PredictionStatusData(
-            available=False, session_key=session_key, prediction_count=0
-        )
+        data = PredictionStatusData(available=False, session_key=session_key, prediction_count=0)
         return {
             "available": False,
             "reason": "gold_unavailable",
@@ -581,9 +553,7 @@ def fetch_driver_duel(
     conn: duckdb.DuckDBPyConnection, session_key: int, driver_1: int, driver_2: int
 ) -> dict[str, Any]:
     if not _session_exists(conn, session_key):
-        return _empty_response(
-            "no_rows_for_session", "Sessão não encontrada no lakehouse."
-        )
+        return _empty_response("no_rows_for_session", "Sessão não encontrada no lakehouse.")
 
     metric_rows = conn.execute(
         """
@@ -655,10 +625,7 @@ def fetch_driver_duel(
         session_key=session_key,
         drivers=drivers,
         sample_points=[
-            DuelPoint(
-                driver_number=row[0], x=row[1], y=row[2], speed=row[3], gear=row[4]
-            )
-            for row in point_rows
+            DuelPoint(driver_number=row[0], x=row[1], y=row[2], speed=row[3], gear=row[4]) for row in point_rows
         ],
     )
     return {
@@ -670,37 +637,27 @@ def fetch_driver_duel(
 
 
 @router.get("/session_summary", response_model=SessionSummaryResponse)
-async def get_session_summary(
-    session_key: int = Query(...), db: duckdb.DuckDBPyConnection = Depends(get_db)
-):
+async def get_session_summary(session_key: int = Query(...), db: duckdb.DuckDBPyConnection = Depends(get_db)):
     return await run_query_async(fetch_session_summary, db, session_key)
 
 
 @router.get("/driver_options", response_model=DriverOptionsResponse)
-async def get_driver_options(
-    session_key: int = Query(...), db: duckdb.DuckDBPyConnection = Depends(get_db)
-):
+async def get_driver_options(session_key: int = Query(...), db: duckdb.DuckDBPyConnection = Depends(get_db)):
     return await run_query_async(fetch_driver_options, db, session_key)
 
 
 @router.get("/strategy_timeline", response_model=TimelineResponse)
-async def get_strategy_timeline(
-    session_key: int = Query(...), db: duckdb.DuckDBPyConnection = Depends(get_db)
-):
+async def get_strategy_timeline(session_key: int = Query(...), db: duckdb.DuckDBPyConnection = Depends(get_db)):
     return await run_query_async(fetch_strategy_timeline, db, session_key)
 
 
 @router.get("/pipeline_health", response_model=PipelineHealthResponse)
-async def get_pipeline_health(
-    session_key: int = Query(...), db: duckdb.DuckDBPyConnection = Depends(get_db)
-):
+async def get_pipeline_health(session_key: int = Query(...), db: duckdb.DuckDBPyConnection = Depends(get_db)):
     return await run_query_async(fetch_pipeline_health, db, session_key)
 
 
 @router.get("/prediction_status", response_model=PredictionStatusResponse)
-async def get_prediction_status(
-    session_key: int = Query(...), db: duckdb.DuckDBPyConnection = Depends(get_db)
-):
+async def get_prediction_status(session_key: int = Query(...), db: duckdb.DuckDBPyConnection = Depends(get_db)):
     return await run_query_async(fetch_prediction_status, db, session_key)
 
 

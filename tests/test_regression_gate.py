@@ -16,9 +16,7 @@ def test_regression_gate():
         timeout=30,
     )
     lines = result.stdout.strip().splitlines()
-    collected_line = [
-        line for line in lines if "collected" in line or "selected" in line
-    ]
+    collected_line = [line for line in lines if "collected" in line or "selected" in line]
     assert collected_line, f"Cannot parse collection count:\n{result.stdout[-500:]}"
     count = int(collected_line[-1].split()[0])
     print(f"Tests collected: {count}")

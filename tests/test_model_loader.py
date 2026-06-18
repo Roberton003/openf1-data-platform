@@ -15,9 +15,7 @@ def test_model_loader_joblib_fallback(tmp_path):
     model.fit(np.random.rand(10, 5), np.random.rand(10))
     joblib.dump(model, model_path)
 
-    loader = ModelLoader(
-        mlflow_uri="nonexistent://uri", joblib_path=str(model_path), cache_ttl=0
-    )
+    loader = ModelLoader(mlflow_uri="nonexistent://uri", joblib_path=str(model_path), cache_ttl=0)
     loaded = loader.load()
     assert loaded is not None
     import numpy as np
@@ -57,9 +55,7 @@ def test_model_loader_cache_ttl(tmp_path):
     model.fit(np.random.rand(10, 5), np.random.rand(10))
     joblib.dump(model, model_path)
 
-    loader = ModelLoader(
-        mlflow_uri="nonexistent://uri", joblib_path=str(model_path), cache_ttl=3600
-    )
+    loader = ModelLoader(mlflow_uri="nonexistent://uri", joblib_path=str(model_path), cache_ttl=3600)
     m1 = loader.load()
     assert m1 is not None
     m2 = loader.load()
