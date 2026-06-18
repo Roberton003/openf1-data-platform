@@ -8,3 +8,9 @@ variable "region" {
   type        = string
   default     = "us-central1"
 }
+
+variable "state_bucket" {
+  description = "GCS bucket for Terraform state"
+  type        = string
+  default     = "openf1-terraform-state"
+}

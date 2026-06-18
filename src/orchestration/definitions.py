@@ -17,6 +17,8 @@ Usage:
 from dagster import Definitions, load_assets_from_modules
 
 from src.ingestion import assets
+from src.orchestration.schedules import daily_ingestion_schedule
+from src.orchestration.sensors import freshness_sensor
 
 # Load all assets from the ingestion module
 all_assets = load_assets_from_modules([assets])
@@ -24,8 +26,6 @@ all_assets = load_assets_from_modules([assets])
 # Define the Dagster repository
 defs = Definitions(
     assets=all_assets,
-    # Future: add schedules, sensors, jobs here
-    # schedules=[...],
-    # sensors=[...],
-    # jobs=[...],
+    schedules=[daily_ingestion_schedule],
+    sensors=[freshness_sensor],
 )

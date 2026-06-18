@@ -103,3 +103,50 @@ services:
       timeout: 5s
       start_period: 30s
       retries: 3
+
+  # -------------------------------------------------------------------------
+  # Dagster — Orchestration
+  # -------------------------------------------------------------------------
+  dagster-webserver:
+    image: dagster/dagster-webserver:latest
+    container_name: openf1_dagster_webserver
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./dagster.yaml:/app/dagster.yaml
+      - .:/app/project
+    working_dir: /app/project
+    environment:
+      - DAGSTER_HOME=/app
+    command:
+      - dagster-webserver
+      - -h
+      - "0.0.0.0"
+      - -p
+      - "3000"
+      - -w
+      - /app/dagster.yaml
+    profiles:
+      - orchestration
+
+  dagster-daemon:
+    image: dagster/dagster-daemon:latest
+    container_name: openf1_dagster_daemon
+    restart: unless-stopped
+    volumes:
+      - ./dagster.yaml:/app/dagster.yaml
+      - .:/app/project
+      - ./data:/app/data
+    working_dir: /app/project
+    environment:
+      - DAGSTER_HOME=/app
+    command:
+      - dagster-daemon
+      - run
+      - -w
+      - /app/dagster.yaml
+    depends_on:
+      - dagster-webserver
+    profiles:
+      - orchestration
