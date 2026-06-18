@@ -42,8 +42,36 @@ Cadeia de fallback automático:
 Gatilho: 2+ timeouts consecutivos de bash (exit code -1 / exceeded).
 Ação: migrar modelo e continuar. Se fallback falhar: handoff + parada.
 
-Disponibilidade de capacidade nao significa invocacao. `Supporting Agents` deve
-listar somente subagentes realmente acionados.
+## Suporte Obrigatório
+
+Toda atividade substantiva (T1+) deve ter suporte documentado de agentes e skills.
+
+| T-Level | Agents Mínimos | Skills Mínimas |
+|---------|----------------|----------------|
+| T0 | Lead Agent | — |
+| T1 | Lead Agent | 1 skill |
+| T2 | Lead + 1 domain | 1-2 skills |
+| T3 | Lead + 2 domain | 3+ skills |
+| T4 | Lead + 3 domain + adversarial | 3+ skills |
+| T5 | Full council | 4+ skills |
+
+**Regra:** Sem suporte documentado, a atividade não inicia. Se agentes não puderem
+ser invocados por limite operacional, registrar como `Rejected/Blocked` com motivo.
+
+**Fallback:** Lead Agent executa sozinho + justificativa explícita + handoff com lacunas.
+
+## Checklist Pré-Execução (Obrigatório para T1+)
+
+Antes de qualquer edição de código:
+- [ ] Classificação T-level emitida (task-router YAML com `agents:` e `skills:`)
+- [ ] Mínimo de agents invocados via `task` tool (ou `Rejected/Blocked` documentado)
+- [ ] Mínimo de skills carregadas via `skill` tool
+
+**Sem estes 3 itens, NENHUMA edição de código é permitida.**
+
+`Supporting Agents` deve listar somente subagentes realmente acionados.
+
+`Supporting Agents` deve listar somente subagentes realmente acionados.
 
 ## Nota Obrigatoria Quando Nao Houver Subagentes
 

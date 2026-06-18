@@ -22,6 +22,8 @@ Cada arquivo segue o padrão de mercado de **ADR (Nygard format)**, registrando 
 | **[ADR-010](adr-010-runtime-governance.md)** | [Runtime Governance](adr-010-runtime-governance.md) | **Accepted** | 2026-06-18 | Runtime Governance como camada nativa. |
 | **[ADR-011](adr-011-harness-reduction.md)** | [Redução do Harness](adr-011-harness-reduction.md) | **Accepted** | 2026-06-18 | Redução de 41 para 18 skills, 35 para 20 agents. |
 | **[ADR-012](adr-012-model-escalation-fallback.md)** | [Model Escalation & Fallback Automático](adr-012-model-escalation-fallback.md) | **Accepted** | 2026-06-18 | Cadeia deepseek Free → mimo pago com gatilho automático por timeout. |
+| **[ADR-013](adr-013-suporte-obrigatorio-agentes-skills.md)** | [Suporte Obrigatório de Agentes e Skills](adr-013-suporte-obrigatorio-agentes-skills.md) | **Accepted** | 2026-06-18 | Toda atividade T1+ deve documentar agents e skills acionados. |
+| **[ADR-014](adr-014-enforcement-automatico.md)** | [Enforcement Automático de Suporte de Agentes](adr-014-enforcement-automatico.md) | **Accepted** | 2026-06-18 | Governance Gate + pre-commit hook + verificação 27 checks. Revisado por documentation-curator. |
 
 ---
 

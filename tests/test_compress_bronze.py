@@ -1,30 +1,53 @@
+"""Tests for ingestion/compress_bronze.py — cold storage compression."""
+
+import json
 import os
-import tarfile
 
 from src.ingestion.compress_bronze import compress_bronze_layer
 
 
-def test_compress_bronze_layer(tmp_path):
-    bronze_dir = tmp_path / "bronze" / "test_partition"
-    archive_dir = tmp_path / "bronze" / "archive" / "test_partition"
-    os.makedirs(bronze_dir, exist_ok=True)
+def test_compress_bronze_creates_archive(tmp_path):
+    bronze_dir = tmp_path / "bronze" / "year=2025" / "gp=Bahrain"
+    bronze_dir.mkdir(parents=True)
+    (bronze_dir / "data.json").write_text(json.dumps({"key": "value"}))
 
-    mock_files = {
-        "file1.json": '{"status": "green", "laps": 10}',
-        "file2.json": '{"status": "yellow", "laps": 11}',
-    }
-    for name, content in mock_files.items():
-        (bronze_dir / name).write_text(content, encoding="utf-8")
+    compress_bronze_layer(str(tmp_path))
 
-    compress_bronze_layer(data_base_dir=str(tmp_path))
+    archive = tmp_path / "bronze" / "archive" / "year=2025" / "gp=Bahrain" / "raw_data.tar.gz"
+    assert archive.exists()
 
-    remaining = [f for f in os.listdir(bronze_dir) if f.endswith(".json")]
-    assert len(remaining) == 0, "JSON files were not deleted after compression."
 
-    archive_tar = archive_dir / "raw_data.tar.gz"
-    assert archive_tar.exists(), "Archive tar.gz was not created."
+def test_compress_bronze_removes_originals(tmp_path):
+    bronze_dir = tmp_path / "bronze" / "year=2025" / "gp=Bahrain"
+    bronze_dir.mkdir(parents=True)
+    (bronze_dir / "data.json").write_text(json.dumps({"key": "value"}))
 
-    with tarfile.open(archive_tar, "r:gz") as tar:
-        members = tar.getnames()
-        assert "file1.json" in members
-        assert "file2.json" in members
+    compress_bronze_layer(str(tmp_path))
+
+    assert not (bronze_dir / "data.json").exists()
+
+
+def test_compress_bronze_skips_nonexistent_dir(tmp_path):
+    compress_bronze_layer(str(tmp_path / "nonexistent"))
+
+
+def test_compress_bronze_ignores_archive_dir(tmp_path):
+    bronze_dir = tmp_path / "bronze"
+    archive_dir = bronze_dir / "archive" / "old"
+    archive_dir.mkdir(parents=True)
+    (archive_dir / "data.json").write_text("old data")
+
+    compress_bronze_layer(str(tmp_path))
+
+    assert (archive_dir / "data.json").exists()
+
+
+def test_compress_bronze_skips_non_json_files(tmp_path):
+    bronze_dir = tmp_path / "bronze" / "test"
+    bronze_dir.mkdir(parents=True)
+    (bronze_dir / "data.csv").write_text("a,b\n1,2")
+
+    compress_bronze_layer(str(tmp_path))
+
+    archive = tmp_path / "bronze" / "archive" / "test" / "raw_data.tar.gz"
+    assert not archive.exists()

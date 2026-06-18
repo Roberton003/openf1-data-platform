@@ -18,3 +18,11 @@ repos:
       - id: detect-secrets
         args: ["--baseline", ".secrets.baseline"]
         exclude: .*/tests/.*|.*\.md$|.*\.github/workflows/.*
+  - repo: local
+    hooks:
+      - id: verify-agent-support
+        name: Verify Agent/Skill Support
+        entry: python scripts/verify_agent_support.py
+        language: system
+        files: '\.(md|py|yaml|yml)$'
+        pass_filenames: false
