@@ -152,7 +152,7 @@ if pre_commit.exists():
 print("=" * 60)
 print("Agent/Skill Support Governance Verification")
 print("=" * 60)
-print(f"Checks run: 27")
+print("Checks run: 27")
 print(f"Passed:     {27 - len(ERRORS)}")
 print(f"Failed:     {len(ERRORS)}")
 print(f"Warnings:   {len(WARNS)}")

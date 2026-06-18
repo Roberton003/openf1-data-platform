@@ -40,7 +40,10 @@ Cadeia de fallback automático:
 2. `mimo-v2.5-opencode-go-medium` — fallback automático
 
 Gatilho: 2+ timeouts consecutivos de bash (exit code -1 / exceeded).
-Ação: migrar modelo e continuar. Se fallback falhar: handoff + parada.
+Ação: migrar topologia de PARALLEL para SEQUENTIAL.
+Invocar agents um por vez: skeptic → test → devops → architect.
+Documentar Rejected/Blocked para agents bloqueados. Continuar execução.
+Se fallback falhar: handoff + parada.
 
 ## Suporte Obrigatório
 
