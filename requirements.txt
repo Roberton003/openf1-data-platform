@@ -20,6 +20,8 @@ tenacity==8.2.3
 # Testing & Quality (DevOps)
 pytest==8.1.1
 pytest-mock==3.14.0
+pytest-cov==5.0.0
+pytest-asyncio==0.23.6
 black==24.3.0
 flake8==7.0.0
 isort==5.13.2

@@ -1,4 +1,4 @@
-.PHONY: setup install test lint clean ingest run ci-check ci-heal
+.PHONY: setup install test lint clean ingest run ci-check ci-heal handoff
 
 # Variáveis do Projeto
 PYTHON = .venv/bin/python
@@ -57,3 +57,6 @@ ci-check:
 ci-heal:
 	PYTHONPATH=. $(PYTHON) -c "from src.web.ci_monitor import execute_healing_action; execute_healing_action([], 0)"
 
+handoff:
+	@test -n "$(TITLE)" || (echo "Use TITLE='...' make handoff" && exit 1)
+	PYTHONPATH=. $(PYTHON) scripts/codex/record_handoff.py "$(TITLE)" --project "OpenF1 Data Platform"

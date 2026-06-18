@@ -1,0 +1,85 @@
+# =============================================================================
+# OpenF1 Data Platform — Production API Dockerfile (Multi-Stage)
+# =============================================================================
+# Stage 1 (builder): Install dependencies into a disposable venv.
+# Stage 2 (runtime): Minimal Python 3.12-slim with only the venv + app code.
+#
+# Build:
+#   docker build -t openf1-api -f Dockerfile.api .
+# Build with tag (e.g. CI):
+#   docker build -t openf1-api:v1.1.0 -f Dockerfile.api .
+#
+# Run:
+#   docker run --rm -p 8001:8001 -v $(pwd)/data:/app/data openf1-api
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Stage 1: Builder — install dependencies into a virtualenv
+# ---------------------------------------------------------------------------
+FROM python:3.12.10-slim AS builder
+
+WORKDIR /build
+
+# Install system dependencies needed for some Python packages (e.g. pyarrow)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends gcc libpq-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+# Create a virtualenv to make copying easier
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# First, install only the dependencies to leverage Docker layer caching.
+# When requirements.txt changes infrequently, the pip install layer is cached.
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+
+# ---------------------------------------------------------------------------
+# Stage 2: Runtime — minimal image with app + venv only
+# ---------------------------------------------------------------------------
+FROM python:3.12.10-slim AS runtime
+
+# Metadata
+LABEL maintainer="OpenF1 Data Platform"
+LABEL description="OpenF1 Telemetry API — FastAPI production server"
+LABEL version="1.1.0"
+
+# Security: run as non-root user
+RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /sbin/nologin appuser
+
+WORKDIR /app
+
+# Copy the virtualenv from builder stage
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy only the source code needed at runtime.
+# Explicit COPY is more cache-friendly and avoids bundling test/dev files.
+COPY src/ ./src/
+COPY requirements.txt .
+COPY Makefile .
+
+# Create data directory (mount at runtime via -v or docker-compose volumes)
+RUN mkdir -p /app/data /app/models && chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
+
+# Health check — calls /api/health endpoint
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/health')" || exit 1
+
+# Expose the API port
+EXPOSE 8001
+
+# Run with multiple workers for production concurrency.
+# Number of workers: 2-4 is typical for CPU-bound analytical workloads.
+# Use --preload so the DuckDB view mapping is shared across workers.
+CMD ["uvicorn", "src.web.main:app", \
+     "--host", "0.0.0.0", \
+     "--port", "8001", \
+     "--workers", "2", \
+     "--timeout-keep-alive", "65", \
+     "--log-level", "info"]
