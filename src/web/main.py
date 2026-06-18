@@ -19,7 +19,8 @@ from src.web.database import close_shared_connection
 from src.web.health import router as health_router
 from src.web.logging import (configure_logging, generate_request_id,
                              get_request_logger)
-from src.web.routers import analytics, ci_alerts, race_intelligence, telemetry
+from src.web.routers import (analytics, ci_alerts, race_intelligence, sla,
+                             telemetry)
 
 _log_level = _os.environ.get("OPENF1_LOG_LEVEL", "INFO")
 _json_logs = _os.environ.get("OPENF1_JSON_LOGS", "true").lower() != "false"
@@ -136,6 +137,7 @@ app.middleware("http")(rate_limit_middleware)
 app.include_router(telemetry.router)
 app.include_router(analytics.router)
 app.include_router(race_intelligence.router)
+app.include_router(sla.router)
 app.include_router(ci_alerts.router)
 app.include_router(health_router)
 

@@ -38,7 +38,7 @@ evidencias.
 | [F1-009](009_handoff_make_target.md) | **Completed** | Entrada padrao para handoff via Makefile | Adiciona `make handoff` como entrada ergonomica para o scaffold canônico de memoria operacional. |
 | [F1-012](012_consolidacao_harness_openf1.md) | **Superseded** | Consolidação e saneamento do OpenF1 | Substituído por F1-015. Pendências migradas para plano de fechamento. |
 | [F1-015](015_fechamento_pendencias.md) | **Completed** | Fechamento de pendências e sanitização final | 68 itens fechados: testes (112 verdes), Docker, auth, schemas, docs. ADR-009. |
-| [F1-016](016_ia_mlops_e_observabilidade.md) | **Active** | IA, MLOps e observabilidade (substitui F1-005) | ChromaDB RAG, MLflow Model Registry, SLA endpoint. Produzido com multi-agentes + skills. |
+| [F1-016](016_ia_mlops_e_observabilidade.md) | **Completed** | IA, MLOps e observabilidade (substitui F1-005) | ChromaDB RAG, MLflow Model Registry, SLA endpoint. 138 testes. |
 | [F1-017](017_harness_openf1_unificacao_governanca.md) | **Active** | Unificação da governança do harness OpenF1 | Migrar toda governança de ~/.claude/ e ~/.agents/ para ~/.opencode/. 8 fases com skills + agentes. |
 
 ## Regras Para Novos Planos

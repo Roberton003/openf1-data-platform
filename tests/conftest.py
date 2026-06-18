@@ -348,3 +348,108 @@ def sql_query_safe():
     from src.web.routers.analytics import _validate_and_prepare_sql
 
     return _validate_and_prepare_sql
+
+
+# ---------------------------------------------------------------------------
+# MLflow mock fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def mock_mlflow(mocker):
+    """Mock mlflow tracking and registry so tests never contact a real server."""
+    m = mocker.patch("src.ingestion.assets.mlflow", autospec=True)
+    mocker.patch("src.web.model_loader.mlflow", autospec=True)
+    return m
+
+
+# ---------------------------------------------------------------------------
+# ChromaDB fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def chroma_client(tmp_path):
+    """Return a chromadb PersistentClient at a temp path."""
+    import chromadb
+
+    return chromadb.PersistentClient(path=str(tmp_path / "chromadb"))
+
+
+@pytest.fixture
+def populated_race_control_collection(chroma_client):
+    """Return a ChromaDB collection with sample race control messages."""
+    collection = chroma_client.get_or_create_collection("race_control")
+    collection.add(
+        ids=["msg1", "msg2", "msg3"],
+        documents=[
+            "Green flag on lap 1",
+            "Yellow flag due to debris on track",
+            "Safety car deployed after crash",
+        ],
+        metadatas=[
+            {"session_key": "10014", "category": "Flag", "flag": "GREEN"},
+            {"session_key": "10014", "category": "Flag", "flag": "YELLOW"},
+            {"session_key": "10014", "category": "Flag", "flag": "SAFETY_CAR"},
+        ],
+    )
+    return collection
+
+
+# ---------------------------------------------------------------------------
+# Synthetic sklearn model (RandomForest) for MLflow integration tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def synthetic_random_forest(tmp_path):
+    """Return a synthetic RandomForestRegressor with archetypal feature names."""
+    import joblib
+    import numpy as np
+    from sklearn.ensemble import RandomForestRegressor
+
+    rng = np.random.RandomState(42)
+    model = RandomForestRegressor(n_estimators=10, random_state=42, n_jobs=1)
+    X = rng.rand(50, 5) * 100
+    y = 50 + X[:, 0] * 0.5 + rng.rand(50) * 5
+    model.fit(X, y)
+    model.feature_names_in_ = np.array(
+        [
+            "throttle_intensity_pct",
+            "brake_intensity_pct",
+            "tyre_age_at_start",
+            "compound_num",
+            "max_speed",
+        ]
+    )
+    path = tmp_path / "lap_regressor.joblib"
+    joblib.dump(model, path)
+    return path
+
+
+# ---------------------------------------------------------------------------
+# Mock DB with SLA columns (extended schema)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def mock_db_with_sla_columns(
+    mock_db: duckdb.DuckDBPyConnection,
+) -> duckdb.DuckDBPyConnection:
+    """Return mock_db with SLA columns added to fact_pipeline_execution."""
+    mock_db.execute(
+        "ALTER TABLE fact_pipeline_execution ADD COLUMN IF NOT EXISTS records_rejected INTEGER"
+    )
+    mock_db.execute(
+        "ALTER TABLE fact_pipeline_execution ADD COLUMN IF NOT EXISTS data_freshness_minutes DOUBLE"
+    )
+    mock_db.execute(
+        "ALTER TABLE fact_pipeline_execution ADD COLUMN IF NOT EXISTS sla_runtime_status VARCHAR"
+    )
+    mock_db.execute(
+        "ALTER TABLE fact_pipeline_execution ADD COLUMN IF NOT EXISTS sla_quality_status VARCHAR"
+    )
+    mock_db.execute(
+        "ALTER TABLE fact_pipeline_execution ADD COLUMN IF NOT EXISTS sla_freshness_status VARCHAR"
+    )
+    return mock_db

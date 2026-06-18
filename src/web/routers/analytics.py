@@ -4,9 +4,9 @@ from typing import Any
 import duckdb
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
 
+from src.ingestion.vector_store import (index_race_control_messages,
+                                        query_race_control)
 from src.web.database import get_db, result_cache, run_query_async
 
 router = APIRouter(prefix="/api")
@@ -119,12 +119,12 @@ def _apply_pragmas(conn: duckdb.DuckDBPyConnection) -> None:
 def fetch_sessions_from_db(conn: duckdb.DuckDBPyConnection) -> list[dict]:
     try:
         query = """
-            SELECT 
-                session_key, 
-                year, 
-                session_name, 
-                session_type, 
-                circuit_short_name, 
+            SELECT
+                session_key,
+                year,
+                session_name,
+                session_type,
+                circuit_short_name,
                 country_name
             FROM dim_sessions
             ORDER BY year DESC, country_name ASC
@@ -141,7 +141,7 @@ def fetch_sessions_from_db(conn: duckdb.DuckDBPyConnection) -> list[dict]:
             }
             for r in results
         ]
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=500,
             detail="Erro interno ao processar a requisicao. Consulte os logs do servidor.",
@@ -155,10 +155,10 @@ def fetch_drivers_from_db(
     try:
         # Get active drivers who have stint data in this session
         query = """
-            SELECT DISTINCT 
-                d.driver_number, 
-                d.full_name, 
-                d.team_name, 
+            SELECT DISTINCT
+                d.driver_number,
+                d.full_name,
+                d.team_name,
                 d.name_acronym,
                 d.country_code
             FROM dim_drivers d
@@ -177,7 +177,7 @@ def fetch_drivers_from_db(
             }
             for r in results
         ]
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=500,
             detail="Erro interno ao processar a requisicao. Consulte os logs do servidor.",
@@ -190,7 +190,7 @@ def fetch_intervals_from_db(
 ) -> list[dict]:
     try:
         query = """
-            SELECT 
+            SELECT
                 d.name_acronym as driver,
                 d.team_name as team,
                 i.gap_to_leader,
@@ -212,7 +212,7 @@ def fetch_intervals_from_db(
             }
             for r in results
         ]
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=500,
             detail="Erro interno ao processar a requisicao. Consulte os logs do servidor.",
@@ -225,7 +225,7 @@ def fetch_pit_stops_from_db(
 ) -> list[dict]:
     try:
         query = """
-            SELECT 
+            SELECT
                 d.name_acronym as driver,
                 d.team_name as team,
                 p.lap_number,
@@ -251,7 +251,7 @@ def fetch_pit_stops_from_db(
             }
             for r in results
         ]
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=500,
             detail="Erro interno ao processar a requisicao. Consulte os logs do servidor.",
@@ -305,7 +305,7 @@ def fetch_weather_from_db(
 ) -> list[dict]:
     try:
         query = """
-            SELECT 
+            SELECT
                 strftime(date, '%Y-%m-%dT%H:%M:%S.%f') as date,
                 air_temperature,
                 track_temperature,
@@ -328,7 +328,7 @@ def fetch_weather_from_db(
             }
             for r in results
         ]
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=500,
             detail="Erro interno ao processar a requisicao. Consulte os logs do servidor.",
@@ -352,7 +352,7 @@ def fetch_stints_from_db(
 ) -> list[dict]:
     try:
         query = """
-            SELECT 
+            SELECT
                 d.name_acronym as driver,
                 d.team_name as team,
                 s.stint_number,
@@ -378,7 +378,7 @@ def fetch_stints_from_db(
             }
             for r in results
         ]
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=500,
             detail="Erro interno ao processar a requisicao. Consulte os logs do servidor.",
@@ -401,7 +401,7 @@ def fetch_race_control_from_db(
 ) -> list[dict]:
     try:
         query = """
-            SELECT 
+            SELECT
                 d.name_acronym as driver,
                 rc.category,
                 rc.flag,
@@ -423,7 +423,7 @@ def fetch_race_control_from_db(
             }
             for r in results
         ]
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=500,
             detail="Erro interno ao processar a requisicao. Consulte os logs do servidor.",
@@ -446,7 +446,7 @@ def fetch_winner_from_db(
 ) -> list[dict]:
     try:
         query = """
-            SELECT 
+            SELECT
                 d.name_acronym as driver,
                 d.full_name,
                 d.team_name as team,
@@ -469,7 +469,7 @@ def fetch_winner_from_db(
             }
             for r in results
         ]
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=500,
             detail="Erro interno ao processar a requisicao. Consulte os logs do servidor.",
@@ -494,8 +494,8 @@ def fetch_duel_location_from_db(
     try:
         # 1. Achar o primeiro timestamp unificado da sessão (speed > 100 para qualquer piloto)
         t_query = """
-            SELECT min(date) 
-            FROM fact_car_telemetry 
+            SELECT min(date)
+            FROM fact_car_telemetry
             WHERE session_key = ? AND speed > 100
         """
         t_res = conn.execute(t_query, (session_key,)).fetchone()
@@ -505,8 +505,8 @@ def fetch_duel_location_from_db(
 
         # 2. Obter a contagem total de registros do piloto para calcular a amostragem
         count_query = """
-            SELECT COUNT(*) 
-            FROM fact_car_location 
+            SELECT COUNT(*)
+            FROM fact_car_location
             WHERE session_key = ? AND driver_number = ? AND date >= ?
         """
         count_res = conn.execute(
@@ -578,7 +578,7 @@ def fetch_duel_location_from_db(
             for r in results
             if r[0] is not None and r[1] is not None
         ]
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=500,
             detail="Erro interno ao processar a requisicao. Consulte os logs do servidor.",
@@ -592,7 +592,8 @@ async def get_duel_location(
     db: duckdb.DuckDBPyConnection = Depends(get_db),
 ):
     """
-    Retorna a trajetória 2D consecutiva (volta representativa) e telemetria do piloto para o Speed Track Map.
+    Retorna a trajetória 2D consecutiva (volta representativa) e
+    telemetria do piloto para o Speed Track Map.
     """
     return await run_query_async(
         fetch_duel_location_from_db, db, session_key, driver_number
@@ -606,7 +607,7 @@ def fetch_duel_metrics_from_db(
     try:
         # Obter métricas de telemetria agregadas
         query = """
-            SELECT 
+            SELECT
                 driver_number,
                 MAX(speed) as max_speed,
                 MAX(rpm) as max_rpm,
@@ -643,7 +644,7 @@ def fetch_duel_metrics_from_db(
                 "best_pit": pits.get(drv_num, "-"),
             }
         return metrics
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=500,
             detail="Erro interno ao processar a requisicao. Consulte os logs do servidor.",
@@ -671,7 +672,7 @@ def fetch_lap_predictions_from_db(
     try:
         # Consulta as predições de IA gravadas na camada Gold
         query = """
-            SELECT 
+            SELECT
                 stint_number,
                 compound,
                 tyre_age_at_start,
@@ -719,7 +720,7 @@ def fetch_overtakes_from_db(
     try:
         # Join com dim_drivers para obter os acrônimos dos pilotos
         query = """
-            SELECT 
+            SELECT
                 d1.name_acronym as overtaking_driver,
                 d2.name_acronym as overtaken_driver,
                 o.position,
@@ -742,7 +743,7 @@ def fetch_overtakes_from_db(
             }
             for r in results
         ]
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=500,
             detail="Erro interno ao processar a requisicao. Consulte os logs do servidor.",
@@ -763,7 +764,7 @@ async def get_overtakes(
 def fetch_pipeline_executions_from_db(conn: duckdb.DuckDBPyConnection) -> list[dict]:
     try:
         query = """
-            SELECT 
+            SELECT
                 run_id,
                 pipeline_name,
                 session_key,
@@ -860,7 +861,7 @@ def execute_safe_sql_query(
             status_code=400,
             detail="Erro interno ao executar a consulta. Verifique os logs do servidor.",
         )
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=400,
             detail="Erro interno ao executar a consulta. Verifique os logs do servidor.",
@@ -886,65 +887,77 @@ class ChatRequest(BaseModel):
 def execute_hybrid_semantic_search(
     conn: duckdb.DuckDBPyConnection, session_key: int, question: str
 ) -> dict:
-    import numpy as np
+    chroma_results = query_race_control(session_key, question, n_results=5)
 
-    # 1. Busca mensagens qualitativas de pista reais registradas na Silver
-    query_messages = """
-        SELECT 
-            strftime(date::TIMESTAMP, '%Y-%m-%dT%H:%M:%S.%f') as date_str,
-            driver_number,
-            category,
-            flag,
-            message,
-            date
-        FROM fact_race_control
-        WHERE session_key = ? AND message IS NOT NULL
-        ORDER BY date ASC
-    """
-    rows = conn.execute(query_messages, (session_key,)).fetchall()
+    if not chroma_results:
+        # Lazy indexing: if ChromaDB empty for this session, index from DuckDB
+        query_messages = """
+            SELECT
+                strftime(date::TIMESTAMP, '%Y-%m-%dT%H:%M:%S.%f') as date_str,
+                driver_number, category, flag, message, date
+            FROM fact_race_control
+            WHERE session_key = ? AND message IS NOT NULL
+            ORDER BY date ASC
+        """
+        rows = conn.execute(query_messages, (session_key,)).fetchall()
+        if rows:
+            import pandas as pd
 
-    if not rows:
+            df = pd.DataFrame(
+                rows,
+                columns=[
+                    "date_str",
+                    "driver_number",
+                    "category",
+                    "flag",
+                    "message",
+                    "date",
+                ],
+            )
+            index_race_control_messages(session_key, df)
+            chroma_results = query_race_control(session_key, question, n_results=5)
+
+    if not chroma_results:
         return {
             "answer": (
                 "### 🏎️ OpenF1 Insight Híbrido (Modo Local)\n\n"
-                "Nenhuma mensagem de rádio ou controle de prova foi encontrada para esta sessão no Lakehouse.\n\n"
+                "Nenhuma mensagem de rádio ou controle de prova "
+                "foi encontrada para esta sessão no Lakehouse.\n\n"
                 "> [!NOTE]\n"
-                "Certifique-se de que os dados de Race Control foram devidamente ingeridos na camada Silver."
+                "Certifique-se de que os dados de Race Control "
+                "foram devidamente ingeridos na camada Silver."
             ),
             "relevance": 0.0,
             "data": [],
         }
 
-    documents = [r[4] for r in rows]
+    best = chroma_results[0]
+    best_score = max(0.0, 1.0 - best["relevance"])
 
-    # 2. Computa similaridade local via TF-IDF (Sentence Similarity esparsa)
-    vectorizer = TfidfVectorizer(stop_words="english")
-    try:
-        tfidf_matrix = vectorizer.fit_transform(documents)
-        query_vector = vectorizer.transform([question])
-        similarities = cosine_similarity(query_vector, tfidf_matrix).flatten()
-        best_idx = int(np.argmax(similarities))
-        best_score = float(similarities[best_idx])
-    except Exception:
-        best_idx = 0
-        best_score = 0.0
-
-    # Se a similaridade for muito baixa, avisa o usuário de forma amigável
     if best_score < 0.02:
         return {
             "answer": (
                 f"### 🏎️ OpenF1 Insight Híbrido (Modo Local)\n\n"
-                f'Nenhum alerta de pista ou rádio relevante foi encontrado para a pergunta: *"{question}"*.\n\n'
+                f"Nenhum alerta de pista ou rádio relevante "
+                f'foi encontrado para a pergunta: *"{question}"*.\n\n'
                 f"*   **Melhor correspondência (Relevância: {best_score:.2%}):**\n"
-                f'    > "{rows[best_idx][4]}"\n\n'
+                f'    > "{best["message"]}"\n\n'
                 f"> [!TIP]\n"
-                f"Tente usar termos chaves de prova como 'flag', 'green', 'pit', 'engine', 'safety car' ou 'driver'."
+                f"Tente usar termos chaves de prova como "
+                f"'flag', 'green', 'pit', 'engine', 'safety car' ou 'driver'."
             ),
             "relevance": best_score,
             "data": [],
         }
 
-    matched_row = rows[best_idx]
+    matched_row = (
+        best.get("date_str", ""),
+        best.get("driver_number", ""),
+        best.get("category", ""),
+        best.get("flag", ""),
+        best["message"],
+        best.get("date_str", ""),
+    )
     date_str, driver_number, category, flag, message, event_date = matched_row
 
     # Resolvendo o nome do piloto se disponível
@@ -971,12 +984,12 @@ def execute_hybrid_semantic_search(
             if driver_number:
                 # Telemetria do piloto específico
                 query_telemetry = """
-                    SELECT 
+                    SELECT
                         AVG(speed) as avg_speed,
                         MAX(rpm) as max_rpm,
                         MIN(n_gear) as min_gear
                     FROM fact_car_telemetry
-                    WHERE session_key = ? 
+                    WHERE session_key = ?
                       AND driver_number = ?
                       AND date >= ?::TIMESTAMP
                       AND date <= ?::TIMESTAMP + INTERVAL '15 seconds'
@@ -1000,7 +1013,7 @@ def execute_hybrid_semantic_search(
             else:
                 # Telemetria média de todos os pilotos na pista (Bandeira amarela geral/Safety Car)
                 query_telemetry_global = """
-                    SELECT 
+                    SELECT
                         AVG(speed) as avg_speed,
                         MIN(speed) as min_speed
                     FROM fact_car_telemetry
@@ -1019,14 +1032,18 @@ def execute_hybrid_semantic_search(
                         ),
                     }
                     telemetry_summary = (
-                        f"\n**Impacto de Velocidade Média na Pista (Global nos 15s seguintes):**\n"
-                        f"*   **Velocidade Média Geral:** {telemetry_data['avg_speed']} km/h\n"
-                        f"*   **Velocidade Mínima Registrada:** {telemetry_data['min_speed']} km/h (indica desaceleração sob bandeira)\n"
+                        "\n**Impacto de Velocidade Média na Pista "
+                        "(Global nos 15s seguintes):**\n"
+                        f"*   **Velocidade Média Geral:** "
+                        f"{telemetry_data['avg_speed']} km/h\n"
+                        f"*   **Velocidade Mínima Registrada:** "
+                        f"{telemetry_data['min_speed']} km/h "
+                        "(indica desaceleração sob bandeira)\n"
                     )
     except Exception:
         # Se a tabela de telemetria estiver vazia ou indisponível
         telemetry_summary = (
-            f"\n*(Telemetria física indisponível no DuckDB para o instante do evento)*"
+            "\n*(Telemetria física indisponível no DuckDB para o instante do evento)*"
         )
 
     # 4. Formata a resposta analítica híbrida rica em Markdown
@@ -1078,7 +1095,7 @@ def fetch_telemetry_analysis_from_db(
 ) -> list[dict]:
     try:
         query = """
-            SELECT 
+            SELECT
                 session_key,
                 driver_number,
                 lap_number,
@@ -1111,7 +1128,7 @@ def fetch_telemetry_analysis_from_db(
             }
             for r in results
         ]
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=500,
             detail="Erro interno ao processar a requisicao. Consulte os logs do servidor.",

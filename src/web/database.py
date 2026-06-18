@@ -96,7 +96,12 @@ EMPTY_TABLE_SCHEMAS = {
         total_rows_bronze INTEGER,
         total_rows_silver INTEGER,
         total_rows_quarantine INTEGER,
-        quarantine_rate DOUBLE
+        quarantine_rate DOUBLE,
+        records_rejected INTEGER,
+        data_freshness_minutes DOUBLE,
+        sla_runtime_status VARCHAR,
+        sla_quality_status VARCHAR,
+        sla_freshness_status VARCHAR
     """,
     "fact_car_telemetry": """
         session_key INTEGER,
