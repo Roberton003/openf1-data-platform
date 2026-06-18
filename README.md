@@ -98,7 +98,7 @@ Os dados são estruturados de forma relacional no DuckDB in-memory a partir dos 
 ## 🚀 Como Executar Localmente
 
 ### Pré-requisitos
-- **Python 3.10** ou superior
+- **Python 3.12** ou superior
 - **Make** (atalhos rápidos)
 
 ### 1. Configurar Ambiente
@@ -130,6 +130,12 @@ Com a base de dados em Parquet gerada localmente, suba o webserver FastAPI:
 make run
 ```
 Acesse [http://localhost:8001](http://localhost:8001) para ver a interface gráfica animada.
+
+### Documentação da API (Swagger)
+
+Com a API rodando, acesse:
+- [http://localhost:8001/docs](http://localhost:8001/docs) — Swagger UI interativa
+- [http://localhost:8001/redoc](http://localhost:8001/redoc) — ReDoc alternativo
 
 ---
 
