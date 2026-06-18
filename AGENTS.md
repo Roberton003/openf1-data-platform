@@ -39,11 +39,21 @@ Cadeia de fallback automático:
 1. `deepseek-v4-flash-opencode-zen` (Free) — padrão para T0-T5
 2. `mimo-v2.5-opencode-go-medium` — fallback automático
 
-Gatilho: 2+ timeouts consecutivos de bash (exit code -1 / exceeded).
-Ação: migrar topologia de PARALLEL para SEQUENTIAL.
-Invocar agents um por vez: skeptic → test → devops → architect.
-Documentar Rejected/Blocked para agents bloqueados. Continuar execução.
-Se fallback falhar: handoff + parada.
+### Estratégia de invocação:
+- **TIER PAGO:** `task` tool em SEQUENTIAL (skeptic → test → devops → architect)
+- **FREE TIER:** SINGLE — Lead Agent aplica metodologias das skills diretamente
+
+### SINGLE Protocol (quando `task` tool falha):
+1. Emitir: "[Model Escalation] `task` tool bloqueado. Ativando SINGLE."
+2. Carregar skills via `skill` tool (adversarial-review, verification-workflow-designer, etc.)
+3. Aplicar metodologia de cada skill (questions, checks, output format)
+4. Consolidar findings em handoff único
+5. Documentar: "Supporting Agents: Lead Agent (via skill methodologies)"
+
+### Gatilho:
+- 2+ timeouts consecutivos de bash
+- `task` tool retorna erro/timeout/cancel
+- Agents cancelados por Free tier
 
 ## Suporte Obrigatório
 

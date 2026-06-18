@@ -105,7 +105,7 @@ check(SKILLS / "effort-budget-governor" / "SKILL.md", "hard rule block", "Execu�
 check(SKILLS / "executing-plans" / "SKILL.md", "Step 0 GOVERNANCE GATE", "GOVERNANCE GATE")
 
 # 22. executing-plans — Step 0 lists agents invocation
-check(SKILLS / "executing-plans" / "SKILL.md", "Step 0 invoke agent", "Invoke at least 1 domain agent")
+check(SKILLS / "executing-plans" / "SKILL.md", "Step 0 invoke agent", "Try invoking at least 1 domain agent")
 
 # 23. executing-plans — Step 0 CANNOT be skipped
 check(SKILLS / "executing-plans" / "SKILL.md", "Step 0 CANNOT", "CANNOT be skipped")
@@ -132,14 +132,20 @@ if plans_dir.exists():
         if not has_agents:
             WARNS.append(f"[WARN] {plan.name} — no mention of agents in recent plan")
 
-# 27. Recent handoffs should mention agents
+# 27. Recent handoffs should mention agents (only handoffs after ADR-013, 2026-06-18)
+import time
 if handoffs_dir.exists():
-    recent_handoffs = sorted(handoffs_dir.glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True)[:3]
-    for ho in recent_handoffs:
+    recent_handoffs = sorted(handoffs_dir.glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
+    adr013_date = 1781827200  # 2026-06-18 00:00:00 UTC
+    for ho in recent_handoffs[:5]:
+        if ho.name == "README.md":
+            continue
+        if ho.stat().st_mtime < adr013_date:
+            continue  # skip handoffs before ADR-013
         content = ho.read_text()
         has_agents = "agents" in content.lower() or "supporting agents" in content.lower()
         if not has_agents:
-            WARNS.append(f"[WARN] {ho.name} — no mention of agents in recent handoff")
+            ERRORS.append(f"[FAIL] {ho.name} — no mention of agents in recent handoff")
 
 # === CAMADA 3: Pre-commit hook ===
 pre_commit = PROJECT / ".pre-commit-config.yaml"
