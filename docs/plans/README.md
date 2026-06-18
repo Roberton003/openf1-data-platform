@@ -31,12 +31,14 @@ evidencias.
 |---|---|---|---|
 | [F1-003](003_fct_f1_telemetry_analysis.md) | **Completed** | Pipeline Gold `fct_f1_telemetry_analysis` | Tabela Gold implementada em `assets.py`, `database.py`, `analytics.py` e testes. |
 | [F1-004](004_parametrizacao_on_demand.md) | **Parcialmente concluído** | Parametrizacao de ingestao e processamento sob demanda | `FOCUS_DRIVERS` via env var implementado. Dagster Run Configuration pendente. |
-| [F1-005](005_ia_mlops_observabilidade.md) | **Postergado** | IA, MLOps e observabilidade | ChromaDB, MLflow e sentence-transformers não implementados. Prioridade reduzida após consolidação F1-012. |
+| [F1-005](005_ia_mlops_observabilidade.md) | **Superseded** | IA, MLOps e observabilidade | Substituído por F1-016. ChromaDB, MLflow e sentence-transformers postergados desde ADR-008. |
 | [F1-006](006_execucao_planos_004_005.md) | **Completed** | Registro de execucao dos planos F1-004 e F1-005 | Mudanças listadas aplicadas e verificadas. |
-| [F1-007](007_race_intelligence_dashboard.md) | Completed | Race Intelligence Dashboard | Frontend web proprio consumindo FastAPI, endpoints agregados contract-first e fallback DuckDB com schema compativel. |
-| [F1-008](008_codex_frontier_adocao_parcial.md) | Completed | Adocao parcial do pacote Codex Frontier | Adoacao seletiva de conceitos de harness; rejeita instalacao completa e global por sobreposicao com a governanca atual. |
-| [F1-009](009_handoff_make_target.md) | Completed | Entrada padrao para handoff via Makefile | Adiciona `make handoff` como entrada ergonomica para o scaffold canônico de memoria operacional. |
-| [F1-012](012_consolidacao_harness_openf1.md) | **Em execução** | Consolidação e saneamento do OpenF1 | Plano atual: segurança, testes, DevOps, documentação, arquitetura. |
+| [F1-007](007_race_intelligence_dashboard.md) | **Completed** | Race Intelligence Dashboard | Frontend web proprio consumindo FastAPI, endpoints agregados contract-first e fallback DuckDB com schema compativel. |
+| [F1-008](008_codex_frontier_adocao_parcial.md) | **Completed** | Adocao parcial do pacote Codex Frontier | Adoacao seletiva de conceitos de harness; rejeita instalacao completa e global por sobreposicao com a governanca atual. |
+| [F1-009](009_handoff_make_target.md) | **Completed** | Entrada padrao para handoff via Makefile | Adiciona `make handoff` como entrada ergonomica para o scaffold canônico de memoria operacional. |
+| [F1-012](012_consolidacao_harness_openf1.md) | **Superseded** | Consolidação e saneamento do OpenF1 | Substituído por F1-015. Pendências migradas para plano de fechamento. |
+| [F1-015](015_fechamento_pendencias.md) | **Completed** | Fechamento de pendências e sanitização final | 68 itens fechados: testes (112 verdes), Docker, auth, schemas, docs. ADR-009. |
+| [F1-016](016_ia_mlops_e_observabilidade.md) | **Active** | IA, MLOps e observabilidade (substitui F1-005) | ChromaDB RAG, MLflow Model Registry, SLA endpoint. Produzido com multi-agentes + skills. |
 
 ## Regras Para Novos Planos
 
