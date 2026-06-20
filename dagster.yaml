@@ -1,32 +1,32 @@
 # Dagster daemon configuration
 scheduler:
-  module: dagster.core.scheduler
+  module: dagster._core.scheduler
   class: DagsterDaemonScheduler
 
 run_coordinator:
-  module: dagster.core.run_coordinator
+  module: dagster._core.run_coordinator
   class: QueuedRunCoordinator
   config:
     max_concurrent_runs: 2
 
 run_launcher:
-  module: dagster.core.launcher
+  module: dagster._core.launcher
   class: DefaultRunLauncher
 
 run_storage:
-  module: dagster.core.storage.runs
+  module: dagster._core.storage.runs
   class: SqliteRunStorage
   config:
     base_dir: /app/data/dagster
 
 event_log_storage:
-  module: dagster.core.storage.event_log
+  module: dagster._core.storage.event_log
   class: SqliteEventLogStorage
   config:
     base_dir: /app/data/dagster
 
 schedule_storage:
-  module: dagster.core.storage.schedules
+  module: dagster._core.storage.schedules
   class: SqliteScheduleStorage
   config:
     base_dir: /app/data/dagster

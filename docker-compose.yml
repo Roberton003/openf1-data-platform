@@ -108,17 +108,17 @@ services:
   # Dagster — Orchestration
   # -------------------------------------------------------------------------
   dagster-webserver:
-    image: dagster/dagster-webserver:latest
+    image: dagster/dagster-webserver:1.13.9
     container_name: openf1_dagster_webserver
     restart: unless-stopped
     ports:
       - "3000:3000"
     volumes:
-      - ./dagster.yaml:/app/dagster.yaml
       - .:/app/project
     working_dir: /app/project
     environment:
-      - DAGSTER_HOME=/app
+      - DAGSTER_HOME=/app/project/.dagster
+      - PYTHONPATH=/app/project
     command:
       - dagster-webserver
       - -h
@@ -126,26 +126,26 @@ services:
       - -p
       - "3000"
       - -w
-      - /app/dagster.yaml
+      - /app/project/workspace.yaml
     profiles:
       - orchestration
 
   dagster-daemon:
-    image: dagster/dagster-daemon:latest
+    image: dagster/dagster-daemon:1.13.9
     container_name: openf1_dagster_daemon
     restart: unless-stopped
     volumes:
-      - ./dagster.yaml:/app/dagster.yaml
       - .:/app/project
       - ./data:/app/data
     working_dir: /app/project
     environment:
-      - DAGSTER_HOME=/app
+      - DAGSTER_HOME=/app/project/.dagster
+      - PYTHONPATH=/app/project
     command:
       - dagster-daemon
       - run
       - -w
-      - /app/dagster.yaml
+      - /app/project/workspace.yaml
     depends_on:
       - dagster-webserver
     profiles:
