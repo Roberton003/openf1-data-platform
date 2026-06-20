@@ -17,6 +17,7 @@ def test_session_summary_empty_db(monkeypatch, mock_db):
 
 
 def test_session_summary_bahrain(mock_db):
+    overrides_before = dict(app.dependency_overrides)
     app.dependency_overrides[get_db] = lambda: mock_db
     try:
         response = client.get("/api/race_intelligence/session_summary?session_key=10014")
@@ -25,15 +26,18 @@ def test_session_summary_bahrain(mock_db):
         assert body["available"] is True
     finally:
         app.dependency_overrides.clear()
+        app.dependency_overrides.update(overrides_before)
 
 
 def test_driver_options(mock_db):
+    overrides_before = dict(app.dependency_overrides)
     app.dependency_overrides[get_db] = lambda: mock_db
     try:
         response = client.get("/api/race_intelligence/driver_options?session_key=10014")
         assert response.status_code == 200
     finally:
         app.dependency_overrides.clear()
+        app.dependency_overrides.update(overrides_before)
 
 
 def test_missing_session_key():
@@ -42,18 +46,22 @@ def test_missing_session_key():
 
 
 def test_strategy_timeline(mock_db):
+    overrides_before = dict(app.dependency_overrides)
     app.dependency_overrides[get_db] = lambda: mock_db
     try:
         response = client.get("/api/race_intelligence/strategy_timeline?session_key=10014")
         assert response.status_code == 200
     finally:
         app.dependency_overrides.clear()
+        app.dependency_overrides.update(overrides_before)
 
 
 def test_pipeline_health(mock_db):
+    overrides_before = dict(app.dependency_overrides)
     app.dependency_overrides[get_db] = lambda: mock_db
     try:
         response = client.get("/api/race_intelligence/pipeline_health?session_key=10014")
         assert response.status_code == 200
     finally:
         app.dependency_overrides.clear()
+        app.dependency_overrides.update(overrides_before)

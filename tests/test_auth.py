@@ -29,9 +29,11 @@ def _make_client(mock_db):
 class TestWithoutApiKey:
     def setup_method(self):
         os.environ.pop("OPENF1_API_KEY", None)
+        self._overrides_before = dict(app.dependency_overrides)
 
     def teardown_method(self):
         app.dependency_overrides.clear()
+        app.dependency_overrides.update(self._overrides_before)
 
     def test_bypass_returns_200(self, mock_db):
         client = _make_client(mock_db)
@@ -48,6 +50,11 @@ class TestWithoutApiKey:
         resp = client.get("/api/race_intelligence/session_summary?session_key=10014")
         assert resp.status_code == 200
 
+    def test_sla_bypass(self, mock_db):
+        client = _make_client(mock_db)
+        resp = client.get("/api/pipeline_execution/sla")
+        assert resp.status_code == 200
+
 
 # ---------------------------------------------------------------------------
 # With API key — auth enforced
@@ -57,10 +64,12 @@ class TestWithoutApiKey:
 class TestWithApiKey:
     def setup_method(self):
         os.environ["OPENF1_API_KEY"] = VALID_KEY
+        self._overrides_before = dict(app.dependency_overrides)
 
     def teardown_method(self):
         os.environ.pop("OPENF1_API_KEY", None)
         app.dependency_overrides.clear()
+        app.dependency_overrides.update(self._overrides_before)
 
     def test_401_missing_api_key(self, mock_db):
         client = _make_client(mock_db)
@@ -88,7 +97,7 @@ class TestWithApiKey:
     def test_race_intelligence_without_key(self, mock_db):
         client = _make_client(mock_db)
         resp = client.get("/api/race_intelligence/session_summary?session_key=10014")
-        assert resp.status_code == 200
+        assert resp.status_code == 401
 
     def test_race_intelligence_with_key(self, mock_db):
         client = _make_client(mock_db)
@@ -97,4 +106,15 @@ class TestWithApiKey:
             "/api/race_intelligence/session_summary?session_key=10014",
             headers=headers,
         )
+        assert resp.status_code == 200
+
+    def test_sla_without_key(self, mock_db):
+        client = _make_client(mock_db)
+        resp = client.get("/api/pipeline_execution/sla")
+        assert resp.status_code == 401
+
+    def test_sla_with_key(self, mock_db):
+        client = _make_client(mock_db)
+        headers = {"X-API-Key": VALID_KEY}
+        resp = client.get("/api/pipeline_execution/sla", headers=headers)
         assert resp.status_code == 200

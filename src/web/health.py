@@ -16,7 +16,7 @@ import time
 from typing import Any
 
 import duckdb
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 router = APIRouter(prefix="/api")
 
@@ -105,8 +105,6 @@ async def health_check() -> dict[str, Any]:
     Lightweight — no filesystem I/O on the data directory.
     """
     ok, info = _check_duckdb_responsive()
-    from fastapi import HTTPException
-
     if not ok:
         raise HTTPException(
             status_code=503,
@@ -121,8 +119,6 @@ async def readiness_check() -> dict[str, Any]:
     Readiness probe. Returns 200 only if all critical files exist, DuckDB is
     responsive, and at least one data layer has data.
     """
-    from fastapi import HTTPException
-
     checks: dict[str, Any] = {}
 
     # 1. DuckDB liveness

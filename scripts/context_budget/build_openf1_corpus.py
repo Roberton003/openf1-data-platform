@@ -10,7 +10,6 @@ from fnmatch import fnmatch
 from pathlib import Path
 
 DEFAULT_INCLUDE = (
-    "AGENTS.md",
     "README.md",
     "requirements.txt",
     "Makefile",
@@ -97,7 +96,6 @@ def matches_any(path: str, patterns: tuple[str, ...]) -> bool:
 def is_text_candidate(path: Path) -> bool:
     return path.suffix.lower() in TEXT_SUFFIXES or path.name in {
         "Makefile",
-        "AGENTS.md",
     }
 
 
@@ -144,9 +142,7 @@ def build_manifest(root: Path) -> list[CorpusFile]:
 def summarize(files: list[CorpusFile]) -> dict[str, object]:
     by_category: dict[str, dict[str, int]] = {}
     for item in files:
-        bucket = by_category.setdefault(
-            item.category, {"files": 0, "bytes": 0, "estimated_tokens": 0}
-        )
+        bucket = by_category.setdefault(item.category, {"files": 0, "bytes": 0, "estimated_tokens": 0})
         bucket["files"] += 1
         bucket["bytes"] += item.bytes
         bucket["estimated_tokens"] += item.estimated_tokens
@@ -172,26 +168,19 @@ def write_markdown(path: Path, files: list[CorpusFile]) -> None:
     ]
     for category, values in sorted(summary["by_category"].items()):
         lines.append(
-            f"- {category}: {values['files']} files, {values['bytes']} bytes, "
-            f"~{values['estimated_tokens']} tokens"
+            f"- {category}: {values['files']} files, {values['bytes']} bytes, ~{values['estimated_tokens']} tokens"
         )
     lines.extend(["", "## Files", ""])
     for item in files:
-        lines.append(
-            f"- `{item.path}` ({item.bytes} bytes, ~{item.estimated_tokens} tokens, {item.category})"
-        )
+        lines.append(f"- `{item.path}` ({item.bytes} bytes, ~{item.estimated_tokens} tokens, {item.category})")
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", default=".", help="Project root")
-    parser.add_argument(
-        "--json", default="docs/token-budget/openf1_context_corpus.json"
-    )
-    parser.add_argument(
-        "--markdown", default="docs/token-budget/openf1_context_corpus.md"
-    )
+    parser.add_argument("--json", default="docs/token-budget/openf1_context_corpus.json")
+    parser.add_argument("--markdown", default="docs/token-budget/openf1_context_corpus.md")
     args = parser.parse_args()
 
     root = Path(args.root).resolve()
@@ -206,9 +195,7 @@ def main() -> None:
     md_path = root / args.markdown
     json_path.parent.mkdir(parents=True, exist_ok=True)
     md_path.parent.mkdir(parents=True, exist_ok=True)
-    json_path.write_text(
-        json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
-    )
+    json_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     write_markdown(md_path, files)
     print(json.dumps(payload["summary"], indent=2, ensure_ascii=False))
 

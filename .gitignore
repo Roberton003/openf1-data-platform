@@ -75,4 +75,7 @@ Formula\ Insights/
 # External tooling packs
 codex_frontier_agentic_ecosystem_pack/
 
+# Graphify generated output
+graphify-out/
+
 # Markdown exceptions for data architecture docs (Excluídos para proteção de dados)

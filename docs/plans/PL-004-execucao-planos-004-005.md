@@ -4,7 +4,7 @@
 Em execucao.
 
 ## Objetivo
-Registrar as mudancas efetivamente aplicadas para os planos `004_parametrizacao_on_demand` e `005_ia_mlops_observabilidade`.
+Registrar as mudancas efetivamente aplicadas para os planos `PL-002-parametrizacao-on-demand` e `PL-003-ia-mlops-observabilidade`.
 
 ## Implementado
 - `src/ingestion/config.py`: parser reutilizavel para `FOCUS_DRIVERS`.

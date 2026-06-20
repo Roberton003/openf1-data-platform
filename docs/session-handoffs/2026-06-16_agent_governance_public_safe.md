@@ -159,7 +159,7 @@ perspective.
 Roberto asked to continue the project development plans. A new formal draft plan
 was created:
 
-- `docs/plans/007_race_intelligence_dashboard.md`
+- `docs/plans/PL-005-race-intelligence-dashboard.md`
 
 The plan proposes the next development cycle as Race Intelligence Dashboard,
 prioritizing a consumable analytical experience over immediately completing
@@ -187,7 +187,7 @@ specialized agents. Three subagents were invoked:
 - Pauli: Produto/Frontend.
 - Planck: IA/MLOps e Observabilidade.
 
-Integrated decisions accepted into `docs/plans/007_race_intelligence_dashboard.md`:
+Integrated decisions accepted into `docs/plans/PL-005-race-intelligence-dashboard.md`:
 
 - F1-007 remains a dashboard MVP, not a completion of F1-005.
 - The MVP direction is now frontend web próprio consuming FastAPI; Streamlit is
@@ -217,7 +217,7 @@ Implemented:
 - `src/web/static/race_intelligence/`: added HTML/CSS/JS web MVP consuming
   FastAPI.
 - `tests/test_api.py`: added Race Intelligence contract tests and HTML smoke.
-- `docs/plans/007_race_intelligence_dashboard.md`: updated execution result,
+- `docs/plans/PL-005-race-intelligence-dashboard.md`: updated execution result,
   checklist and verification evidence.
 - `docs/public-safe/implementation-plans-summary.md` and
   `docs/public-safe/architecture-decisions.md`: public-safe summaries updated.

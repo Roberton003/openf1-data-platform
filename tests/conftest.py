@@ -12,9 +12,11 @@ Usage:
 """
 
 import itertools
+import os
 from typing import Any
 
 import duckdb
+import pandas as pd
 import pytest
 
 # ---------------------------------------------------------------------------
@@ -29,6 +31,21 @@ def _cleanup_auth_env():
 
     os.environ.pop("OPENF1_API_KEY", None)
     yield
+
+
+# ---------------------------------------------------------------------------
+# Global cleanup — clear result_cache between tests to prevent cross-test pollution
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _clear_result_cache():
+    """Clear the TTLCache between tests to prevent stale data leaking across modules."""
+    from src.web.database import result_cache
+
+    result_cache._clear()
+    yield
+    result_cache._clear()
 
 
 # ---------------------------------------------------------------------------
@@ -326,6 +343,82 @@ def sql_query_safe():
     from src.web.routers.analytics import _validate_and_prepare_sql
 
     return _validate_and_prepare_sql
+
+
+# ---------------------------------------------------------------------------
+# Factory fixtures for Bronze/Silver Parquet data (assets.py tests)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def bronze_data_factory() -> dict[str, pd.DataFrame]:
+    """Factory returning sample Bronze-tier DataFrames for asset tests."""
+    return {
+        "sessions": pd.DataFrame([{
+            "session_key": 10014, "year": 2025, "session_name": "Race",
+            "session_type": "Race", "circuit_key": 12,
+            "circuit_short_name": "Bahrain GP", "country_name": "Bahrain",
+            "date_start": "2025-03-16T12:00:00+00:00",
+            "date_end": "2025-03-16T14:00:00+00:00",
+            "gmt_offset": "03:00:00", "location": "Bahrain",
+        }]),
+        "drivers": pd.DataFrame([{
+            "driver_number": 44, "full_name": "Lewis Hamilton",
+            "name_acronym": "HAM", "team_name": "Ferrari",
+            "country_code": "GBR", "session_key": 10014,
+        }]),
+        "race_control": pd.DataFrame([{
+            "session_key": 10014, "driver_number": 44,
+            "category": "Flag", "flag": "GREEN",
+            "message": "Green flag", "date": "2025-03-16T12:00:00+00:00",
+        }]),
+        "stints": pd.DataFrame([{
+            "session_key": 10014, "driver_number": 44,
+            "stint_number": 1, "compound": "SOFT",
+            "tyre_age_at_start": 0, "lap_start": 1, "lap_end": 15,
+        }]),
+        "weather": pd.DataFrame([{
+            "session_key": 10014, "date": "2025-03-16T12:00:00+00:00",
+            "air_temperature": 21.5, "track_temperature": 31.2,
+            "humidity": 45.0, "wind_speed": 12.0, "rainfall": 0,
+        }]),
+    }
+
+
+@pytest.fixture
+def tmp_data_dir(tmp_path, mocker) -> str:
+    """Mock src.ingestion.assets.DATA_DIR to a clean temp dir (no pre-populated data)."""
+    path = str(tmp_path / "data")
+    os.makedirs(path, exist_ok=True)
+    mocker.patch("src.ingestion.assets.DATA_DIR", path)
+    return path
+
+
+@pytest.fixture
+def bronze_dir_factory(tmp_path, bronze_data_factory) -> str:
+    """Create Bronze directory with Parquet files on disk and return the path."""
+    bronze = tmp_path / "data" / "bronze"
+    bronze.mkdir(parents=True, exist_ok=True)
+    for name, df in bronze_data_factory.items():
+        df.to_parquet(bronze / f"{name}.parquet", index=False)
+    return str(bronze.parent)
+
+
+@pytest.fixture
+def patch_data_dir(bronze_dir_factory, mocker) -> str:
+    """Mock src.ingestion.assets.DATA_DIR to point to a tmp_path Bronze fixture."""
+    mocker.patch("src.ingestion.assets.DATA_DIR", bronze_dir_factory)
+    return bronze_dir_factory
+
+
+@pytest.fixture
+def mock_fetch_api(mocker) -> callable:
+    """Mock src.ingestion.assets.fetch_api to return controlled data."""
+    def _mock(data: list | None = None):
+        m = mocker.patch("src.ingestion.assets.fetch_api")
+        m.return_value = data or []
+        return m
+    return _mock
 
 
 # ---------------------------------------------------------------------------

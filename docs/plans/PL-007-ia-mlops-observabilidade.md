@@ -9,7 +9,7 @@ O F1-005 (original) foi **Postergado** no ADR-008 (2026-06-17) após constatar q
 - O ML usa **joblib dump/load** — sem versionamento, métricas, staging ou fallback
 - A observabilidade tem **métricas hardcoded em zero** — sem endpoint SLA, sem freshness tracking
 
-Este plano **substitui** o F1-005 original (que permanece como referência histórica em `docs/plans/005_ia_mlops_observabilidade.md`).
+Este plano **substitui** o F1-005 original (que permanece como referência histórica em `docs/plans/PL-003-ia-mlops-observabilidade.md`).
 
 ---
 
@@ -251,7 +251,7 @@ Para a **Fase A (reanálise do F1-015)**, a ser executada após este plano, ser�
 - `domain/security-reviewer` — auditoria de secrets, auth, CORS
 - `domain/devops-release-engineer` — Docker digest, .dockerignore, CI/CD hardening
 - `domain/documentation-curator` — docs, ADR, handoff
-- `domain/adr-decision-recorder` — ADR-009 já registrado, porém com necessidade de reauditoria
+- `domain/adr-decision-recorder` — ADR-008 já registrado, porém com necessidade de reauditoria
 
 ---
 
@@ -278,7 +278,7 @@ grep -n "TfidfVectorizer\|cosine_similarity" src/web/routers/analytics.py || ech
 - **Lead Agent**: OpenCode (Chief Engineer) com skills `write-implementation-plan`, `multi-agent-orchestration`, `data-engineering`, `adversarial-review`
 - **Supporting Agents**: `domain/data-engineer`, `domain/adversarial-reviewer` (parcial), `domain/test-engineer`
 - **Commands/Subagents Used**: `task(domain/data-engineer)`, `task(domain/adversarial-reviewer)`, `task(domain/test-engineer)`, `skill(write-implementation-plan)`, `skill(data-engineering)`, `skill(multi-agent-orchestration)`, `skill(adversarial-review)`
-- **Knowledge Sources**: `docs/plans/005_ia_mlops_observabilidade.md`, `docs/adr/adr-008-python-version-and-plan-consolidation.md`, `docs/adr/adr-009-f1-015-consolidacao-saneamento.md`, `src/web/routers/analytics.py:885-939`, `src/web/routers/analytics.py:762-806`, `src/ingestion/assets.py:930-983`, `src/ingestion/assets.py:631-656`, `src/web/database.py:88-100`, `tests/conftest.py`, `README.md`
+- **Knowledge Sources**: `docs/plans/PL-003-ia-mlops-observabilidade.md`, `docs/adr/ADR-007-python-version-plan-consolidation.md`, `docs/adr/ADR-008-f1-015-consolidacao-saneamento.md`, `src/web/routers/analytics.py:885-939`, `src/web/routers/analytics.py:762-806`, `src/ingestion/assets.py:930-983`, `src/ingestion/assets.py:631-656`, `src/web/database.py:88-100`, `tests/conftest.py`, `README.md`
 - **Files Analyzed**: 9 arquivos fonte, 4 arquivos de teste, 3 planos anteriores, 2 ADRs
 - **Task Level**: T3 (multi-componente, cross-domain: RAG + ML + SLA)
 - **Validations**: Todos os pareceres verificados contra código real (linhas específicas); adversarial review complementado pelo Lead Agent onde steps limitaram o subagente

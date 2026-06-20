@@ -78,7 +78,7 @@ def quarantine_invalid_rows(df: pd.DataFrame, table_name: str, reason: str, part
 
     quarantine_file = os.path.join(partition_quarantine_dir, f"{table_name}_corrupt.parquet")
 
-    df_quarantine.to_parquet(quarantine_file, index=False)
+    atomic_append_partitioned_file(quarantine_file, df_quarantine)
 
     print(f" -> [Quarentena] Isoladas {len(df)} linhas de {table_name} em {quarantine_file} por: {reason}")
 

@@ -1,4 +1,4 @@
-# ADR-008: Padronização Python 3.12 e Consolidação de Planos
+# ADR-007: Padronização Python 3.12 e Consolidação de Planos
 
 ## Status
 Accepted

@@ -50,3 +50,14 @@ def test_quarantine_multiple_tables(tmp_path):
     files = os.listdir(tmp_path)
     assert any("table_a" in f for f in files)
     assert any("table_b" in f for f in files)
+
+
+def test_quarantine_append_preserves_previous_data(tmp_path):
+    df1 = pd.DataFrame({"id": [1], "value": ["a"]})
+    df2 = pd.DataFrame({"id": [2], "value": ["b"]})
+    quarantine_invalid_rows(df1, "car_data", "first_run", str(tmp_path))
+    quarantine_invalid_rows(df2, "car_data", "second_run", str(tmp_path))
+    result = pd.read_parquet(os.path.join(tmp_path, "car_data_corrupt.parquet"))
+    assert len(result) == 2
+    assert set(result["id"].tolist()) == {1, 2}
+    assert set(result["quarantine_reason"].tolist()) == {"first_run", "second_run"}

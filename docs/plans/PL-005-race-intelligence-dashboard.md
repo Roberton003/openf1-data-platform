@@ -66,7 +66,7 @@ fora do lakehouse.
 
 | Tipo | Item | Fonte/Validação |
 |---|---|---|
-| VERIFIED | Planos ativos e pendências existentes. | `docs/plans/006_execucao_planos_004_005.md` linhas 1-26. |
+| VERIFIED | Planos ativos e pendências existentes. | `docs/plans/PL-004-execucao-planos-004-005.md` linhas 1-26. |
 | VERIFIED | Convenção de planos numerados e necessidade de registrar evidências, riscos, rollout e aceite. | `docs/plans/README.md` linhas 17-50. |
 | VERIFIED | API analítica existente com endpoints de corrida, Gold, pipeline execution, SQL e chat. | `src/web/routers/analytics.py`. |
 | VERIFIED | DuckDB views mapeadas para Silver/Gold particionadas. | `src/web/database.py`. |
@@ -418,8 +418,8 @@ orchestration:
       status: completed
       agent: Poincare
       scope:
-        - docs/plans/007_race_intelligence_dashboard.md
-        - docs/plans/006_execucao_planos_004_005.md
+        - docs/plans/PL-005-race-intelligence-dashboard.md
+        - docs/plans/PL-004-execucao-planos-004-005.md
         - src/web/database.py
         - src/web/routers/analytics.py
         - src/ingestion/process.py
@@ -432,7 +432,7 @@ orchestration:
       status: completed
       agent: Pauli
       scope:
-        - docs/plans/007_race_intelligence_dashboard.md
+        - docs/plans/PL-005-race-intelligence-dashboard.md
         - src/dashboard/app.py
         - README.md
         - docs/public-safe/implementation-plans-summary.md
@@ -443,9 +443,9 @@ orchestration:
       status: completed
       agent: Planck
       scope:
-        - docs/plans/007_race_intelligence_dashboard.md
-        - docs/plans/005_ia_mlops_observabilidade.md
-        - docs/plans/006_execucao_planos_004_005.md
+        - docs/plans/PL-005-race-intelligence-dashboard.md
+        - docs/plans/PL-003-ia-mlops-observabilidade.md
+        - docs/plans/PL-004-execucao-planos-004-005.md
         - src/web/routers/analytics.py
         - src/ingestion/process.py
         - src/ingestion/assets.py
@@ -503,7 +503,7 @@ literature_evidence:
     application: INFERRED - versionar e operacionalizar código analítico, ML e orquestração.
 project_evidence:
   - classification: VERIFIED
-    source: docs/plans/006_execucao_planos_004_005.md
+    source: docs/plans/PL-004-execucao-planos-004-005.md
     lines: 1-26
   - classification: VERIFIED
     source: docs/plans/README.md
@@ -521,6 +521,6 @@ project_evidence:
 - ✦ **Lead Agent:** Codex (Engenheiro Chefe)
 - ▫ **Supporting Agents:** Poincare (Engenharia de Dados/API), Pauli (Produto/Frontend), Planck (IA/MLOps e Observabilidade)
 - ⌥ **Skills Used:** `project-session-bootstrap`, `data-engineering`, `write-implementation-plan`, `technical-literature-research`, `multi-agent-orchestration`
-- ☄ **Knowledge Sources:** `docs/plans/006_execucao_planos_004_005.md`; `docs/plans/README.md`; Deciphering Data Architectures linhas 6875-6905; Designing Machine Learning Systems linhas 7008-7030; Fundamentals of Data Engineering linhas 15749-15758; Observability Engineering linhas 2542-2612
-- ☱ **Files Analyzed:** `docs/plans/004_parametrizacao_on_demand.md`, `docs/plans/005_ia_mlops_observabilidade.md`, `docs/plans/006_execucao_planos_004_005.md`, `docs/plans/README.md`, `src/web/routers/analytics.py`, `src/web/database.py`, `src/dashboard/app.py`, `src/ingestion/process.py`, `src/ingestion/assets.py`, `src/ingestion/storage.py`, `tests/test_api.py`, `tests/test_data_integrity.py`
+- ☄ **Knowledge Sources:** `docs/plans/PL-004-execucao-planos-004-005.md`; `docs/plans/README.md`; Deciphering Data Architectures linhas 6875-6905; Designing Machine Learning Systems linhas 7008-7030; Fundamentals of Data Engineering linhas 15749-15758; Observability Engineering linhas 2542-2612
+- ☱ **Files Analyzed:** `docs/plans/PL-002-parametrizacao-on-demand.md`, `docs/plans/PL-003-ia-mlops-observabilidade.md`, `docs/plans/PL-004-execucao-planos-004-005.md`, `docs/plans/README.md`, `src/web/routers/analytics.py`, `src/web/database.py`, `src/dashboard/app.py`, `src/ingestion/process.py`, `src/ingestion/assets.py`, `src/ingestion/storage.py`, `tests/test_api.py`, `tests/test_data_integrity.py`
 - ◬ **Decision Complexity:** HIGH

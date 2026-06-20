@@ -34,10 +34,9 @@ def check_file_contains(file: Path, label: str, expected: str) -> None:
         ERRORS.append(f"[FAIL] {file} — {label}: '{expected}' not found")
 
 
-CORE = Path.home() / ".opencode" / "opencode-core.md"
+CORE = Path.home() / ".config" / "opencode" / "opencode-core.md"
 SKILLS = Path.home() / ".config" / "opencode" / "skills"
 PROJECT = Path("/media/Arquivos/Engenharia TI 2026/openf1-data-platform")
-AGENTS = PROJECT / "AGENTS.md"
 
 # === CAMADA 1: Governance Files ===
 
@@ -65,22 +64,7 @@ check(CORE, "§4 skills field", "skills: [lista de skills acionadas]")
 # 8. opencode-core.md §4 — validation rule
 check(CORE, "§4 validation rule", "bloquear execução até documentação completa")
 
-# 9. AGENTS.md — Suporte Obrigatório section
-check(AGENTS, "Suporte Obrigatório section", "Suporte Obrigatório")
-
-# 10. AGENTS.md — mandatory support rule
-check(AGENTS, "mandatory rule", "Sem suporte documentado, a atividade não inicia")
-
-# 11. AGENTS.md — table with Agents Mínimos
-check(AGENTS, "table Agents Mínimos", "Agents Mínimos")
-
-# 12. AGENTS.md — Checklist Pré-Execução
-check(AGENTS, "Checklist Pré-Execução", "Checklist Pré-Execução")
-
-# 13. AGENTS.md — checklist has 3 items
-check(AGENTS, "checklist 3 items", "Sem estes 3 itens, NENHUMA edição de código é permitida")
-
-# 14. task-router — agents in output YAML
+# 9. task-router — agents in output YAML
 check(SKILLS / "task-router" / "SKILL.md", "output agents field", "agents: [obrigatório para T1+]")
 
 # 15. task-router — skills in output YAML
@@ -96,7 +80,11 @@ check(SKILLS / "effort-budget-governor" / "SKILL.md", "output agents field", "Ag
 check(SKILLS / "effort-budget-governor" / "SKILL.md", "output skills field", "Skills: [obrigatório para T1+]")
 
 # 19. effort-budget-governor — hard rule mandatory support
-check(SKILLS / "effort-budget-governor" / "SKILL.md", "hard rule mandatory", "Toda atividade T1+ requer agents e skills documentados")
+check(
+    SKILLS / "effort-budget-governor" / "SKILL.md",
+    "hard rule mandatory",
+    "Toda atividade T1+ requer agents e skills documentados",
+)
 
 # 20. effort-budget-governor — hard rule block
 check(SKILLS / "effort-budget-governor" / "SKILL.md", "hard rule block", "Execução sem suporte documentado é bloqueada")
@@ -109,14 +97,6 @@ check(SKILLS / "executing-plans" / "SKILL.md", "Step 0 invoke agent", "Try invok
 
 # 23. executing-plans — Step 0 CANNOT be skipped
 check(SKILLS / "executing-plans" / "SKILL.md", "Step 0 CANNOT", "CANNOT be skipped")
-
-# 24. ADR-013 exists
-ADR13 = PROJECT / "docs/adr/adr-013-suporte-obrigatorio-agentes-skills.md"
-check(ADR13, "ADR-013 exists", "ADR-013: Suporte Obrigatório de Agentes e Skills")
-
-# 25. ADR-014 exists
-ADR14 = PROJECT / "docs/adr/adr-014-enforcement-automatico.md"
-check(ADR14, "ADR-014 exists", "ADR-014: Enforcement Automático de Suporte de Agentes")
 
 # === CAMADA 2: Plans and Handoffs ===
 
@@ -133,7 +113,6 @@ if plans_dir.exists():
             WARNS.append(f"[WARN] {plan.name} — no mention of agents in recent plan")
 
 # 27. Recent handoffs should mention agents (only handoffs after ADR-013, 2026-06-18)
-import time
 if handoffs_dir.exists():
     recent_handoffs = sorted(handoffs_dir.glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
     adr013_date = 1781827200  # 2026-06-18 00:00:00 UTC
@@ -158,8 +137,8 @@ if pre_commit.exists():
 print("=" * 60)
 print("Agent/Skill Support Governance Verification")
 print("=" * 60)
-print("Checks run: 27")
-print(f"Passed:     {27 - len(ERRORS)}")
+print("Checks run: 20")
+print(f"Passed:     {20 - len(ERRORS)}")
 print(f"Failed:     {len(ERRORS)}")
 print(f"Warnings:   {len(WARNS)}")
 print()

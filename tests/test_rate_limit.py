@@ -10,12 +10,14 @@ from src.web.main import app
 
 @pytest.fixture
 def client(mock_db):
+    overrides_before = dict(app.dependency_overrides)
     app.dependency_overrides[get_db] = lambda: mock_db
     auth._rate_store.clear()
     with TestClient(app) as c:
         yield c
     auth._rate_store.clear()
     app.dependency_overrides.clear()
+    app.dependency_overrides.update(overrides_before)
 
 
 def test_rate_limit_allowed(client):

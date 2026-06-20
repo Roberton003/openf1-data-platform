@@ -9,9 +9,11 @@ client = TestClient(app)
 
 @pytest.fixture
 def _override_db(mock_db):
+    overrides_before = dict(app.dependency_overrides)
     app.dependency_overrides[get_db] = lambda: mock_db
     yield
     app.dependency_overrides.clear()
+    app.dependency_overrides.update(overrides_before)
 
 
 def test_get_telemetry_returns_list(_override_db):

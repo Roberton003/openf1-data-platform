@@ -39,8 +39,9 @@ async def verify_api_key(request: Request, call_next):
         (
             "/api/analytics",
             "/api/telemetry",
-            "/api/race-intelligence",
+            "/api/race_intelligence",
             "/api/predictions",
+            "/api/pipeline_execution",
         )
     ):
         if not token or not hmac.compare_digest(token, api_key):

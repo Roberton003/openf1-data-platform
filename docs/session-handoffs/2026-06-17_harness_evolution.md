@@ -34,4 +34,4 @@ Expansão do harness OpenCode em `~/.config/opencode/` com 8 novos skills portad
 - `~/.config/opencode/skills/` — 22 skills (14 originais + 8 novos)
 - `~/.config/opencode/agents/{core,domain,phase}/` — 19 agents organizados
 - `~/.config/opencode/MODEL_ROUTER.md` — tabela de roteamento
-- `docs/plans/012_consolidacao_harness_openf1.md` — atualizado para COMPLETED
+- `docs/plans/PL-006-consolidacao-harness-openf1.md` — atualizado para COMPLETED

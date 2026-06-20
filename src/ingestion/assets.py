@@ -611,8 +611,8 @@ def silver_metadata_tables(context: AssetExecutionContext) -> None:
 
                 valid_rc.append(r_dict)
 
-            except Exception:
-                pass
+            except Exception as e:
+                context.log.warn(f"RaceControl validation skipped for row: {e}")
 
         if valid_rc:
             rc_df = pd.DataFrame(valid_rc)
@@ -1310,10 +1310,15 @@ def gold_lap_time_prediction_model(context: AssetExecutionContext) -> None:
             try:
                 client = mlflow.tracking.MlflowClient()
 
-                client.transition_model_version_stage("lap_regressor", 1, "Production")
+                quality_ok = mae < 1.0 and r2 > 0.8
+                if quality_ok:
+                    client.transition_model_version_stage("lap_regressor", 1, "Production")
+                    context.log.info(f"Model promoted to Production (MAE={mae:.4f}, R2={r2:.4f})")
+                else:
+                    context.log.warn(f"Model NOT promoted — quality gate: MAE={mae:.4f} (need <1.0), R2={r2:.4f} (need >0.8)")
 
-            except Exception:
-                pass
+            except Exception as e:
+                context.log.warn(f"MLflow model promotion skipped: {e}")
 
             context.log.info(f"MLflow tracking: MSE={mse:.4f}, MAE={mae:.4f}, R2={r2:.4f}")
 
