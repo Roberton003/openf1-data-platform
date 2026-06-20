@@ -6,6 +6,9 @@ Em execucao.
 ## Objetivo
 Registrar as mudancas efetivamente aplicadas para os planos `PL-002-parametrizacao-on-demand` e `PL-003-ia-mlops-observabilidade`.
 
+## Supporting Agents
+- `domain/data-engineer`: execução dos planos 004 e 005
+
 ## Implementado
 - `src/ingestion/config.py`: parser reutilizavel para `FOCUS_DRIVERS`.
 - `src/ingestion/extract.py`: suporte a `--focus-drivers`.
