@@ -3,6 +3,7 @@
 import os
 
 import pandas as pd
+import pytest
 from pydantic import BaseModel
 
 from src.ingestion.process import (
@@ -337,3 +338,12 @@ def test_partition_fallback_no_path_raises():
         pass
     finally:
         os.path.exists = original_exists
+
+
+# process_medallion_pipeline: Orquestra a leitura da Bronze, validação das tabelas (Silver fronteira) e
+
+
+@pytest.mark.xfail(reason="TODO: auto-generated skeleton needs review")
+def test_process_medallion_pipeline():
+    """TODO: auto-generated test for process_medallion_pipeline — needs manual fixture setup."""
+    pytest.skip("Complex function — requires integration fixtures")

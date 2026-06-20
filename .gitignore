@@ -79,3 +79,4 @@ codex_frontier_agentic_ecosystem_pack/
 graphify-out/
 
 # Markdown exceptions for data architecture docs (Excluídos para proteção de dados)
+.test_cov*.json
