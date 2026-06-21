@@ -1039,28 +1039,30 @@ def process_medallion_pipeline(
     )
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Processador analítico F1 - Camada Silver")
+def run_cli(args: argparse.Namespace | None = None) -> None:
+    """CLI entry point — parse args and dispatch processing."""
+    if args is None:
+        parser = argparse.ArgumentParser(description="Processador analítico F1 - Camada Silver")
 
-    parser.add_argument("--year", type=int, default=2025, help="Ano da temporada F1")
+        parser.add_argument("--year", type=int, default=2025, help="Ano da temporada F1")
 
-    parser.add_argument(
-        "--gp",
-        type=str,
-        required=True,
-        help="Nome do GP ou País da corrida (ou 'all' para todos)",
-    )
+        parser.add_argument(
+            "--gp",
+            type=str,
+            required=True,
+            help="Nome do GP ou País da corrida (ou 'all' para todos)",
+        )
 
-    parser.add_argument("--session", type=str, default="Race", help="Nome da sessão")
+        parser.add_argument("--session", type=str, default="Race", help="Nome da sessão")
 
-    parser.add_argument(
-        "--focus-drivers",
-        type=str,
-        default=None,
-        help=("Lista opcional de pilotos de foco no formato '44:Lewis Hamilton,1:Max Verstappen'"),
-    )
+        parser.add_argument(
+            "--focus-drivers",
+            type=str,
+            default=None,
+            help=("Lista opcional de pilotos de foco no formato '44:Lewis Hamilton,1:Max Verstappen'"),
+        )
 
-    args = parser.parse_args()
+        args = parser.parse_args()
 
     focus_drivers = get_focus_drivers(args.focus_drivers)
 
@@ -1072,8 +1074,6 @@ if __name__ == "__main__":
         partitions = glob.glob(search_pattern)
 
         if not partitions:
-            # Fallback para 2024 se não achar partições em 2025
-
             if args.year == 2025:
                 print("Nenhuma partição de 2025 encontrada. Buscando partições de 2024...")
 
@@ -1089,11 +1089,7 @@ if __name__ == "__main__":
         else:
             print(f"Iniciando processamento em lote de {len(partitions)} partições.")
 
-            # Ordenar para manter ordem lógica
-
             for p in sorted(partitions):
-                # Extrair o gp do caminho
-
                 parts = p.split(os.sep)
 
                 gp_folder = [x for x in parts if x.startswith("gp=")][0]
@@ -1110,3 +1106,7 @@ if __name__ == "__main__":
 
     else:
         process_medallion_pipeline(args.year, args.gp, args.session, focus_drivers)
+
+
+if __name__ == "__main__":
+    run_cli()

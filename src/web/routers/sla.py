@@ -9,7 +9,7 @@ from typing import Any
 import duckdb
 from fastapi import APIRouter, Depends, HTTPException
 
-from ..database import get_db
+from ..database import get_db, run_query_async
 
 router = APIRouter(tags=["sla"])
 
@@ -45,15 +45,9 @@ def _compute_sla_status(row: dict[str, Any]) -> dict[str, str]:
     }
 
 
-@router.get("/api/pipeline_execution/sla")
-def get_pipeline_sla(db: duckdb.DuckDBPyConnection = Depends(get_db)):
-    """Return SLA metrics for all pipeline executions."""
-    try:
-        rows = db.execute(
-            "SELECT * FROM fact_pipeline_execution ORDER BY execution_timestamp DESC LIMIT 100"
-        ).fetchall()
-    except Exception:
-        raise HTTPException(status_code=404, detail="No pipeline execution data found")
+def _fetch_pipeline_sla_from_db(db: duckdb.DuckDBPyConnection) -> dict[str, Any]:
+    """Sync helper: fetch and compute SLA metrics from pipeline executions."""
+    rows = db.execute("SELECT * FROM fact_pipeline_execution ORDER BY execution_timestamp DESC LIMIT 100").fetchall()
 
     if not rows:
         raise HTTPException(status_code=404, detail="No pipeline execution data found")
@@ -85,6 +79,12 @@ def get_pipeline_sla(db: duckdb.DuckDBPyConnection = Depends(get_db)):
     }
 
 
+@router.get("/api/pipeline_execution/sla")
+async def get_pipeline_sla(db: duckdb.DuckDBPyConnection = Depends(get_db)):
+    """Return SLA metrics for all pipeline executions."""
+    return await run_query_async(_fetch_pipeline_sla_from_db, db)
+
+
 def _calc_table_freshness(path_str: str) -> float | None:
     path = Path(path_str)
     if not path.exists():
@@ -99,7 +99,7 @@ def _calc_table_freshness(path_str: str) -> float | None:
 
 
 @router.get("/api/pipeline_execution/sla/tables")
-def get_table_sla():
+async def get_table_sla():
     """Return SLA per gold table — freshness and availability."""
     results = []
     for table in GOLD_TABLES:

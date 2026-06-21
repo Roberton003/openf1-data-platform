@@ -673,8 +673,12 @@ def silver_metadata_tables(context: AssetExecutionContext) -> None:
 
                 valid_res.append(r_dict)
 
-            except Exception:
-                pass
+            except Exception as e:
+                context.log.warning(
+                    "SessionResult validation failed: %s | row: session_key=%s",
+                    e,
+                    r_dict.get("session_key"),
+                )
 
         if valid_res:
             res_df = pd.DataFrame(valid_res)
@@ -713,8 +717,12 @@ def silver_metadata_tables(context: AssetExecutionContext) -> None:
 
                 valid_ov.append(r_dict)
 
-            except Exception:
-                pass
+            except Exception as e:
+                context.log.warning(
+                    "Overtake validation failed: %s | row: session_key=%s",
+                    e,
+                    r_dict.get("session_key"),
+                )
 
         if valid_ov:
             ov_df = pd.DataFrame(valid_ov)
@@ -1315,7 +1323,9 @@ def gold_lap_time_prediction_model(context: AssetExecutionContext) -> None:
                     client.transition_model_version_stage("lap_regressor", 1, "Production")
                     context.log.info(f"Model promoted to Production (MAE={mae:.4f}, R2={r2:.4f})")
                 else:
-                    context.log.warn(f"Model NOT promoted — quality gate: MAE={mae:.4f} (need <1.0), R2={r2:.4f} (need >0.8)")
+                    context.log.warn(
+                        f"Model NOT promoted — quality gate: MAE={mae:.4f} (need <1.0), R2={r2:.4f} (need >0.8)"
+                    )
 
             except Exception as e:
                 context.log.warn(f"MLflow model promotion skipped: {e}")
