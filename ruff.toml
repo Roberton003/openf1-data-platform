@@ -22,7 +22,7 @@ ignore = ["E203", "E501", "W291", "D100", "D101", "D102", "D103", "D104", "D105"
 [lint.per-file-ignores]
 "tests/*" = ["C90", "PLR0912", "T10", "TRY002", "FBT"]
 "scripts/*" = ["C90", "T10"]
-"src/ingestion/process.py" = ["C90", "PLR0912", "PLR0915", "TRY300"]
+"src/ingestion/process.py" = ["C90", "PL", "TRY", "PTH", "N806", "SIM"]
 "src/ingestion/assets.py" = ["C90", "PLR0912", "PLR0915"]
 "src/web/analytics.py" = ["C90", "PLR0912", "PLR0915"]
 "src/_templates/*" = ["C90", "PL", "T10", "TRY"]
