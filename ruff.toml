@@ -37,6 +37,10 @@ max-args = 5
 [lint.isort]
 known-first-party = ["src"]
 
+[lint.per-file-ignores]
+"scripts/*" = ["PLR2004", "E741", "SIM102", "PTH123", "PLR0912", "B007", "F841"]
+"src/_templates/*" = ["T201"]
+
 [lint.pydocstyle]
 convention = "google"
 

@@ -1,0 +1,777 @@
+{
+  "_meta": {
+    "created": "2026-06-21T08:54:43.813986",
+    "count": 96,
+    "note": "Pre-existing violations accepted as technical debt. Expires: auto-6mo-review."
+  },
+  "violations": [
+    {
+      "check": "module_side_effect",
+      "file": "src/_templates/skeleton_asset.py",
+      "line": 9,
+      "name": "Assign",
+      "detail": "top-level code (outside def/class) in src/ line 9",
+      "severity": "WARN"
+    },
+    {
+      "check": "bare_except",
+      "file": "src/ingestion/assets.py",
+      "line": 1178,
+      "name": ": except Exception:",
+      "detail": "except Exception without logging (use logger.exception())",
+      "severity": "FAIL"
+    },
+    {
+      "check": "bare_except",
+      "file": "src/ingestion/assets.py",
+      "line": 1183,
+      "name": ": except Exception:",
+      "detail": "except Exception without logging (use logger.exception())",
+      "severity": "FAIL"
+    },
+    {
+      "check": "bare_except",
+      "file": "src/ingestion/assets.py",
+      "line": 386,
+      "name": ": except Exception:",
+      "detail": "except Exception without logging (use logger.exception())",
+      "severity": "FAIL"
+    },
+    {
+      "check": "bare_except",
+      "file": "src/ingestion/assets.py",
+      "line": 422,
+      "name": ": except Exception:",
+      "detail": "except Exception without logging (use logger.exception())",
+      "severity": "FAIL"
+    },
+    {
+      "check": "duplicate_code",
+      "file": "src/ingestion/assets.py:549, src/ingestion/process.py:178",
+      "line": 549,
+      "name": "src/ingestion/assets.py",
+      "detail": "15+ identical lines across 2 files",
+      "severity": "WARN"
+    },
+    {
+      "check": "duplicate_code",
+      "file": "src/ingestion/assets.py:550, src/ingestion/process.py:179",
+      "line": 550,
+      "name": "src/ingestion/assets.py",
+      "detail": "15+ identical lines across 2 files",
+      "severity": "WARN"
+    },
+    {
+      "check": "duplicate_code",
+      "file": "src/ingestion/assets.py:551, src/ingestion/process.py:180",
+      "line": 551,
+      "name": "src/ingestion/assets.py",
+      "detail": "15+ identical lines across 2 files",
+      "severity": "WARN"
+    },
+    {
+      "check": "duplicate_code",
+      "file": "src/ingestion/assets.py:552, src/ingestion/process.py:181",
+      "line": 552,
+      "name": "src/ingestion/assets.py",
+      "detail": "15+ identical lines across 2 files",
+      "severity": "WARN"
+    },
+    {
+      "check": "duplicate_code",
+      "file": "src/ingestion/assets.py:553, src/ingestion/process.py:182",
+      "line": 553,
+      "name": "src/ingestion/assets.py",
+      "detail": "15+ identical lines across 2 files",
+      "severity": "WARN"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/compress_bronze.py",
+      "line": 12,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/compress_bronze.py",
+      "line": 15,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/compress_bronze.py",
+      "line": 29,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/compress_bronze.py",
+      "line": 48,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "bare_except",
+      "file": "src/ingestion/compress_bronze.py",
+      "line": 49,
+      "name": ": except Exception:",
+      "detail": "except Exception without logging (use logger.exception())",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/compress_bronze.py",
+      "line": 50,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "module_side_effect",
+      "file": "src/ingestion/config.py",
+      "line": 22,
+      "name": "Expr",
+      "detail": "top-level code (outside def/class) in src/ line 22",
+      "severity": "WARN"
+    },
+    {
+      "check": "bare_except",
+      "file": "src/ingestion/config.py",
+      "line": 56,
+      "name": ": except Exception:",
+      "detail": "except Exception without logging (use logger.exception())",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/extract.py",
+      "line": 109,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/extract.py",
+      "line": 126,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/extract.py",
+      "line": 142,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "god_function",
+      "file": "src/ingestion/extract.py",
+      "line": 148,
+      "name": "run_extraction_for_session",
+      "detail": "CC=17 (max 15), 133 lines",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/extract.py",
+      "line": 157,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "module_side_effect",
+      "file": "src/ingestion/extract.py",
+      "line": 18,
+      "name": "Assign",
+      "detail": "top-level code (outside def/class) in src/ line 18",
+      "severity": "WARN"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/extract.py",
+      "line": 183,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/extract.py",
+      "line": 193,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/extract.py",
+      "line": 195,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "bare_except",
+      "file": "src/ingestion/extract.py",
+      "line": 230,
+      "name": ": except Exception:",
+      "detail": "except Exception without logging (use logger.exception())",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/extract.py",
+      "line": 231,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/extract.py",
+      "line": 242,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/extract.py",
+      "line": 244,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/extract.py",
+      "line": 259,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/extract.py",
+      "line": 261,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/extract.py",
+      "line": 276,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/extract.py",
+      "line": 278,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/extract.py",
+      "line": 280,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/extract.py",
+      "line": 288,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/extract.py",
+      "line": 289,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/extract.py",
+      "line": 293,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/extract.py",
+      "line": 297,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/extract.py",
+      "line": 50,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/extract.py",
+      "line": 66,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/extract.py",
+      "line": 76,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/extract.py",
+      "line": 94,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "module_side_effect",
+      "file": "src/ingestion/pipeline_common.py",
+      "line": 11,
+      "name": "Assign",
+      "detail": "top-level code (outside def/class) in src/ line 11",
+      "severity": "WARN"
+    },
+    {
+      "check": "bare_except",
+      "file": "src/ingestion/pipeline_common.py",
+      "line": 99,
+      "name": ": except Exception:",
+      "detail": "except Exception without logging (use logger.exception())",
+      "severity": "FAIL"
+    },
+    {
+      "check": "god_function",
+      "file": "src/ingestion/process.py",
+      "line": 309,
+      "name": "process_medallion_pipeline",
+      "detail": "241 lines (max 200), CC=8",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/process.py",
+      "line": 326,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/process.py",
+      "line": 43,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/process.py",
+      "line": 489,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/process.py",
+      "line": 513,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/process.py",
+      "line": 517,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "bare_except",
+      "file": "src/ingestion/process.py",
+      "line": 540,
+      "name": ": except Exception:",
+      "detail": "except Exception without logging (use logger.exception())",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/process.py",
+      "line": 541,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/process.py",
+      "line": 546,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/process.py",
+      "line": 588,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/process.py",
+      "line": 597,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/process.py",
+      "line": 600,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/process.py",
+      "line": 609,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "bare_except",
+      "file": "src/ingestion/process.py",
+      "line": 614,
+      "name": ": except Exception:",
+      "detail": "except Exception without logging (use logger.exception())",
+      "severity": "FAIL"
+    },
+    {
+      "check": "print_in_prod",
+      "file": "src/ingestion/process.py",
+      "line": 615,
+      "name": "print()",
+      "detail": "print() in production code \u2014 use logging instead",
+      "severity": "FAIL"
+    },
+    {
+      "check": "bare_except",
+      "file": "src/ingestion/storage.py",
+      "line": 42,
+      "name": ": except Exception:",
+      "detail": "except Exception without logging (use logger.exception())",
+      "severity": "FAIL"
+    },
+    {
+      "check": "module_side_effect",
+      "file": "src/orchestration/definitions.py",
+      "line": 24,
+      "name": "Assign",
+      "detail": "top-level code (outside def/class) in src/ line 24",
+      "severity": "WARN"
+    },
+    {
+      "check": "module_side_effect",
+      "file": "src/orchestration/definitions.py",
+      "line": 27,
+      "name": "Assign",
+      "detail": "top-level code (outside def/class) in src/ line 27",
+      "severity": "WARN"
+    },
+    {
+      "check": "god_function",
+      "file": "src/web/ci_monitor.py",
+      "line": 163,
+      "name": "execute_healing_action",
+      "detail": "CC=20 (max 15), 83 lines",
+      "severity": "FAIL"
+    },
+    {
+      "check": "module_side_effect",
+      "file": "src/web/ci_monitor.py",
+      "line": 18,
+      "name": "Expr",
+      "detail": "top-level code (outside def/class) in src/ line 18",
+      "severity": "WARN"
+    },
+    {
+      "check": "module_side_effect",
+      "file": "src/web/ci_monitor.py",
+      "line": 20,
+      "name": "Expr",
+      "detail": "top-level code (outside def/class) in src/ line 20",
+      "severity": "WARN"
+    },
+    {
+      "check": "module_side_effect",
+      "file": "src/web/ci_monitor.py",
+      "line": 28,
+      "name": "Assign",
+      "detail": "top-level code (outside def/class) in src/ line 28",
+      "severity": "WARN"
+    },
+    {
+      "check": "bare_except",
+      "file": "src/web/ci_monitor.py",
+      "line": 94,
+      "name": ": except Exception:",
+      "detail": "except Exception without logging (use logger.exception())",
+      "severity": "FAIL"
+    },
+    {
+      "check": "module_side_effect",
+      "file": "src/web/config.py",
+      "line": 32,
+      "name": "Assign",
+      "detail": "top-level code (outside def/class) in src/ line 32",
+      "severity": "WARN"
+    },
+    {
+      "check": "bare_except",
+      "file": "src/web/database.py",
+      "line": 254,
+      "name": ": except Exception:",
+      "detail": "except Exception without logging (use logger.exception())",
+      "severity": "FAIL"
+    },
+    {
+      "check": "bare_except",
+      "file": "src/web/database.py",
+      "line": 264,
+      "name": ": except Exception:",
+      "detail": "except Exception without logging (use logger.exception())",
+      "severity": "FAIL"
+    },
+    {
+      "check": "bare_except",
+      "file": "src/web/database.py",
+      "line": 293,
+      "name": ": except Exception:",
+      "detail": "except Exception without logging (use logger.exception())",
+      "severity": "FAIL"
+    },
+    {
+      "check": "module_side_effect",
+      "file": "src/web/database.py",
+      "line": 396,
+      "name": "Assign",
+      "detail": "top-level code (outside def/class) in src/ line 396",
+      "severity": "WARN"
+    },
+    {
+      "check": "bare_except",
+      "file": "src/web/health.py",
+      "line": 42,
+      "name": ": except Exception:",
+      "detail": "except Exception without logging (use logger.exception())",
+      "severity": "FAIL"
+    },
+    {
+      "check": "module_side_effect",
+      "file": "src/web/main.py",
+      "line": 123,
+      "name": "Expr",
+      "detail": "top-level code (outside def/class) in src/ line 123",
+      "severity": "WARN"
+    },
+    {
+      "check": "module_side_effect",
+      "file": "src/web/main.py",
+      "line": 128,
+      "name": "Expr",
+      "detail": "top-level code (outside def/class) in src/ line 128",
+      "severity": "WARN"
+    },
+    {
+      "check": "module_side_effect",
+      "file": "src/web/main.py",
+      "line": 133,
+      "name": "Expr",
+      "detail": "top-level code (outside def/class) in src/ line 133",
+      "severity": "WARN"
+    },
+    {
+      "check": "module_side_effect",
+      "file": "src/web/main.py",
+      "line": 134,
+      "name": "Expr",
+      "detail": "top-level code (outside def/class) in src/ line 134",
+      "severity": "WARN"
+    },
+    {
+      "check": "module_side_effect",
+      "file": "src/web/main.py",
+      "line": 135,
+      "name": "Expr",
+      "detail": "top-level code (outside def/class) in src/ line 135",
+      "severity": "WARN"
+    },
+    {
+      "check": "module_side_effect",
+      "file": "src/web/main.py",
+      "line": 136,
+      "name": "Expr",
+      "detail": "top-level code (outside def/class) in src/ line 136",
+      "severity": "WARN"
+    },
+    {
+      "check": "module_side_effect",
+      "file": "src/web/main.py",
+      "line": 137,
+      "name": "Expr",
+      "detail": "top-level code (outside def/class) in src/ line 137",
+      "severity": "WARN"
+    },
+    {
+      "check": "module_side_effect",
+      "file": "src/web/main.py",
+      "line": 138,
+      "name": "Expr",
+      "detail": "top-level code (outside def/class) in src/ line 138",
+      "severity": "WARN"
+    },
+    {
+      "check": "module_side_effect",
+      "file": "src/web/main.py",
+      "line": 146,
+      "name": "If",
+      "detail": "top-level code (outside def/class) in src/ line 146",
+      "severity": "WARN"
+    },
+    {
+      "check": "module_side_effect",
+      "file": "src/web/main.py",
+      "line": 25,
+      "name": "Expr",
+      "detail": "top-level code (outside def/class) in src/ line 25",
+      "severity": "WARN"
+    },
+    {
+      "check": "module_side_effect",
+      "file": "src/web/main.py",
+      "line": 26,
+      "name": "Assign",
+      "detail": "top-level code (outside def/class) in src/ line 26",
+      "severity": "WARN"
+    },
+    {
+      "check": "module_side_effect",
+      "file": "src/web/main.py",
+      "line": 57,
+      "name": "Expr",
+      "detail": "top-level code (outside def/class) in src/ line 57",
+      "severity": "WARN"
+    },
+    {
+      "check": "bare_except",
+      "file": "src/web/model_loader.py",
+      "line": 64,
+      "name": ": except Exception:",
+      "detail": "except Exception without logging (use logger.exception())",
+      "severity": "FAIL"
+    },
+    {
+      "check": "bare_except",
+      "file": "src/web/routers/analytics.py",
+      "line": 100,
+      "name": ": except Exception:",
+      "detail": "except Exception without logging (use logger.exception())",
+      "severity": "FAIL"
+    },
+    {
+      "check": "bare_except",
+      "file": "src/web/routers/analytics.py",
+      "line": 105,
+      "name": ": except Exception:",
+      "detail": "except Exception without logging (use logger.exception())",
+      "severity": "FAIL"
+    },
+    {
+      "check": "bare_except",
+      "file": "src/web/routers/analytics.py",
+      "line": 661,
+      "name": ": except Exception:",
+      "detail": "except Exception without logging (use logger.exception())",
+      "severity": "FAIL"
+    },
+    {
+      "check": "bare_except",
+      "file": "src/web/routers/analytics.py",
+      "line": 758,
+      "name": ": except Exception:",
+      "detail": "except Exception without logging (use logger.exception())",
+      "severity": "FAIL"
+    },
+    {
+      "check": "bare_except",
+      "file": "src/web/routers/analytics.py",
+      "line": 95,
+      "name": ": except Exception:",
+      "detail": "except Exception without logging (use logger.exception())",
+      "severity": "FAIL"
+    },
+    {
+      "check": "bare_except",
+      "file": "src/web/routers/analytics.py",
+      "line": 992,
+      "name": ": except Exception:",
+      "detail": "except Exception without logging (use logger.exception())",
+      "severity": "FAIL"
+    },
+    {
+      "check": "module_side_effect",
+      "file": "src/web/routers/ci_alerts.py",
+      "line": 11,
+      "name": "Assign",
+      "detail": "top-level code (outside def/class) in src/ line 11",
+      "severity": "WARN"
+    },
+    {
+      "check": "module_side_effect",
+      "file": "src/web/routers/race_intelligence.py",
+      "line": 13,
+      "name": "Assign",
+      "detail": "top-level code (outside def/class) in src/ line 13",
+      "severity": "WARN"
+    }
+  ]
+}

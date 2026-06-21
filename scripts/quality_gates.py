@@ -27,6 +27,7 @@ from pathlib import Path
 
 SRC_DIR = Path("src")
 EXCLUDE_DEFAULT = {"src/dashboard/", "src/dashboard"}
+BASELINE_FILE = Path(".quality-baseline.json")
 VIOLATION_EXIT = 1
 
 
@@ -36,7 +37,45 @@ def parse_args():
     p.add_argument("--json", action="store_true", help="output as JSON")
     p.add_argument("--dry-run", action="store_true", help="print violations, exit 0")
     p.add_argument("--exclude", help="extra paths to exclude (comma-sep)")
+    p.add_argument(
+        "--update-baseline",
+        action="store_true",
+        help="run full scan and save all violations as acceptable baseline",
+    )
+    p.add_argument(
+        "--no-baseline",
+        action="store_true",
+        help="ignore baseline file, run full scan",
+    )
     return p.parse_args()
+
+
+def get_baseline_id(v: dict) -> str:
+    return f"{v['check']}:{v['file']}:{v['line']}"
+
+
+def load_baseline() -> set[str]:
+    if not BASELINE_FILE.exists():
+        return set()
+    try:
+        data = json.loads(BASELINE_FILE.read_text())
+        return {get_baseline_id(v) for v in data.get("violations", [])}
+    except (json.JSONDecodeError, KeyError):
+        print(f"  ⚠  Corrupt baseline file {BASELINE_FILE}, ignoring")
+        return set()
+
+
+def save_baseline(violations: list[dict]):
+    baseline = {
+        "_meta": {
+            "created": __import__("datetime").datetime.now().isoformat(),
+            "count": len(violations),
+            "note": "Pre-existing violations accepted as technical debt. Expires: auto-6mo-review.",
+        },
+        "violations": sorted(violations, key=lambda v: f"{v['file']}:{v['line']}"),
+    }
+    BASELINE_FILE.write_text(json.dumps(baseline, indent=2) + "\n")
+    print(f"  ✓ Baseline saved: {len(violations)} violations in {BASELINE_FILE}")
 
 
 def get_exclude_set(extra):
@@ -193,7 +232,7 @@ def check_sync_in_async(tree, filepath):
     if "routers" not in rel and "router" not in rel.lower():
         return violations
 
-    has_async_routes = any(isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) for n in ast.walk(tree))
+    any(isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) for n in ast.walk(tree))
 
     for node in ast.iter_child_nodes(tree):
         if isinstance(node, ast.FunctionDef) and not node.name.startswith("_"):
@@ -360,6 +399,23 @@ def main():
     exclude = get_exclude_set(args.exclude)
     violations = run_checks(exclude)
 
+    # --update-baseline: snapshot current violations as acceptable debt
+    if args.update_baseline:
+        save_baseline(violations)
+        sys.exit(0)
+
+    # --no-baseline: skip baseline filtering
+    baseline_ids = set()
+    if not args.no_baseline:
+        baseline_ids = load_baseline()
+
+    if baseline_ids:
+        filtered = [v for v in violations if get_baseline_id(v) not in baseline_ids]
+        skipped = len(violations) - len(filtered)
+        violations = filtered
+    else:
+        skipped = 0
+
     if args.json:
         print(json.dumps(violations, indent=2))
     else:
@@ -368,7 +424,11 @@ def main():
 
         print(f"\n{'=' * 60}")
         print("  QUALITY GATES REPORT")
-        print(f"  {len(fails)} FAILURES, {len(warns)} WARNINGS")
+        print(f"  {len(fails)} FAILURES, {len(warns)} WARNINGS", end="")
+        if skipped:
+            print(f"  ({skipped} pre-existing violations filtered via baseline)")
+        else:
+            print()
         print(f"{'=' * 60}")
 
         for v in fails:

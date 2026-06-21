@@ -3,6 +3,7 @@
 from unittest.mock import patch
 
 import pytest
+import tenacity
 
 from src.ingestion.extract import (
     get_all_sessions,
@@ -133,6 +134,63 @@ def test_get_session_info_gp_not_found(mocker):
     with patch("src.ingestion.extract.fetch_endpoint", return_value=mock_data):
         result = get_session_info(2025, "NonExistentGP", "Race")
         assert result["session_key"] == 1
+
+
+def _patch_tenacity_no_retry(mocker):
+    """Patch tenacity to execute exactly once (no retries, no backoff)."""
+    orig_call = tenacity.Retrying.__call__
+
+    def fast_call(self, fn, *args, **kwargs):
+        self.stop = tenacity.stop_after_attempt(1)
+        self.wait = tenacity.wait_fixed(0)
+        return orig_call(self, fn, *args, **kwargs)
+
+    mocker.patch.object(tenacity.Retrying, "__call__", fast_call)
+
+
+def test_fetch_endpoint_connection_error_tenacity_retries(mocker):
+    """Connection error in fetch_endpoint triggers tenacity retry (wraps in RetryError)."""
+    _patch_tenacity_no_retry(mocker)
+    from requests.exceptions import ConnectionError
+
+    mock_get = mocker.patch("src.ingestion.extract.requests.get")
+    mock_get.side_effect = ConnectionError("Connection refused")
+    from src.ingestion.extract import fetch_endpoint
+
+    with pytest.raises(tenacity.RetryError):
+        fetch_endpoint("sessions", {"year": 9999})
+
+
+def test_fetch_endpoint_http_non_404_tenacity_retries(mocker):
+    """HTTP non-404 errors trigger tenacity retry."""
+    _patch_tenacity_no_retry(mocker)
+    from requests.exceptions import HTTPError
+
+    mock_get = mocker.patch("src.ingestion.extract.requests.get")
+    mock_get.return_value.status_code = 500
+    mock_get.return_value.raise_for_status.side_effect = HTTPError(response=mock_get.return_value)
+    from src.ingestion.extract import fetch_endpoint
+
+    with pytest.raises(tenacity.RetryError):
+        fetch_endpoint("sessions", {"year": 9999})
+
+
+def test_get_all_sessions_fallback_2025_empty_finds_2024(mocker):
+    """get_all_sessions falls back from 2025 to 2024 when 2025 returns empty."""
+    mock_data_2024 = [
+        {
+            "session_key": 10,
+            "year": 2024,
+            "country_name": "Bahrain",
+            "session_name": "Race",
+            "date_start": "2024-03-02T15:00:00Z",
+        },
+    ]
+    with patch("src.ingestion.extract.fetch_endpoint") as mock_fetch:
+        mock_fetch.side_effect = [[], mock_data_2024]
+        sessions = get_all_sessions(2025, "Race")
+        assert len(sessions) == 1
+        assert sessions[0]["year_actual"] == 2024
 
 
 def test_get_all_sessions_returns_list(mocker):
