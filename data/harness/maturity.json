@@ -2,15 +2,26 @@
   "schema_version": 1,
   "modules": {
     "src/ingestion/process.py": {
+      "stable_counter": 1,
+      "stable_since": "2026-06-21T14:36:00Z",
+      "infra_interruption_counter": 0,
+      "quality_gate": "CLEAN",
+      "maturity_level": "OBSERVED",
+      "last_execution": "2026-06-21T14:36:00Z",
+      "last_outcome": "success",
+      "source": "observed",
+      "notes": "Refatoracao 830->90 linhas. 33/33 process tests + 51/51 ingestion tests passam. God function violation eliminada. Sem regressao apos silver_metadata_tables refactor."
+    },
+    "src/ingestion/assets.py": {
       "stable_counter": 0,
       "stable_since": null,
       "infra_interruption_counter": 0,
-      "quality_gate": "NOT_EVALUATED",
+      "quality_gate": "WARN",
       "maturity_level": "UNKNOWN",
-      "last_execution": "2026-06-21T14:32:00Z",
-      "last_outcome": "manual_intervention",
+      "last_execution": "2026-06-21T14:51:00Z",
+      "last_outcome": "success",
       "source": "observed",
-      "notes": "Refatoracao 830->90 linhas. Validacao apenas final (pytest+ruff), sem gates step-level. Zero testes unitarios novos para as 5 funcoes extraidas. Revisao adversarial apenas sobre o plano inicial, nao sobre o diff final. Nenhum comportamento novo quebrado, nenhuma peca validada isoladamente."
+      "notes": "silver_metadata_tables refatorado 269->25 linhas. 6 helper functions extraidas. Preview 18/18 asset tests passam. God function para silver_metadata_tables eliminada."
     }
   }
 }
