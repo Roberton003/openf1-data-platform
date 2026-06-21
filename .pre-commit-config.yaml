@@ -2,10 +2,19 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
     hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
       - id: detect-private-key
       - id: check-added-large-files
+        args: ["--maxkb=500"]
       - id: check-merge-conflict
       - id: check-symlinks
+      - id: debug-statements
+      - id: name-tests-test
+        args: ["--pytest-test-first"]
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.15.17
     hooks:
@@ -20,6 +29,12 @@ repos:
         exclude: .*/tests/.*|.*\.md$|.*\.github/workflows/.*
   - repo: local
     hooks:
+      - id: quality-gates
+        name: Quality Gates (god func, duplication, bare except)
+        entry: python3 scripts/quality_gates.py --fail
+        language: system
+        files: '\.py$'
+        pass_filenames: false
       - id: verify-agent-support
         name: Verify Agent/Skill Support
         entry: python3 scripts/verify_agent_support.py

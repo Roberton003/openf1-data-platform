@@ -3,11 +3,42 @@ target-version = "py312"
 exclude = ["src/dashboard/"]
 
 [lint]
-select = ["E", "W", "F", "I", "UP"]
-ignore = ["E203", "E501", "W291"]
+select = [
+    "E", "W", "F", "I", "UP", "N",     # core: pyflakes, pycodestyle, isort, pyupgrade, naming
+    "B",                                 # flake8-bugbear
+    "C90",                               # mccabe complexity (max 10)
+    "PL",                                # pylint (PLR0912 = too many branches)
+    "T10",                               # debug statements (print in prod)
+    "TRY",                               # try/except idioms (TRY002 = bare except)
+    "RET",                               # return linting
+    "SIM",                               # flake8-simplify
+    "ARG",                               # unused arguments
+    "ASYNC",                             # async syntax
+    "FBT",                               # boolean trap (flag arguments)
+    "PTH",                               # pathlib instead of os.path
+]
+ignore = ["E203", "E501", "W291", "D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107"]
+
+[lint.per-file-ignores]
+"tests/*" = ["C90", "PLR0912", "T10", "TRY002", "FBT"]
+"scripts/*" = ["C90", "T10"]
+"src/ingestion/process.py" = ["C90", "PLR0912", "PLR0915", "TRY300"]
+"src/ingestion/assets.py" = ["C90", "PLR0912", "PLR0915"]
+"src/web/analytics.py" = ["C90", "PLR0912", "PLR0915"]
+"src/_templates/*" = ["C90", "PL", "T10", "TRY"]
+
+[lint.mccabe]
+max-complexity = 10
+
+[lint.pylint]
+max-branches = 12
+max-args = 5
 
 [lint.isort]
 known-first-party = ["src"]
+
+[lint.pydocstyle]
+convention = "google"
 
 [format]
 quote-style = "double"

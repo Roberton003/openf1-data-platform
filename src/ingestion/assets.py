@@ -25,6 +25,8 @@ from src.ingestion.storage import (
 from src.ingestion.vector_store import index_race_control_messages
 from src.web.model_loader import get_model_loader
 
+from src.ingestion.pipeline_common import append_execution_record, calc_freshness_minutes, write_session_partition
+
 # Reutilizar esquemas e contratos de validação
 
 
@@ -33,34 +35,6 @@ BASE_URL = "https://api.openf1.org/v1"
 DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data"))
 
 MODELS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../models"))
-
-
-def _calc_freshness_minutes(base_dir: str | None) -> float | None:
-    if not base_dir or not os.path.isdir(base_dir):
-        return None
-    latest = 0.0
-    for root, _dirs, files in os.walk(base_dir):
-        for f in files:
-            fp = os.path.join(root, f)
-            try:
-                mtime = os.path.getmtime(fp)
-                if mtime > latest:
-                    latest = mtime
-            except OSError:
-                continue
-    if latest == 0.0:
-        return None
-    return round((time.time() - latest) / 60.0, 2)
-
-
-def _write_session_partition(df: pd.DataFrame, target_dir: str) -> None:
-
-    atomic_write_dataframe(df, os.path.join(target_dir, "data.parquet"))
-
-
-def _append_execution_record(part_exec_path: str, run_record: dict) -> None:
-
-    atomic_append_partitioned_file(os.path.join(part_exec_path, "data.parquet"), pd.DataFrame([run_record]))
 
 
 # GPs Estratégicos Selecionados (ADR 003)
@@ -838,13 +812,13 @@ def silver_telemetry_location_aligned(context: AssetExecutionContext) -> None:
 
                 part_tel_path = os.path.join(telemetry_root, f"session_key={skey}", f"driver_number={dnum}")
 
-                _write_session_partition(aligned_df, part_tel_path)
+                write_session_partition(aligned_df, part_tel_path)
 
                 # Também salvamos a localização Silver isolada particionada
 
                 part_loc_path = os.path.join(location_root, f"session_key={skey}", f"driver_number={dnum}")
 
-                _write_session_partition(df_loc, part_loc_path)
+                write_session_partition(df_loc, part_loc_path)
 
     context.log.info("ASOF JOINs analíticos gravados na Silver com sucesso.")
 
@@ -861,7 +835,7 @@ def silver_telemetry_location_aligned(context: AssetExecutionContext) -> None:
         skey = gp_cfg["session_key"]
 
         bronze_path = os.path.join(DATA_DIR, "bronze", f"session_key={skey}")
-        freshness = _calc_freshness_minutes(bronze_path)
+        freshness = calc_freshness_minutes(bronze_path)
 
         run_record = {
             "run_id": str(uuid.uuid4()),
@@ -886,7 +860,7 @@ def silver_telemetry_location_aligned(context: AssetExecutionContext) -> None:
 
         os.makedirs(part_exec_path, exist_ok=True)
 
-        _append_execution_record(part_exec_path, run_record)
+        append_execution_record(part_exec_path, run_record)
 
 
 # =====================================================================
@@ -1228,7 +1202,7 @@ def gold_feature_engineering_lap_data(context: AssetExecutionContext) -> None:
         for skey, df_session in merged.groupby("session_key"):
             part_dir = os.path.join(output_root, f"session_key={int(skey)}")
 
-            _write_session_partition(df_session, part_dir)
+            write_session_partition(df_session, part_dir)
 
         context.log.info(f"Criadas {len(merged)} linhas de features para a IA em {output_root}")
 
@@ -1386,6 +1360,6 @@ def gold_lap_predictions(context: AssetExecutionContext) -> None:
     for skey, df_session in df.groupby("session_key"):
         part_dir = os.path.join(output_root, f"session_key={int(skey)}")
 
-        _write_session_partition(df_session, part_dir)
+        write_session_partition(df_session, part_dir)
 
     context.log.info(f"Predições de IA salvas na camada Gold em {output_root}")

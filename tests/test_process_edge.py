@@ -7,12 +7,15 @@ import pytest
 from pydantic import BaseModel
 
 from src.ingestion.process import (
-    _append_execution_record,
-    _calc_freshness_minutes,
-    _write_session_partition,
     quarantine_invalid_rows,
     validate_pydantic_batch,
     validate_vectorized_batch,
+)
+
+from src.ingestion.pipeline_common import (
+    append_execution_record,
+    calc_freshness_minutes,
+    write_session_partition,
 )
 
 
@@ -257,45 +260,45 @@ def test_partition_fallback_logic():
         os.path.exists = original_exists
 
 
-def test_calc_freshness_minutes_none():
-    assert _calc_freshness_minutes(None) is None
+def testcalc_freshness_minutes_none():
+    assert calc_freshness_minutes(None) is None
 
 
-def test_calc_freshness_minutes_not_a_dir(tmp_path):
+def testcalc_freshness_minutes_not_a_dir(tmp_path):
     nowhere = str(tmp_path / "nonexistent")
-    assert _calc_freshness_minutes(nowhere) is None
+    assert calc_freshness_minutes(nowhere) is None
 
 
-def test_calc_freshness_minutes_empty_dir(tmp_path):
-    assert _calc_freshness_minutes(str(tmp_path)) is None
+def testcalc_freshness_minutes_empty_dir(tmp_path):
+    assert calc_freshness_minutes(str(tmp_path)) is None
 
 
-def test_calc_freshness_minutes_with_file(tmp_path):
+def testcalc_freshness_minutes_with_file(tmp_path):
     (tmp_path / "test.parquet").write_bytes(b"dummy")
-    result = _calc_freshness_minutes(str(tmp_path))
+    result = calc_freshness_minutes(str(tmp_path))
     assert result is not None
     assert result >= 0
 
 
-def test_write_session_partition_creates_file(tmp_path):
+def testwrite_session_partition_creates_file(tmp_path):
     import pandas as pd
 
     df = pd.DataFrame([{"driver_number": 44}])
-    _write_session_partition(df, str(tmp_path))
+    write_session_partition(df, str(tmp_path))
     assert (tmp_path / "data.parquet").exists()
 
 
-def test_append_execution_record_creates_file(tmp_path):
+def testappend_execution_record_creates_file(tmp_path):
     record = {"run_id": "test-123", "status": "OK"}
-    _append_execution_record(str(tmp_path), record)
+    append_execution_record(str(tmp_path), record)
     assert (tmp_path / "data.parquet").exists()
 
 
-def test_append_execution_record_append(tmp_path):
+def testappend_execution_record_append(tmp_path):
     import pandas as pd
 
-    _append_execution_record(str(tmp_path), {"run_id": "first"})
-    _append_execution_record(str(tmp_path), {"run_id": "second"})
+    append_execution_record(str(tmp_path), {"run_id": "first"})
+    append_execution_record(str(tmp_path), {"run_id": "second"})
     result = pd.read_parquet(tmp_path / "data.parquet")
     assert len(result) == 2
 

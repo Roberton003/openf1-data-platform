@@ -11,6 +11,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  quality-gates:
+    name: Quality Gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install ruff
+
+      - name: Complexity & Bare Except Check
+        run: ruff check --select C901,E722,T10,PLR0912 src/ --noqa
+
+      - name: Quality Gates (god func, duplication, structure)
+        run: python3 scripts/quality_gates.py --fail
+        env:
+          QUALITY_GATE_OVERRIDE: ${{ vars.QUALITY_GATE_OVERRIDE || '' }}
+
   lint:
     name: Lint & Static Analysis
     runs-on: ubuntu-latest

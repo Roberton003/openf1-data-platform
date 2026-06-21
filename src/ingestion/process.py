@@ -25,37 +25,15 @@ from src.ingestion.schemas import (
 from src.ingestion.storage import atomic_append_partitioned_file, atomic_write_dataframe
 from src.ingestion.vector_store import index_race_control_messages
 
+from src.ingestion.pipeline_common import (
+    append_execution_record,
+    calc_freshness_minutes,
+    write_session_partition,
+)
+
 DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data"))
 
 QUARANTINE_DIR = os.path.join(DATA_DIR, "quarantine")
-
-
-def _calc_freshness_minutes(base_dir: str | None) -> float | None:
-    if not base_dir or not os.path.isdir(base_dir):
-        return None
-    latest = 0.0
-    for root, _dirs, files in os.walk(base_dir):
-        for f in files:
-            fp = os.path.join(root, f)
-            try:
-                mtime = os.path.getmtime(fp)
-                if mtime > latest:
-                    latest = mtime
-            except OSError:
-                continue
-    if latest == 0.0:
-        return None
-    return round((time.time() - latest) / 60.0, 2)
-
-
-def _write_session_partition(df: pd.DataFrame, target_dir: str) -> None:
-
-    atomic_write_dataframe(df, os.path.join(target_dir, "data.parquet"))
-
-
-def _append_execution_record(part_exec_path: str, run_record: dict) -> None:
-
-    atomic_append_partitioned_file(os.path.join(part_exec_path, "data.parquet"), pd.DataFrame([run_record]))
 
 
 def quarantine_invalid_rows(df: pd.DataFrame, table_name: str, reason: str, partition_quarantine_dir: str):
@@ -393,7 +371,7 @@ def process_medallion_pipeline(
                     f"session_key={session_key}",
                 )
 
-                _write_session_partition(df_valid, target_dir)
+                write_session_partition(df_valid, target_dir)
 
                 index_race_control_messages(session_key, df_valid)
 
@@ -425,7 +403,7 @@ def process_medallion_pipeline(
             if not df_valid.empty:
                 target_dir = os.path.join(DATA_DIR, "silver", "fact_pit_stops", f"session_key={session_key}")
 
-                _write_session_partition(df_valid, target_dir)
+                write_session_partition(df_valid, target_dir)
 
                 total_rows_silver += len(df_valid)
 
@@ -533,7 +511,7 @@ def process_medallion_pipeline(
             if not df_valid.empty:
                 target_dir = os.path.join(DATA_DIR, "silver", "fact_intervals", f"session_key={session_key}")
 
-                _write_session_partition(df_valid, target_dir)
+                write_session_partition(df_valid, target_dir)
 
                 total_rows_silver += len(df_valid)
 
@@ -566,7 +544,7 @@ def process_medallion_pipeline(
                     f"session_key={session_key}",
                 )
 
-                _write_session_partition(df_valid, target_dir)
+                write_session_partition(df_valid, target_dir)
 
                 total_rows_silver += len(df_valid)
 
@@ -596,7 +574,7 @@ def process_medallion_pipeline(
 
                 target_dir = os.path.join(DATA_DIR, "silver", "fact_overtakes", f"session_key={session_key}")
 
-                _write_session_partition(df_valid, target_dir)
+                write_session_partition(df_valid, target_dir)
 
                 total_rows_silver += len(df_valid)
 
@@ -671,7 +649,7 @@ def process_medallion_pipeline(
                         f"driver_number={dnum}",
                     )
 
-                    _write_session_partition(df_drv_loc, part_loc_path)
+                    write_session_partition(df_drv_loc, part_loc_path)
 
                     total_rows_silver += len(df_drv_loc)
 
@@ -739,7 +717,7 @@ def process_medallion_pipeline(
                             f"driver_number={dnum}",
                         )
 
-                        _write_session_partition(aligned_df, part_tel_path)
+                        write_session_partition(aligned_df, part_tel_path)
 
                         total_rows_silver += len(aligned_df)
 
@@ -893,7 +871,7 @@ def process_medallion_pipeline(
                     for skey, df_session in df_gold_feat.groupby("session_key"):
                         part_dir = os.path.join(features_output, f"session_key={int(skey)}")
 
-                        _write_session_partition(df_session, part_dir)
+                        write_session_partition(df_session, part_dir)
 
                     print(f"Features da Gold criadas com {len(df_gold_feat)} linhas.")
 
@@ -939,7 +917,7 @@ def process_medallion_pipeline(
                     for skey, df_session in df_gold_feat.groupby("session_key"):
                         part_dir = os.path.join(predictions_output, f"session_key={int(skey)}")
 
-                        _write_session_partition(df_session, part_dir)
+                        write_session_partition(df_session, part_dir)
 
                     print(f"Predições salvas em {predictions_output}")
 
@@ -960,10 +938,10 @@ def process_medallion_pipeline(
             "total_rows_quarantine": int(total_rows_quarantine),
             "quarantine_rate": (float(total_rows_quarantine / total_rows_bronze) if total_rows_bronze else 0.0),
             "records_rejected": int(total_rows_quarantine),
-            "data_freshness_minutes": _calc_freshness_minutes(partition_path),
+            "data_freshness_minutes": calc_freshness_minutes(partition_path),
             "sla_runtime_status": "COMPLIANT",
             "sla_quality_status": "COMPLIANT",
-            "sla_freshness_status": ("COMPLIANT" if _calc_freshness_minutes(partition_path) is not None else "NO_DATA"),
+            "sla_freshness_status": ("COMPLIANT" if calc_freshness_minutes(partition_path) is not None else "NO_DATA"),
         }
 
         execution_root = os.path.join(DATA_DIR, "silver", "fact_pipeline_execution")
@@ -974,7 +952,7 @@ def process_medallion_pipeline(
 
         os.makedirs(part_exec_path, exist_ok=True)
 
-        _append_execution_record(part_exec_path, run_record)
+        append_execution_record(part_exec_path, run_record)
 
         print("Linhagem de execução gravada na Silver.")
 
@@ -999,14 +977,14 @@ def process_medallion_pipeline(
                 "total_rows_quarantine": int(total_rows_quarantine),
                 "quarantine_rate": (float(total_rows_quarantine / total_rows_bronze) if total_rows_bronze else 0.0),
                 "records_rejected": int(total_rows_quarantine),
-                "data_freshness_minutes": _calc_freshness_minutes(
+                "data_freshness_minutes": calc_freshness_minutes(
                     partition_path if "partition_path" in locals() else None
                 ),
                 "sla_runtime_status": "COMPLIANT",
                 "sla_quality_status": "COMPLIANT",
                 "sla_freshness_status": (
                     "COMPLIANT"
-                    if _calc_freshness_minutes(partition_path if "partition_path" in locals() else None) is not None
+                    if calc_freshness_minutes(partition_path if "partition_path" in locals() else None) is not None
                     else "NO_DATA"
                 ),
             }
@@ -1021,7 +999,7 @@ def process_medallion_pipeline(
 
             exec_file = os.path.join(part_exec_path, "data.parquet")
 
-            _append_execution_record(part_exec_path, run_record)
+            append_execution_record(part_exec_path, run_record)
 
         except Exception as lineage_err:
             print(f"Erro ao salvar linhagem de erro: {lineage_err}")
