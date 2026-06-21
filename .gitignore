@@ -82,3 +82,5 @@ graphify-out/
 
 # Markdown exceptions for data architecture docs (Excluídos para proteção de dados)
 .test_cov*.json
+coverage.json
+docs/session-handoffs/_quality-override-log.jsonl
