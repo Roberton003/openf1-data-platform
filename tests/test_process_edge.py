@@ -343,7 +343,351 @@ def test_partition_fallback_no_path_raises():
 # process_medallion_pipeline: Orquestra a leitura da Bronze, validação das tabelas (Silver fronteira) e
 
 
-@pytest.mark.xfail(reason="TODO: auto-generated skeleton needs review")
-def test_process_medallion_pipeline():
-    """TODO: auto-generated test for process_medallion_pipeline — needs manual fixture setup."""
-    pytest.skip("Complex function — requires integration fixtures")
+@pytest.fixture
+def patch_process_paths(tmp_path, mocker):
+    """Patch DATA_DIR and QUARANTINE_DIR to use tmp_path."""
+    data_dir = str(tmp_path / "data")
+    mocker.patch("src.ingestion.process.DATA_DIR", data_dir)
+    mocker.patch("src.ingestion.process.QUARANTINE_DIR", str(tmp_path / "quarantine"))
+
+
+def test_find_partition_2025_exists(tmp_path, mocker):
+    """_find_partition returns path when 2025 partition exists."""
+    bronze = tmp_path / "data" / "bronze" / "year=2025" / "gp=bahrain" / "session=Race"
+    bronze.mkdir(parents=True)
+
+    mocker.patch("src.ingestion.process.DATA_DIR", str(tmp_path / "data"))
+    mocker.patch("src.ingestion.process.QUARANTINE_DIR", str(tmp_path / "quarantine"))
+
+    from src.ingestion.process import _find_partition
+
+    part_path, quar_path, year = _find_partition(2025, "bahrain", "Race")
+    assert "year=2025" in part_path
+    assert year == 2025
+    assert "quarantine" in quar_path
+
+
+def test_find_partition_fallback_2024(tmp_path, mocker):
+    """_find_partition fallback to 2024 when 2025 missing."""
+    bronze = tmp_path / "data" / "bronze" / "year=2024" / "gp=bahrain" / "session=Race"
+    bronze.mkdir(parents=True)
+
+    mocker.patch("src.ingestion.process.DATA_DIR", str(tmp_path / "data"))
+    mocker.patch("src.ingestion.process.QUARANTINE_DIR", str(tmp_path / "quarantine"))
+
+    from src.ingestion.process import _find_partition
+
+    part_path, _, year = _find_partition(2025, "bahrain", "Race")
+    assert "year=2024" in part_path
+    assert year == 2024
+
+
+def test_find_partition_not_found_raises(tmp_path, mocker):
+    """_find_partition raises FileNotFoundError when no partition exists."""
+    mocker.patch("src.ingestion.process.DATA_DIR", str(tmp_path / "data"))
+    mocker.patch("src.ingestion.process.QUARANTINE_DIR", str(tmp_path / "quarantine"))
+
+    from src.ingestion.process import _find_partition
+
+    with pytest.raises(FileNotFoundError, match="Caminho da partição Bronze não encontrado"):
+        _find_partition(2025, "nonexistent", "Race")
+
+
+def test_process_silver_table_file_not_found(tmp_path, mocker):
+    """_process_silver_table returns zeros when parquet file missing."""
+    mocker.patch("src.ingestion.process.DATA_DIR", str(tmp_path / "data"))
+    mocker.patch("src.ingestion.process.QUARANTINE_DIR", str(tmp_path / "quarantine"))
+
+    from src.ingestion.process import _process_silver_table
+
+    stats = _process_silver_table(
+        partition_path=str(tmp_path / "nonexistent"),
+        quarantine_path=str(tmp_path / "quarantine"),
+        file_name="drivers.parquet",
+        table_name="drivers",
+        session_key=10014,
+        silver_target=str(tmp_path / "silver" / "dim_drivers.parquet"),
+        write_mode="merge",
+        merge_key="driver_number",
+    )
+    assert stats == {"bronze": 0, "silver": 0, "quarantine": 0}
+
+
+def test_process_silver_table_merge_existing(tmp_path, mocker):
+    """_process_silver_table merge with existing parquet — idempotent merge."""
+    partition = tmp_path / "bronze"
+    partition.mkdir()
+    silver_parent = tmp_path / "silver"
+    silver_parent.mkdir(parents=True)
+    silver_target = silver_parent / "dim_drivers.parquet"
+
+    existing = pd.DataFrame(
+        [
+            {
+                "driver_number": 44,
+                "full_name": "Lewis Hamilton",
+                "name_acronym": "HAM",
+                "team_name": "Ferrari",
+                "country_code": "GBR",
+            },
+            {
+                "driver_number": 1,
+                "full_name": "Max Verstappen",
+                "name_acronym": "VER",
+                "team_name": "Red Bull",
+                "country_code": "NED",
+            },
+        ]
+    )
+    existing.to_parquet(silver_target)
+
+    new_data = pd.DataFrame(
+        [
+            {
+                "driver_number": 1,
+                "full_name": "Max Verstappen",
+                "name_acronym": "VER",
+                "team_name": "Red Bull",
+                "country_code": "NED",
+            },
+            {
+                "driver_number": 16,
+                "full_name": "Charles Leclerc",
+                "name_acronym": "LEC",
+                "team_name": "Ferrari",
+                "country_code": "MON",
+            },
+        ]
+    )
+    new_data.to_parquet(partition / "drivers.parquet")
+
+    mocker.patch("src.ingestion.process.DATA_DIR", str(tmp_path))
+    mocker.patch("src.ingestion.process.QUARANTINE_DIR", str(tmp_path / "quarantine"))
+
+    from src.ingestion.process import _process_silver_table
+    from src.ingestion.schemas import DriverContract
+
+    stats = _process_silver_table(
+        partition_path=str(partition),
+        quarantine_path=str(tmp_path / "quarantine"),
+        file_name="drivers.parquet",
+        table_name="drivers",
+        session_key=10014,
+        silver_target=str(silver_target),
+        write_mode="merge",
+        merge_key="driver_number",
+        contract=DriverContract,
+    )
+    assert stats["bronze"] == 2
+    assert stats["silver"] == 3  # 2 existing + 1 new (44, 1, 16)
+    result = pd.read_parquet(silver_target)
+    assert set(result["driver_number"]) == {44, 1, 16}
+
+
+def test_process_silver_table_partitioned_write(tmp_path, mocker):
+    """_process_silver_table with write_mode='partitioned' writes to session_key dir."""
+    partition = tmp_path / "bronze"
+    partition.mkdir()
+    df = pd.DataFrame(
+        [
+            {"driver_number": 44, "full_name": "Lewis Hamilton", "date": "2025-03-16T12:00:00"},
+        ]
+    )
+    df.to_parquet(partition / "drivers.parquet")
+
+    mocker.patch("src.ingestion.process.DATA_DIR", str(tmp_path))
+    mocker.patch("src.ingestion.process.QUARANTINE_DIR", str(tmp_path / "quarantine"))
+
+    from src.ingestion.process import _process_silver_table
+
+    stats = _process_silver_table(
+        partition_path=str(partition),
+        quarantine_path=str(tmp_path / "quarantine"),
+        file_name="drivers.parquet",
+        table_name="drivers",
+        session_key=10014,
+        silver_target="fact_drivers",
+        write_mode="partitioned",
+        date_col="date",
+    )
+    assert stats["bronze"] == 1
+    assert stats["silver"] == 1
+    target_dir = tmp_path / "silver" / "fact_drivers" / "session_key=10014"
+    assert (target_dir / "data.parquet").exists()
+
+
+def test_process_silver_table_post_process(tmp_path, mocker):
+    """_process_silver_table invokes post_process callable."""
+    partition = tmp_path / "bronze"
+    partition.mkdir()
+    silver_parent = tmp_path / "silver"
+    silver_parent.mkdir(parents=True)
+    df = pd.DataFrame(
+        [
+            {
+                "driver_number": 44,
+                "full_name": "Lewis Hamilton",
+                "name_acronym": "HAM",
+                "team_name": "Ferrari",
+                "country_code": "GBR",
+            }
+        ]
+    )
+    df.to_parquet(partition / "drivers.parquet")
+
+    mocker.patch("src.ingestion.process.DATA_DIR", str(tmp_path))
+    mocker.patch("src.ingestion.process.QUARANTINE_DIR", str(tmp_path / "quarantine"))
+
+    from src.ingestion.process import _process_silver_table
+
+    mock_fn = mocker.MagicMock()
+
+    _process_silver_table(
+        partition_path=str(partition),
+        quarantine_path=str(tmp_path / "quarantine"),
+        file_name="drivers.parquet",
+        table_name="drivers",
+        session_key=10014,
+        silver_target=str(silver_parent / "dim_drivers.parquet"),
+        write_mode="merge",
+        merge_key="driver_number",
+        post_process=mock_fn,
+    )
+    mock_fn.assert_called_once()
+
+
+def test_process_silver_table_vectorized_validation(tmp_path, mocker):
+    """_process_silver_table with contract=None uses vectorized validation."""
+    partition = tmp_path / "bronze"
+    partition.mkdir()
+    (tmp_path / "silver").mkdir(parents=True)
+    df = pd.DataFrame(
+        [
+            {"driver_number": 44, "speed": 312, "rpm": 11800, "date": "2025-03-16T12:00:00"},
+            {"driver_number": 1, "speed": -999, "rpm": 12000, "date": "2025-03-16T12:01:00"},
+        ]
+    )
+    df.to_parquet(partition / "telemetry.parquet")
+
+    mocker.patch("src.ingestion.process.DATA_DIR", str(tmp_path))
+    mocker.patch("src.ingestion.process.QUARANTINE_DIR", str(tmp_path / "quarantine"))
+
+    from src.ingestion.process import _process_silver_table
+
+    stats = _process_silver_table(
+        partition_path=str(partition),
+        quarantine_path=str(tmp_path / "quarantine"),
+        file_name="telemetry.parquet",
+        table_name="telemetry",
+        session_key=10014,
+        silver_target=str(tmp_path / "silver" / "dim_telemetry.parquet"),
+        write_mode="merge",
+        merge_key="driver_number",
+        contract=None,
+        schema={"driver_number": "int64", "speed": "int64", "rpm": "int64"},
+        required_cols=["driver_number", "date"],
+    )
+    assert stats["bronze"] == 2
+    # Both rows should pass vectorized validation (no strict range checks)
+    assert stats["silver"] == 2
+
+
+@pytest.mark.xfail(reason="Complex function requiring DuckDB ASOF JOIN — needs real DuckDB connection")
+def test_process_asof_join_telemetry_happy_path():
+    pytest.skip("Needs DuckDB ASOF JOIN — integration-level test")
+
+
+def test_process_asof_join_telemetry_missing_files(tmp_path, mocker):
+    """_process_asof_join_telemetry returns zeros when car_data or location missing."""
+    partition = tmp_path / "bronze"
+    partition.mkdir()
+    mocker.patch("src.ingestion.process.DATA_DIR", str(tmp_path))
+    mocker.patch("src.ingestion.process.QUARANTINE_DIR", str(tmp_path / "quarantine"))
+
+    import duckdb
+
+    from src.ingestion.process import _process_asof_join_telemetry
+
+    conn = duckdb.connect(":memory:")
+    try:
+        stats = _process_asof_join_telemetry(
+            partition_path=str(partition),
+            quarantine_path=str(tmp_path / "quarantine"),
+            session_key=10014,
+            focus_drivers={44: "LH"},
+            conn=conn,
+        )
+        assert stats == {"bronze": 0, "silver": 0, "quarantine": 0}
+    finally:
+        conn.close()
+
+
+@pytest.mark.xfail(reason="Complex function requiring DuckDB + sklearn — integration-level test")
+def test_process_gold_layer_full_flow():
+    pytest.skip("Needs DuckDB, stints parquet, telemetry glob — integration-level")
+
+
+def test_process_gold_layer_no_stints(tmp_path, mocker):
+    """_process_gold_layer returns zeros when stints parquet does not exist."""
+    mocker.patch("src.ingestion.process.DATA_DIR", str(tmp_path))
+    mocker.patch("src.ingestion.process.QUARANTINE_DIR", str(tmp_path / "quarantine"))
+
+    import duckdb
+
+    from src.ingestion.process import _process_gold_layer
+
+    conn = duckdb.connect(":memory:")
+    try:
+        stats = _process_gold_layer(conn)
+        assert stats == {"silver": 0}
+    finally:
+        conn.close()
+
+
+def test_process_medallion_pipeline_missing_sessions_file(tmp_path, mocker):
+    """Pipeline deve falhar quando sessions.parquet está ausente."""
+    bronze = tmp_path / "data" / "bronze" / "year=2025" / "gp=bahrain" / "session=Race"
+    bronze.mkdir(parents=True)
+
+    mocker.patch("src.ingestion.process.DATA_DIR", str(tmp_path / "data"))
+    mocker.patch("src.ingestion.process.QUARANTINE_DIR", str(tmp_path / "quarantine"))
+    mocker.patch("src.ingestion.process.duckdb.connect")
+
+    from src.ingestion.process import process_medallion_pipeline
+
+    with pytest.raises(FileNotFoundError, match="sessions.parquet é obrigatório"):
+        process_medallion_pipeline(2025, "bahrain", "Race")
+
+
+def test_write_lineage_creates_file(tmp_path, mocker):
+    """_write_lineage creates execution record parquet."""
+    mocker.patch("src.ingestion.process.DATA_DIR", str(tmp_path / "data"))
+    mocker.patch("src.ingestion.process.QUARANTINE_DIR", str(tmp_path / "quarantine"))
+
+    from src.ingestion.process import _write_lineage
+
+    run_record = {
+        "run_id": "test-uuid",
+        "pipeline_name": "cli_test",
+        "session_key": 10014,
+        "execution_timestamp": "2026-06-20T12:00:00",
+        "duration_seconds": 1.5,
+        "status": "SUCCESS",
+        "total_rows_processed": 10,
+        "total_rows_bronze": 100,
+        "total_rows_silver": 80,
+        "total_rows_quarantine": 5,
+        "quarantine_rate": 0.05,
+        "records_rejected": 5,
+        "data_freshness_minutes": 30,
+        "sla_runtime_status": "COMPLIANT",
+        "sla_quality_status": "COMPLIANT",
+        "sla_freshness_status": "COMPLIANT",
+    }
+    _write_lineage(run_record)
+
+    exec_file = tmp_path / "data" / "silver" / "fact_pipeline_execution" / "session_key=10014" / "data.parquet"
+    assert exec_file.exists()
+    result = pd.read_parquet(exec_file)
+    assert len(result) == 1
+    assert result.iloc[0]["status"] == "SUCCESS"

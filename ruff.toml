@@ -20,7 +20,7 @@ select = [
 ignore = ["E203", "E501", "W291", "D100", "D101", "D102", "D103", "D104", "D105", "D106", "D107"]
 
 [lint.per-file-ignores]
-"tests/*" = ["C90", "PLR0912", "T10", "TRY002", "FBT"]
+"tests/*" = ["C90", "PL", "T10", "TRY", "PTH", "N806", "FBT", "B011", "SIM", "ARG001"]
 "scripts/*" = ["C90", "T10"]
 "src/ingestion/process.py" = ["C90", "PL", "TRY", "PTH", "N806", "SIM"]
 "src/ingestion/assets.py" = ["C90", "PL", "TRY", "PTH", "N806"]
