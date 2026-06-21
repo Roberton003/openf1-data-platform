@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "modules": {
+    "src/ingestion/process.py": {
+      "stable_counter": 0,
+      "stable_since": null,
+      "infra_interruption_counter": 0,
+      "quality_gate": "NOT_EVALUATED",
+      "maturity_level": "UNKNOWN",
+      "last_execution": "2026-06-21T14:32:00Z",
+      "last_outcome": "manual_intervention",
+      "source": "observed",
+      "notes": "Refatoracao 830->90 linhas. Validacao apenas final (pytest+ruff), sem gates step-level. Zero testes unitarios novos para as 5 funcoes extraidas. Revisao adversarial apenas sobre o plano inicial, nao sobre o diff final. Nenhum comportamento novo quebrado, nenhuma peca validada isoladamente."
+    }
+  }
+}

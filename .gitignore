@@ -35,6 +35,8 @@ ENV/
 # Data
 data/
 !data/.gitkeep
+!data/harness/
+!data/harness/*.json
 
 # Documentation & Markdown
 # Governance files (ADRs, plans, handoffs, profile) ARE versioned.
