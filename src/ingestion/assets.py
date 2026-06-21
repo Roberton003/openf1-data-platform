@@ -10,6 +10,7 @@ from sklearn.ensemble import RandomForestRegressor
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from src.ingestion.config import get_focus_drivers
+from src.ingestion.pipeline_common import append_execution_record, calc_freshness_minutes, write_session_partition
 from src.ingestion.schemas import (
     DriverContract,
     OvertakeContract,
@@ -18,14 +19,10 @@ from src.ingestion.schemas import (
     SessionResultContract,
 )
 from src.ingestion.storage import (
-    atomic_append_partitioned_file,
-    atomic_write_dataframe,
     atomic_write_partitioned_parquet,
 )
 from src.ingestion.vector_store import index_race_control_messages
 from src.web.model_loader import get_model_loader
-
-from src.ingestion.pipeline_common import append_execution_record, calc_freshness_minutes, write_session_partition
 
 # Reutilizar esquemas e contratos de validação
 

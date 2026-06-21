@@ -6,15 +6,12 @@ import pandas as pd
 import pytest
 from pydantic import BaseModel
 
-from src.ingestion.process import (
-    quarantine_invalid_rows,
-    validate_pydantic_batch,
-    validate_vectorized_batch,
-)
-
 from src.ingestion.pipeline_common import (
     append_execution_record,
     calc_freshness_minutes,
+    quarantine_invalid_rows,
+    validate_pydantic_batch,
+    validate_vectorized_batch,
     write_session_partition,
 )
 

@@ -6,7 +6,6 @@ from src.ingestion.assets import (
     SESSIONS_TO_PROCESS,
     IngestionConfig,
 )
-
 from src.ingestion.pipeline_common import (
     append_execution_record,
     calc_freshness_minutes,

@@ -6,9 +6,16 @@ from datetime import datetime
 
 import duckdb
 import pandas as pd
-from pydantic import ValidationError
 
 from src.ingestion.config import get_focus_drivers
+from src.ingestion.pipeline_common import (
+    append_execution_record,
+    calc_freshness_minutes,
+    quarantine_invalid_rows,
+    validate_pydantic_batch,
+    validate_vectorized_batch,
+    write_session_partition,
+)
 from src.ingestion.schemas import (
     INTERVALS_SCHEMA,
     LOCATION_SCHEMA,
@@ -22,161 +29,11 @@ from src.ingestion.schemas import (
     SessionContract,
     SessionResultContract,
 )
-from src.ingestion.storage import atomic_append_partitioned_file, atomic_write_dataframe
 from src.ingestion.vector_store import index_race_control_messages
-
-from src.ingestion.pipeline_common import (
-    append_execution_record,
-    calc_freshness_minutes,
-    write_session_partition,
-)
 
 DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../data"))
 
 QUARANTINE_DIR = os.path.join(DATA_DIR, "quarantine")
-
-
-def quarantine_invalid_rows(df: pd.DataFrame, table_name: str, reason: str, partition_quarantine_dir: str):
-    """
-
-    Grava registros inválidos/corrompidos na pasta de quarentena particionada por sessão.
-
-    """
-
-    if df.empty:
-        return
-
-    os.makedirs(partition_quarantine_dir, exist_ok=True)
-
-    df_quarantine = df.copy()
-
-    df_quarantine["quarantine_timestamp"] = datetime.now()
-
-    df_quarantine["quarantine_reason"] = reason
-
-    quarantine_file = os.path.join(partition_quarantine_dir, f"{table_name}_corrupt.parquet")
-
-    atomic_append_partitioned_file(quarantine_file, df_quarantine)
-
-    print(f" -> [Quarentena] Isoladas {len(df)} linhas de {table_name} em {quarantine_file} por: {reason}")
-
-
-def validate_pydantic_batch(df: pd.DataFrame, contract_cls, table_name: str) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """
-
-    Validação linha a linha usando Pydantic para tabelas de metadados estáticos.
-
-    Retorna dois DataFrames: (dados_validos, dados_invalidos).
-
-    """
-
-    if df.empty:
-        return pd.DataFrame(), pd.DataFrame()
-
-    valid_rows = []
-
-    invalid_rows = []
-
-    for idx, row in df.iterrows():
-        row_dict = row.to_dict()
-
-        # Converte timestamps nativos do pandas para datetime padrão do python antes de passar ao Pydantic
-
-        for k, v in row_dict.items():
-            if isinstance(v, pd.Timestamp):
-                row_dict[k] = v.to_pydatetime()
-
-            elif pd.isna(v):
-                row_dict[k] = None
-
-        try:
-            contract_cls(**row_dict)
-
-            valid_rows.append(row_dict)
-
-        except ValidationError as e:
-            row_dict["error_detail"] = str(e)
-
-            invalid_rows.append(row_dict)
-
-    df_valid = pd.DataFrame(valid_rows) if valid_rows else pd.DataFrame(columns=df.columns)
-
-    df_invalid = pd.DataFrame(invalid_rows) if invalid_rows else pd.DataFrame()
-
-    return df_valid, df_invalid
-
-
-def validate_vectorized_batch(df: pd.DataFrame, schema: dict, required_cols: list) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """
-
-    Validação vetorizada baseada em tipos do Pandas (e ausência de nulos em colunas chave).
-
-    Retorna (dados_validos, dados_invalidos) de forma ultra-veloz.
-
-    """
-
-    if df.empty:
-        return pd.DataFrame(), pd.DataFrame()
-
-    # 1. Verificar nulos em colunas obrigatórias
-
-    null_mask = df[required_cols].isna().any(axis=1)
-
-    df_invalid_null = df[null_mask].copy()
-
-    df_valid = df[~null_mask].copy()
-
-    if not df_invalid_null.empty:
-        df_invalid_null["error_detail"] = "Valor nulo em coluna mandatória de chave ou telemetria"
-
-    # 2. Conversão coerente de tipos
-
-    df_invalid_types = pd.DataFrame()
-
-    valid_rows = []
-
-    for col, col_type in schema.items():
-        if col in df_valid.columns:
-            try:
-                if col_type.startswith("datetime"):
-                    df_valid[col] = pd.to_datetime(df_valid[col], format="ISO8601")
-
-                elif col_type == "string":
-                    df_valid[col] = df_valid[col].astype(str)
-
-                else:
-                    df_valid[col] = df_valid[col].astype(col_type)
-
-            except Exception as e:
-                # Se falhar o cast da coluna inteira, fazemos um fallback defensivo linha a linha para isolar
-
-                print(f"Aviso: Falha de cast da coluna {col} para {col_type}. Executando isolamento de linhas.")
-
-                for idx, row in df_valid.iterrows():
-                    try:
-                        pd.Series([row[col]]).astype(col_type)
-
-                        valid_rows.append(row.to_dict())
-
-                    except Exception:
-                        row_dict = row.to_dict()
-
-                        row_dict["error_detail"] = f"Falha de cast na coluna {col} para {col_type}: {e}"
-
-                        df_invalid_types = pd.concat(
-                            [df_invalid_types, pd.DataFrame([row_dict])],
-                            ignore_index=True,
-                        )
-
-                df_valid = pd.DataFrame(valid_rows) if valid_rows else pd.DataFrame(columns=df.columns)
-
-    df_invalid = (
-        pd.concat([df_invalid_null, df_invalid_types], ignore_index=True)
-        if not df_invalid_null.empty or not df_invalid_types.empty
-        else pd.DataFrame()
-    )
-
-    return df_valid, df_invalid
 
 
 def process_medallion_pipeline(
