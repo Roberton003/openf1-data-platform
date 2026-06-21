@@ -430,277 +430,154 @@ def silver_drivers(context: AssetExecutionContext) -> None:
         context.log.info("Pilotos gravados na Silver.")
 
 
+def _read_bronze_table(base_path: str, file_name: str, cast_map: dict[str, str]) -> pd.DataFrame | None:
+    file_path = os.path.join(base_path, file_name)
+    if not os.path.exists(file_path):
+        return None
+    df = pd.read_parquet(file_path)
+    for col, col_type in cast_map.items():
+        if col in df.columns:
+            if col_type == "int":
+                df[col] = df[col].astype(int)
+            elif col_type == "datetime":
+                df[col] = pd.to_datetime(df[col], format="ISO8601")
+    return df
+
+
+_BRONZE_TABLE_SPEC: list[tuple[str, str, dict[str, str]]] = [
+    ("stints", "stints.parquet", {"session_key": "int", "driver_number": "int"}),
+    ("weather", "weather.parquet", {"session_key": "int", "date": "datetime"}),
+    ("pit_stops", "pit_stops.parquet", {"session_key": "int", "driver_number": "int"}),
+    ("race_control", "race_control.parquet", {"session_key": "int", "date": "datetime"}),
+    ("session_result", "session_result.parquet", {"session_key": "int", "driver_number": "int"}),
+    (
+        "overtakes",
+        "overtakes.parquet",
+        {"session_key": "int", "overtaking_driver_number": "int", "overtaken_driver_number": "int", "date": "datetime"},
+    ),
+]
+
+
+def _collect_bronze_metadata(sessions: list[dict]) -> dict[str, list[pd.DataFrame]]:
+    tables: dict[str, list[pd.DataFrame]] = {}
+    for name, _, _ in _BRONZE_TABLE_SPEC:
+        tables[name] = []
+    for gp_cfg in sessions:
+        base = os.path.join(DATA_DIR, "bronze", f"session_key={gp_cfg['session_key']}")
+        if not os.path.exists(base):
+            continue
+        for name, fname, cmap in _BRONZE_TABLE_SPEC:
+            df = _read_bronze_table(base, fname, cmap)
+            if df is not None:
+                tables[name].append(df)
+    return tables
+
+
+def _write_simple_fact(dfs: list[pd.DataFrame], target: str) -> None:
+    if not dfs:
+        return
+    atomic_write_partitioned_parquet(pd.concat(dfs), os.path.join(DATA_DIR, "silver", target), ["session_key"])
+
+
+def _write_validated_race_control(dfs: list[pd.DataFrame], context: AssetExecutionContext) -> None:
+    if not dfs:
+        return
+    df = pd.concat(dfs)
+    valid = []
+    for _, r in df.iterrows():
+        r_dict = r.to_dict()
+        if isinstance(r_dict.get("date"), pd.Timestamp):
+            r_dict["date"] = r_dict["date"].to_pydatetime()
+        if pd.isna(r_dict.get("driver_number")):
+            r_dict["driver_number"] = None
+        try:
+            RaceControlContract(**r_dict)
+            valid.append(r_dict)
+        except Exception as e:
+            context.log.warning("RaceControl validation failed: %s", e)
+    if not valid:
+        return
+    target = os.path.join(DATA_DIR, "silver", "fact_race_control")
+    atomic_write_partitioned_parquet(pd.DataFrame(valid), target, ["session_key"])
+    for skey in pd.DataFrame(valid)["session_key"].unique():
+        subset = pd.DataFrame([r for r in valid if r["session_key"] == skey])
+        index_race_control_messages(int(skey), subset)
+
+
+def _write_validated_session_results(dfs: list[pd.DataFrame], context: AssetExecutionContext) -> None:
+    if not dfs:
+        return
+    df = pd.concat(dfs)
+    valid = []
+    for _, r in df.iterrows():
+        r_dict = r.to_dict()
+        if pd.isna(r_dict.get("position")):
+            r_dict["position"] = None
+        else:
+            r_dict["position"] = int(r_dict["position"])
+        r_dict["session_key"] = int(r_dict["session_key"])
+        r_dict["driver_number"] = int(r_dict["driver_number"])
+        for k in ["number_of_laps", "points", "dn", "dns", "dsq", "duration", "gap_to_leader"]:
+            if k in r_dict and pd.isna(r_dict[k]):
+                r_dict[k] = None
+            elif k in r_dict and k in ("dn", "dns", "dsq"):
+                r_dict[k] = bool(r_dict[k])
+            elif k in r_dict and k == "number_of_laps":
+                r_dict[k] = int(r_dict[k])
+            elif k in r_dict and k in ("points", "duration"):
+                r_dict[k] = float(r_dict[k])
+        try:
+            SessionResultContract(**r_dict)
+            valid.append(r_dict)
+        except Exception as e:
+            context.log.warning("SessionResult validation failed: %s | session_key=%s", e, r_dict.get("session_key"))
+    if not valid:
+        return
+    target = os.path.join(DATA_DIR, "silver", "fact_session_results")
+    atomic_write_partitioned_parquet(pd.DataFrame(valid), target, ["session_key"])
+
+
+def _write_validated_overtakes(dfs: list[pd.DataFrame], context: AssetExecutionContext) -> None:
+    if not dfs:
+        return
+    df = pd.concat(dfs)
+    valid = []
+    for _, r in df.iterrows():
+        r_dict = r.to_dict()
+        if isinstance(r_dict.get("date"), pd.Timestamp):
+            r_dict["date"] = r_dict["date"].to_pydatetime()
+        r_dict["session_key"] = int(r_dict["session_key"])
+        r_dict["overtaking_driver_number"] = int(r_dict["overtaking_driver_number"])
+        r_dict["overtaken_driver_number"] = int(r_dict["overtaken_driver_number"])
+        if pd.isna(r_dict.get("position")):
+            r_dict["position"] = 0
+        else:
+            r_dict["position"] = int(r_dict["position"])
+        try:
+            OvertakeContract(**r_dict)
+            valid.append(r_dict)
+        except Exception as e:
+            context.log.warning("Overtake validation failed: %s | session_key=%s", e, r_dict.get("session_key"))
+    if not valid:
+        return
+    target = os.path.join(DATA_DIR, "silver", "fact_overtakes")
+    atomic_write_partitioned_parquet(pd.DataFrame(valid), target, ["session_key"])
+
+
 @asset(group_name="Camada_Silver", deps=[bronze_race_control_and_stints])
 def silver_metadata_tables(context: AssetExecutionContext) -> None:
-    """
-
-    Valida e transiciona clima, pit stops, stints, race control, resultados e ultrapassagens para o Lakehouse Silver.
-
-    """
-
     os.makedirs(os.path.join(DATA_DIR, "silver"), exist_ok=True)
-
-    stints_all = []
-
-    weather_all = []
-
-    pits_all = []
-
-    rc_all = []
-
-    res_all = []
-
-    ov_all = []
-
-    for gp_cfg in SESSIONS_TO_PROCESS:
-        skey = gp_cfg["session_key"]
-
-        base_path = os.path.join(DATA_DIR, "bronze", f"session_key={skey}")
-
-        if not os.path.exists(base_path):
-            continue
-
-        # 1. Stints
-
-        sf = os.path.join(base_path, "stints.parquet")
-
-        if os.path.exists(sf):
-            st_df = pd.read_parquet(sf)
-
-            st_df["session_key"] = st_df["session_key"].astype(int)
-
-            st_df["driver_number"] = st_df["driver_number"].astype(int)
-
-            stints_all.append(st_df)
-
-        # 2. Weather
-
-        wf = os.path.join(base_path, "weather.parquet")
-
-        if os.path.exists(wf):
-            w_df = pd.read_parquet(wf)
-
-            w_df["session_key"] = w_df["session_key"].astype(int)
-
-            w_df["date"] = pd.to_datetime(w_df["date"], format="ISO8601")
-
-            weather_all.append(w_df)
-
-        # 3. Pit Stops
-
-        pf = os.path.join(base_path, "pit_stops.parquet")
-
-        if os.path.exists(pf):
-            p_df = pd.read_parquet(pf)
-
-            p_df["session_key"] = p_df["session_key"].astype(int)
-
-            p_df["driver_number"] = p_df["driver_number"].astype(int)
-
-            pits_all.append(p_df)
-
-        # 4. Race Control
-
-        rcf = os.path.join(base_path, "race_control.parquet")
-
-        if os.path.exists(rcf):
-            rc_df = pd.read_parquet(rcf)
-
-            rc_df["session_key"] = rc_df["session_key"].astype(int)
-
-            rc_df["date"] = pd.to_datetime(rc_df["date"], format="ISO8601")
-
-            rc_all.append(rc_df)
-
-        # 5. Session Results
-
-        res_f = os.path.join(base_path, "session_result.parquet")
-
-        if os.path.exists(res_f):
-            res_df = pd.read_parquet(res_f)
-
-            res_df["session_key"] = res_df["session_key"].astype(int)
-
-            res_df["driver_number"] = res_df["driver_number"].astype(int)
-
-            res_all.append(res_df)
-
-        # 6. Overtakes
-
-        ov_f = os.path.join(base_path, "overtakes.parquet")
-
-        if os.path.exists(ov_f):
-            ov_df = pd.read_parquet(ov_f)
-
-            ov_df["session_key"] = ov_df["session_key"].astype(int)
-
-            ov_df["overtaking_driver_number"] = ov_df["overtaking_driver_number"].astype(int)
-
-            ov_df["overtaken_driver_number"] = ov_df["overtaken_driver_number"].astype(int)
-
-            ov_df["date"] = pd.to_datetime(ov_df["date"], format="ISO8601")
-
-            ov_all.append(ov_df)
-
-    # Salvar consolidados (Dimensões)
-
-    if stints_all:
-        pd.concat(stints_all).to_parquet(os.path.join(DATA_DIR, "silver", "dim_stints.parquet"), index=False)
-
-    if weather_all:
-        pd.concat(weather_all).to_parquet(os.path.join(DATA_DIR, "silver", "dim_weather.parquet"), index=False)
-
-    # Salvar particionados (Fatos)
-
-    if pits_all:
-        pits_df = pd.concat(pits_all)
-
-        target = os.path.join(DATA_DIR, "silver", "fact_pit_stops")
-
-        atomic_write_partitioned_parquet(pits_df, target, ["session_key"])
-
-    if rc_all:
-        # Validar via contrato Pydantic para logs de race control
-
-        df_rc = pd.concat(rc_all)
-
-        valid_rc = []
-
-        for _, r in df_rc.iterrows():
-            r_dict = r.to_dict()
-
-            if isinstance(r_dict["date"], pd.Timestamp):
-                r_dict["date"] = r_dict["date"].to_pydatetime()
-
-            try:
-                # Tratar chaves nulas do piloto antes de validar
-
-                if pd.isna(r_dict.get("driver_number")):
-                    r_dict["driver_number"] = None
-
-                RaceControlContract(**r_dict)
-
-                valid_rc.append(r_dict)
-
-            except Exception as e:
-                context.log.warn(f"RaceControl validation skipped for row: {e}")
-
-        if valid_rc:
-            rc_df = pd.DataFrame(valid_rc)
-
-            target = os.path.join(DATA_DIR, "silver", "fact_race_control")
-
-            atomic_write_partitioned_parquet(rc_df, target, ["session_key"])
-
-            for skey in rc_df["session_key"].unique():
-                subset = rc_df[rc_df["session_key"] == skey]
-
-                index_race_control_messages(int(skey), subset)
-
-    if res_all:
-        # Validar via contrato Pydantic para resultados de sessão
-
-        df_res = pd.concat(res_all)
-
-        valid_res = []
-
-        for _, r in df_res.iterrows():
-            r_dict = r.to_dict()
-
-            if pd.isna(r_dict.get("position")):
-                r_dict["position"] = None
-
-            else:
-                r_dict["position"] = int(r_dict["position"])
-
-            r_dict["session_key"] = int(r_dict["session_key"])
-
-            r_dict["driver_number"] = int(r_dict["driver_number"])
-
-            for k in [
-                "number_of_laps",
-                "points",
-                "dn",
-                "dns",
-                "dsq",
-                "duration",
-                "gap_to_leader",
-            ]:
-                if k in r_dict:
-                    if pd.isna(r_dict[k]):
-                        r_dict[k] = None
-
-                    elif k in ["dn", "dns", "dsq"]:
-                        r_dict[k] = bool(r_dict[k])
-
-                    elif k in ["number_of_laps"]:
-                        r_dict[k] = int(r_dict[k])
-
-                    elif k in ["points", "duration"]:
-                        r_dict[k] = float(r_dict[k])
-
-            try:
-                SessionResultContract(**r_dict)
-
-                valid_res.append(r_dict)
-
-            except Exception as e:
-                context.log.warning(
-                    "SessionResult validation failed: %s | row: session_key=%s",
-                    e,
-                    r_dict.get("session_key"),
-                )
-
-        if valid_res:
-            res_df = pd.DataFrame(valid_res)
-
-            target = os.path.join(DATA_DIR, "silver", "fact_session_results")
-
-            atomic_write_partitioned_parquet(res_df, target, ["session_key"])
-
-    if ov_all:
-        # Validar via contrato Pydantic para ultrapassagens
-
-        df_ov = pd.concat(ov_all)
-
-        valid_ov = []
-
-        for _, r in df_ov.iterrows():
-            r_dict = r.to_dict()
-
-            if isinstance(r_dict["date"], pd.Timestamp):
-                r_dict["date"] = r_dict["date"].to_pydatetime()
-
-            r_dict["session_key"] = int(r_dict["session_key"])
-
-            r_dict["overtaking_driver_number"] = int(r_dict["overtaking_driver_number"])
-
-            r_dict["overtaken_driver_number"] = int(r_dict["overtaken_driver_number"])
-
-            if pd.isna(r_dict.get("position")):
-                r_dict["position"] = 0
-
-            else:
-                r_dict["position"] = int(r_dict["position"])
-
-            try:
-                OvertakeContract(**r_dict)
-
-                valid_ov.append(r_dict)
-
-            except Exception as e:
-                context.log.warning(
-                    "Overtake validation failed: %s | row: session_key=%s",
-                    e,
-                    r_dict.get("session_key"),
-                )
-
-        if valid_ov:
-            ov_df = pd.DataFrame(valid_ov)
-
-            target = os.path.join(DATA_DIR, "silver", "fact_overtakes")
-
-            atomic_write_partitioned_parquet(ov_df, target, ["session_key"])
+    tables = _collect_bronze_metadata(SESSIONS_TO_PROCESS)
+
+    if tables["stints"]:
+        pd.concat(tables["stints"]).to_parquet(os.path.join(DATA_DIR, "silver", "dim_stints.parquet"), index=False)
+    if tables["weather"]:
+        pd.concat(tables["weather"]).to_parquet(os.path.join(DATA_DIR, "silver", "dim_weather.parquet"), index=False)
+
+    _write_simple_fact(tables["pit_stops"], "fact_pit_stops")
+    _write_validated_race_control(tables["race_control"], context)
+    _write_validated_session_results(tables["session_result"], context)
+    _write_validated_overtakes(tables["overtakes"], context)
 
 
 @asset(group_name="Camada_Silver", deps=[bronze_telemetry_spatial])
