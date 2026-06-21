@@ -1,3 +1,4 @@
+import asyncio
 import glob
 import json
 import os
@@ -10,17 +11,17 @@ router = APIRouter(prefix="/api/ci", tags=["CI Monitor"])
 
 
 @router.post("/check")
-def trigger_ci_check(run_id: int = Query(None, description="Optional specific workflow run ID to verify")):
+async def trigger_ci_check(run_id: int = Query(None, description="Optional specific workflow run ID to verify")):
     """Triggers an on-demand polling and auto-healing check for the CI/CD pipeline."""
     try:
-        report = check_and_heal_ci(target_run_id=run_id)
+        report = await asyncio.to_thread(check_and_heal_ci, target_run_id=run_id)
         return report
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"CI check failed: {str(e)}")
 
 
 @router.get("/status")
-def get_ci_status():
+async def get_ci_status():
     """Retrieves the history of all CI/CD evaluations and healing reports."""
     reports = []
     pattern = os.path.join(ALERTS_DIR, "ci_healing_report_*.json")
