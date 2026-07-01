@@ -1,15 +1,19 @@
 import os
-import streamlit as st
-import pandas as pd
+
 import duckdb
+import pandas as pd
 import plotly.express as px
+import streamlit as st
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "../../data")
 
-st.set_page_config(page_title="OpenF1 Telemetry Dashboard", layout="wide", page_icon="🏎️")
+st.set_page_config(
+    page_title="OpenF1 Telemetry Dashboard", layout="wide", page_icon="🏎️"
+)
 
 # Custom CSS for Premium Design
-st.markdown("""
+st.markdown(
+    """
     <style>
         .main {
             background-color: #0f1115;
@@ -28,12 +32,17 @@ st.markdown("""
             background-color: #161920;
         }
     </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 st.title("🏎️ OpenF1 Telemetry & Analytics Platform")
-st.markdown("""
+st.markdown(
+    """
 Esta plataforma de nível **Sênior** consome dados em *Near Real-Time* da API do OpenF1, persistidos localmente no formato **Apache Parquet** (Simulando uma Camada Silver de Data Lake) e processados de forma analítica instantânea utilizando o motor OLAP **DuckDB**.
-""")
+"""
+)
+
 
 # Helper to load data via DuckDB
 def query_duckdb(query):
@@ -44,6 +53,7 @@ def query_duckdb(query):
     except Exception as e:
         print(f"Error querying DuckDB: {e}")
     return pd.DataFrame()
+
 
 # File paths check
 weather_path = os.path.join(DATA_DIR, "weather.parquet")
@@ -58,9 +68,9 @@ with col1:
     if os.path.exists(weather_path):
         # DuckDB query to clean and fetch weather data
         query = f"""
-            SELECT 
-                strptime(date, '%Y-%m-%dT%H:%M:%S.%f') as timestamp, 
-                air_temperature, 
+            SELECT
+                strptime(date, '%Y-%m-%dT%H:%M:%S.%f') as timestamp,
+                air_temperature,
                 track_temperature,
                 humidity
             FROM read_parquet('{weather_path}')
@@ -69,14 +79,16 @@ with col1:
         weather_df = query_duckdb(query)
         if not weather_df.empty:
             fig = px.line(
-                weather_df, 
-                x="timestamp", 
+                weather_df,
+                x="timestamp",
                 y=["air_temperature", "track_temperature"],
                 labels={"value": "Temperatura (°C)", "timestamp": "Horário"},
                 title="Evolução da Temperatura no GP",
-                color_discrete_sequence=["#ff1801", "#3b82f6"]
+                color_discrete_sequence=["#ff1801", "#3b82f6"],
             )
-            fig.update_layout(template="plotly_dark", paper_bgcolor="#161920", plot_bgcolor="#161920")
+            fig.update_layout(
+                template="plotly_dark", paper_bgcolor="#161920", plot_bgcolor="#161920"
+            )
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("Erro ao processar dados de clima.")
@@ -105,7 +117,9 @@ with col2:
         else:
             st.info("Sem dados de intervalos estruturados na última volta.")
     else:
-        st.info("Execute a ingestão para processar o JOIN analítico de drivers e intervalos.")
+        st.info(
+            "Execute a ingestão para processar o JOIN analítico de drivers e intervalos."
+        )
 
 st.markdown("---")
 
@@ -115,9 +129,9 @@ with col3:
     st.subheader("🏁 Grid de Pilotos Oficial")
     if os.path.exists(drivers_path):
         query = f"""
-            SELECT DISTINCT 
-                driver_number as Numero, 
-                full_name as Nome, 
+            SELECT DISTINCT
+                driver_number as Numero,
+                full_name as Nome,
                 team_name as Escuderia,
                 country_code as Pais
             FROM read_parquet('{drivers_path}')
@@ -133,10 +147,10 @@ with col4:
     st.subheader("⚡ Telemetria Real-Time do Carro")
     if os.path.exists(car_data_path):
         query = f"""
-            SELECT 
-                date, 
-                speed, 
-                rpm, 
+            SELECT
+                date,
+                speed,
+                rpm,
                 gear
             FROM read_parquet('{car_data_path}')
             ORDER BY date ASC
@@ -149,13 +163,19 @@ with col4:
                 y="speed",
                 title="Curva de Velocidade (Telemetria)",
                 labels={"value": "Velocidade (km/h)", "index": "Amostras"},
-                color_discrete_sequence=["#22c55e"]
+                color_discrete_sequence=["#22c55e"],
             )
-            fig_tel.update_layout(template="plotly_dark", paper_bgcolor="#161920", plot_bgcolor="#161920")
+            fig_tel.update_layout(
+                template="plotly_dark", paper_bgcolor="#161920", plot_bgcolor="#161920"
+            )
             st.plotly_chart(fig_tel, use_container_width=True)
         else:
             st.info("Sem telemetria ativa para esta sessão.")
     else:
-        st.info("Telemetria (car_data.parquet) não ingerida ou indisponível para esta sessão de corrida.")
+        st.info(
+            "Telemetria (car_data.parquet) não ingerida ou indisponível para esta sessão de corrida."
+        )
 
-st.caption("DuckDB Local In-Memory Engine - Projetado por Roberto Nascimento (Engenheiro de Dados)")
+st.caption(
+    "DuckDB Local In-Memory Engine - Projetado por Roberto Nascimento (Engenheiro de Dados)"
+)

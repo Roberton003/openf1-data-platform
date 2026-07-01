@@ -34,4 +34,6 @@ def write_session_partition(df: pd.DataFrame, target_dir: str) -> None:
 
 
 def append_execution_record(part_exec_path: str, run_record: dict) -> None:
-    atomic_append_partitioned_file(os.path.join(part_exec_path, "data.parquet"), pd.DataFrame([run_record]))
+    atomic_append_partitioned_file(
+        os.path.join(part_exec_path, "data.parquet"), pd.DataFrame([run_record])
+    )

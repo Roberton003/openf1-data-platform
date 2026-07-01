@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-
 DEFAULT_DRIVERS: dict[int, str] = {
     1: "Max Verstappen",
     4: "Lando Norris",
@@ -29,7 +28,9 @@ def _load_dotenv_local() -> None:
 
 
 def parse_focus_drivers(raw_value: str | None = None) -> dict[int, str]:
-    focus_drivers_env = raw_value if raw_value is not None else os.getenv("FOCUS_DRIVERS")
+    focus_drivers_env = (
+        raw_value if raw_value is not None else os.getenv("FOCUS_DRIVERS")
+    )
     if not focus_drivers_env:
         return dict(DEFAULT_DRIVERS)
 

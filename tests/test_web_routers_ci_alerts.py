@@ -24,7 +24,10 @@ def test_trigger_ci_check_no_run_id():
 
 
 def test_trigger_ci_check_failure():
-    with patch("src.web.routers.ci_alerts.check_and_heal_ci", side_effect=ValueError("API error")):
+    with patch(
+        "src.web.routers.ci_alerts.check_and_heal_ci",
+        side_effect=ValueError("API error"),
+    ):
         with TestClient(app) as c:
             resp = c.post("/api/ci/check")
     assert resp.status_code == 500
@@ -32,8 +35,6 @@ def test_trigger_ci_check_failure():
 
 
 def test_get_ci_status_empty(tmp_path):
-    from src.web.routers.ci_alerts import ALERTS_DIR
-
     with patch("src.web.routers.ci_alerts.ALERTS_DIR", str(tmp_path / "nonexistent")):
         with TestClient(app) as c:
             resp = c.get("/api/ci/status")

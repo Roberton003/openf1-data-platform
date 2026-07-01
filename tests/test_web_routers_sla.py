@@ -1,5 +1,3 @@
-import time
-from pathlib import Path
 from unittest.mock import patch
 
 import duckdb
@@ -68,7 +66,13 @@ class TestComputeSlaStatus:
     def test_all_compliant(self):
         from src.web.routers.sla import _compute_sla_status
 
-        result = _compute_sla_status({"data_freshness_minutes": 5, "duration_seconds": 30, "quarantine_rate": 0.0})
+        result = _compute_sla_status(
+            {
+                "data_freshness_minutes": 5,
+                "duration_seconds": 30,
+                "quarantine_rate": 0.0,
+            }
+        )
         assert result["sla_runtime_status"] == "COMPLIANT"
         assert result["sla_quality_status"] == "COMPLIANT"
         assert result["sla_freshness_status"] == "COMPLIANT"
@@ -76,25 +80,49 @@ class TestComputeSlaStatus:
     def test_runtime_breach(self):
         from src.web.routers.sla import _compute_sla_status
 
-        result = _compute_sla_status({"data_freshness_minutes": 5, "duration_seconds": 999, "quarantine_rate": 0.0})
+        result = _compute_sla_status(
+            {
+                "data_freshness_minutes": 5,
+                "duration_seconds": 999,
+                "quarantine_rate": 0.0,
+            }
+        )
         assert result["sla_runtime_status"] == "BREACHED"
 
     def test_quality_breach(self):
         from src.web.routers.sla import _compute_sla_status
 
-        result = _compute_sla_status({"data_freshness_minutes": 5, "duration_seconds": 30, "quarantine_rate": 0.5})
+        result = _compute_sla_status(
+            {
+                "data_freshness_minutes": 5,
+                "duration_seconds": 30,
+                "quarantine_rate": 0.5,
+            }
+        )
         assert result["sla_quality_status"] == "BREACHED"
 
     def test_freshness_breach(self):
         from src.web.routers.sla import _compute_sla_status
 
-        result = _compute_sla_status({"data_freshness_minutes": 999, "duration_seconds": 30, "quarantine_rate": 0.0})
+        result = _compute_sla_status(
+            {
+                "data_freshness_minutes": 999,
+                "duration_seconds": 30,
+                "quarantine_rate": 0.0,
+            }
+        )
         assert result["sla_freshness_status"] == "BREACHED"
 
     def test_freshness_none(self):
         from src.web.routers.sla import _compute_sla_status
 
-        result = _compute_sla_status({"data_freshness_minutes": None, "duration_seconds": 30, "quarantine_rate": 0.0})
+        result = _compute_sla_status(
+            {
+                "data_freshness_minutes": None,
+                "duration_seconds": 30,
+                "quarantine_rate": 0.0,
+            }
+        )
         assert result["sla_freshness_status"] == "BREACHED"
 
 

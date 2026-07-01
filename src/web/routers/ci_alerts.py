@@ -14,7 +14,9 @@ router = APIRouter(prefix="/api/ci", tags=["CI Monitor"])
 
 
 @router.post("/check")
-async def trigger_ci_check(run_id: int = Query(None, description="Optional specific workflow run ID to verify")):
+async def trigger_ci_check(
+    run_id: int = Query(None, description="Optional specific workflow run ID to verify")
+):
     try:
         report = await asyncio.to_thread(check_and_heal_ci, target_run_id=run_id)
         return report

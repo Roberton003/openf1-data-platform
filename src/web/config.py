@@ -5,7 +5,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     BASE_DIR: str = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
-    GITHUB_REPO: str = os.getenv("OPENF1_GITHUB_REPO", "Roberton003/openf1-data-platform")
+    GITHUB_REPO: str = os.getenv(
+        "OPENF1_GITHUB_REPO", "Roberton003/openf1-data-platform"
+    )
     GITHUB_TOKEN: str = os.getenv("OPENF1_GITHUB_TOKEN", "")
     SMTP_HOST: str = os.getenv("OPENF1_SMTP_HOST", "")
     SMTP_PORT: int = int(os.getenv("OPENF1_SMTP_PORT", "587"))

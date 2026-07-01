@@ -28,7 +28,9 @@ class ModelLoader:
         cache_ttl: int = DEFAULT_CACHE_TTL,
     ):
         self.mlflow_uri = mlflow_uri
-        self.joblib_path = joblib_path or os.path.join(MODELS_DIR, "lap_regressor.joblib")
+        self.joblib_path = joblib_path or os.path.join(
+            MODELS_DIR, "lap_regressor.joblib"
+        )
         self.cache_ttl = cache_ttl
         self._model: Any = None
         self._loaded_at: float = 0.0

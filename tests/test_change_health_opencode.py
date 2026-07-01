@@ -3,19 +3,14 @@
 import json
 import subprocess
 import sys
-from pathlib import Path
-from unittest.mock import patch
-
-import pytest
 
 from scripts.change_health_opencode import (
     ChangeHealthReport,
     _classify,
     _detect_base_branch,
-    _manual_review_required,
     _format_markdown,
+    _manual_review_required,
 )
-
 
 # ── Classification unit tests ────────────────────────────────────────────────
 
@@ -70,7 +65,9 @@ class TestClassify:
         """HIGH — mais de 3 arquivos (uncommitted)"""
         risk = _classify(
             ["a.py", "b.py", "c.py", "d.py", "e.py"],
-            added=10, removed=0, uncommitted_count=5,
+            added=10,
+            removed=0,
+            uncommitted_count=5,
         )
         assert risk == "HIGH"
 
@@ -96,14 +93,10 @@ class TestManualReview:
         assert _manual_review_required("HIGH", [".last-handoff.json"]) is True
 
     def test_medium_on_schema_path_requires_review(self):
-        assert _manual_review_required(
-            "MEDIUM", [".last-handoff.json"]
-        ) is True
+        assert _manual_review_required("MEDIUM", [".last-handoff.json"]) is True
 
     def test_medium_on_skill_path_no_review(self):
-        assert _manual_review_required(
-            "MEDIUM", ["skills/foo/SKILL.md"]
-        ) is False
+        assert _manual_review_required("MEDIUM", ["skills/foo/SKILL.md"]) is False
 
     def test_low_no_review(self):
         assert _manual_review_required("LOW", ["README.md"]) is False
@@ -157,7 +150,9 @@ class TestCLI:
     def test_json_output_is_valid(self):
         r = subprocess.run(
             [sys.executable, "scripts/change_health_opencode.py", "--json"],
-            capture_output=True, text=True, check=False,
+            capture_output=True,
+            text=True,
+            check=False,
         )
         assert r.returncode == 0
         data = json.loads(r.stdout)
@@ -167,7 +162,9 @@ class TestCLI:
     def test_markdown_output_has_header(self):
         r = subprocess.run(
             [sys.executable, "scripts/change_health_opencode.py", "--markdown"],
-            capture_output=True, text=True, check=False,
+            capture_output=True,
+            text=True,
+            check=False,
         )
         assert r.returncode == 0
         assert "# Change Health" in r.stdout
@@ -175,7 +172,9 @@ class TestCLI:
     def test_help_output(self):
         r = subprocess.run(
             [sys.executable, "scripts/change_health_opencode.py", "--help"],
-            capture_output=True, text=True, check=False,
+            capture_output=True,
+            text=True,
+            check=False,
         )
         assert r.returncode == 0
         assert "--json" in r.stdout

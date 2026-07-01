@@ -34,5 +34,6 @@ def test_schedule_tags():
 
 def test_schedule_registered_in_defs():
     from src.orchestration.definitions import defs
+
     names = [s.name for s in defs.schedules]
     assert "daily_ingestion_schedule" in names
