@@ -20,6 +20,23 @@ def _context():
     return build_asset_context()
 
 
+@pytest.fixture
+def tmp_data_dir(tmp_path, monkeypatch):
+    monkeypatch.setattr("src.ingestion.assets.DATA_DIR", str(tmp_path))
+    return str(tmp_path)
+
+
+@pytest.fixture
+def mock_fetch_api(mocker):
+    patched = mocker.patch("src.ingestion.assets.fetch_api")
+
+    def _set_response(payload):
+        patched.return_value = payload
+        return patched
+
+    return _set_response
+
+
 def test_fetch_api_success_returns_json(mocker):
     """Line 76: fetch_api returns JSON on success."""
     mock_get = mocker.patch("src.ingestion.assets.requests.get")
