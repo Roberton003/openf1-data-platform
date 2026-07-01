@@ -1,0 +1,61 @@
+# =============================================================================
+# OpenF1 Data Platform — Dagster Orchestration Dockerfile (Multi-Stage)
+# =============================================================================
+# Stage 1 (builder): Install dependencies into a disposable venv.
+# Stage 2 (runtime): Minimal Python 3.12-slim with venv only.
+#
+# Serves both dagster-webserver and dagster-daemon — CMD is overridden
+# by docker-compose for each service.
+#
+# Build:
+#   docker build -t openf1-dagster -f Dockerfile.dagster .
+#
+# Run:
+#   docker run --rm -p 3000:3000 -v $(pwd):/app/project openf1-dagster \
+#     dagster-webserver -h 0.0.0.0 -p 3000 -w /app/project/workspace.yaml
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Stage 1: Builder — install dependencies into a virtualenv
+# ---------------------------------------------------------------------------
+FROM python:3.12.10-slim@sha256:fd95fa221297a88e1cf49c55ec1828edd7c5a428187e67b5d1805692d11588db AS builder
+
+WORKDIR /build
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends gcc libpq-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+COPY requirements-dagster.txt .
+
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements-dagster.txt
+
+# ---------------------------------------------------------------------------
+# Stage 2: Runtime
+# ---------------------------------------------------------------------------
+FROM python:3.12.10-slim@sha256:fd95fa221297a88e1cf49c55ec1828edd7c5a428187e67b5d1805692d11588db AS runtime
+
+LABEL maintainer="OpenF1 Data Platform"
+LABEL description="Dagster orchestration — webserver + daemon"
+LABEL version="1.0.0"
+
+RUN groupadd -r dagster && useradd -r -g dagster -d /app -s /sbin/nologin dagster
+
+WORKDIR /app/project
+
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+ENV PYTHONPATH="/app/project"
+
+RUN mkdir -p /app/data /app/project/.dagster && chown -R dagster:dagster /app
+
+USER dagster
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:3000/dagit-info')" || exit 1
+
+EXPOSE 3000
