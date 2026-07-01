@@ -10,7 +10,16 @@ setup:
 
 install:
 	$(PYTHON) -m pip install --upgrade pip
-	$(PYTHON) -m pip install -r requirements.txt
+	$(PYTHON) -m pip install -r requirements.txt -r requirements-dagster.txt
+
+test-runtime:
+	$(PYTHON) -m pytest \
+		tests/test_web_routers_sla.py \
+		tests/test_web_routers_ci_alerts.py \
+		tests/test_orchestration_schedule.py \
+		tests/test_orchestration_sensor.py \
+		tests/test_assets_coverage_gaps.py \
+		-v
 
 lint:
 	black src/ tests/
