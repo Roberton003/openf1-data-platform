@@ -1,0 +1,42 @@
+import asyncio
+import glob
+import json
+import logging
+import os
+
+from fastapi import APIRouter, HTTPException, Query
+
+from src.web.ci_monitor import ALERTS_DIR, check_and_heal_ci
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/ci", tags=["CI Monitor"])
+
+
+@router.post("/check")
+async def trigger_ci_check(run_id: int = Query(None, description="Optional specific workflow run ID to verify")):
+    try:
+        report = await asyncio.to_thread(check_and_heal_ci, target_run_id=run_id)
+        return report
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"CI check failed: {str(exc)}")
+
+
+@router.get("/status")
+async def get_ci_status():
+    reports = []
+    pattern = os.path.join(ALERTS_DIR, "ci_healing_report_*.json")
+
+    for filepath in glob.glob(pattern):
+        try:
+            with open(filepath, encoding="utf-8") as fh:
+                reports.append(json.load(fh))
+        except Exception:
+            logger.exception("Corrupted CI report file: %s", filepath)
+
+    reports.sort(key=lambda item: item.get("evaluated_run_id", 0), reverse=True)
+    return {
+        "alerts_directory": ALERTS_DIR,
+        "history_count": len(reports),
+        "history": reports,
+    }
