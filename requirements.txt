@@ -10,6 +10,10 @@ plotly==5.20.0
 # Resilience & Retries
 tenacity==8.2.3
 
+# Web API
+fastapi==0.110.0
+httpx==0.27.2
+
 # Testing & Quality (DevOps)
 pytest==8.1.1
 pytest-mock==3.14.0
