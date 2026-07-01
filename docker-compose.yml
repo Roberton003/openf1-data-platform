@@ -1,15 +1,159 @@
-version: '3.8'
+# =============================================================================
+# OpenF1 Data Platform — Docker Compose
+# =============================================================================
+# Profiles:
+#   (default): API FastAPI em modo producao
+#   legacy:    Dashboard Streamlit (mantido como fallback exploratorio)
+#
+# Usage:
+#   docker-compose up                   -> Starts API only
+#   docker-compose --profile legacy up -> Starts API + legacy Streamlit
+#   docker-compose up --build           -> Rebuilds images before starting
+#
+# Data directory:
+#   Mount the local ./data into the API container so it can read the
+#   Parquet lakehouse. In production, this would be replaced by a
+#   volume backed by object storage (GCS/S3).
+# =============================================================================
 
 services:
-  dashboard:
-    image: python:3.12-slim
-    container_name: openf1_dashboard
-    working_dir: /app
-    volumes:
-      - .:/app
+  # -------------------------------------------------------------------------
+  # API — FastAPI Production Server
+  # -------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    image: openf1-api:latest
+    container_name: openf1_api
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=64m
+    security_opt:
+      - no-new-privileges:true
     ports:
-      - "8501:8501"
-    command: >
-      bash -c "pip install -r requirements.txt && streamlit run src/dashboard/app.py --server.port=8501 --server.address=0.0.0.0"
+      - "8001:8001"
+    volumes:
+      # Mount the local data lakehouse as read-only for serving.
+      # The pipeline writes to data/ locally; the container only reads.
+      - ./data:/app/data:ro
+      - ./models:/app/models:ro
     environment:
       - PYTHONUNBUFFERED=1
+      - OPENF1_LOG_LEVEL=INFO
+      - OPENF1_JSON_LOGS=true
+    env_file:
+      - .env
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/health')",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "2"
+        reservations:
+          memory: 512M
+
+  # -------------------------------------------------------------------------
+  # Dashboard — Legacy Streamlit (profile: legacy)
+  # -------------------------------------------------------------------------
+  # Kept as optional fallback for exploratory analysis.
+  # The primary UI is served by the API at / (FastAPI + static files).
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.dashboard
+    image: openf1-dashboard:latest
+    container_name: openf1_dashboard
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=64m
+    ports:
+      - "8501:8501"
+    environment:
+      - PYTHONUNBUFFERED=1
+    profiles:
+      - legacy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+  # -------------------------------------------------------------------------
+  # Dagster — Orchestration
+  # -------------------------------------------------------------------------
+  dagster-webserver:
+    build:
+      context: .
+      dockerfile: Dockerfile.dagster
+    image: openf1-dagster:latest
+    container_name: openf1_dagster_webserver
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app/project
+      - ./data:/app/data
+    working_dir: /app/project
+    environment:
+      - DAGSTER_HOME=/app/project
+      - PYTHONPATH=/app/project
+    command:
+      - dagster-webserver
+      - -h
+      - "0.0.0.0"
+      - -p
+      - "3000"
+      - -w
+      - /app/project/workspace.yaml
+    profiles:
+      - orchestration
+
+  dagster-daemon:
+    build:
+      context: .
+      dockerfile: Dockerfile.dagster
+    image: openf1-dagster:latest
+    container_name: openf1_dagster_daemon
+    restart: unless-stopped
+    volumes:
+      - .:/app/project
+      - ./data:/app/data
+    working_dir: /app/project
+    environment:
+      - DAGSTER_HOME=/app/project
+      - PYTHONPATH=/app/project
+    command:
+      - dagster-daemon
+      - run
+      - -w
+      - /app/project/workspace.yaml
+    depends_on:
+      - dagster-webserver
+    profiles:
+      - orchestration
