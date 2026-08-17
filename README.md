@@ -1,3 +1,18 @@
+<div align="center">
+
+# openf1-data-platform
+
+[![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![DuckDB](https://img.shields.io/badge/DuckDB-Engine-FFF000?style=for-the-badge&logo=duckdb&logoColor=black)](https://duckdb.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Framework-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
+
+<p><b>Engenharia de dados e MLOps em tempo real para telemetria de Fórmula 1.</b></p>
+
+<img src="docs/images/project-hero.svg" alt="openf1-data-platform Hero Banner" width="760">
+
+</div>
+
 # 🏎️ OpenF1 Data Platform
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
