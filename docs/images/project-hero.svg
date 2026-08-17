@@ -36,8 +36,8 @@
     <text x="10" y="3" font-size="12" text-anchor="middle" fill="#fecaca" font-family="system-ui" font-weight="700">anomalias &amp; perda de sinal</text>
   </g>
   <g transform="translate(620,180)">
-    <circle r="86" fill=none stroke="#262626" stroke-width="16"/>
-    <circle class=ring r="86" fill="none" stroke="var(--ok)" stroke-width="16" transform="rotate(-90)"/>
+    <circle r="86" fill="none" stroke="#262626" stroke-width="16"/>
+    <circle class="ring" r="86" fill="none" stroke="var(--ok)" stroke-width="16" transform="rotate(-90)"/>
     <text x="0" y="-2" font-size="20" text-anchor="middle" fill="var(--ok)" font-family="system-ui" font-weight="700">100 Hz</text>
     <text x="0" y="20" font-size="12" text-anchor="middle" fill="var(--sub)" font-family="system-ui">taxa de amostragem</text>
   </g>
