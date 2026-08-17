@@ -1,44 +1,83 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 360" role="img" aria-labelledby="title desc">
-  <title id="title">OpenF1 Data Platform - Formula 1 Telemetry Analytics</title>
-  <desc id="desc">Telemetria de F1 em tempo real atravessa ingestão serverless, Medalhão DuckDB e MLOps</desc>
+  <title id="title">OpenF1 Data Platform - Formula 1 Telemetry Engine</title>
+  <desc id="desc">Telemetria de F1 em tempo real com circuito de corrida, tacômetro e delta de volta</desc>
   <style>
-    :root{ --bg:#0f0f0f; --ok:#ef4444; --bad:#f59e0b; --cur:#22c55e; --gate:#dc2626; --ink:#fef2f2; --sub:#fca5a5; }
+    :root{ --bg:#09090b; --red:#ef4444; --green:#22c55e; --yellow:#eab308; --cyan:#38bdf8; --ink:#f4f4f5; --sub:#a1a1aa; }
     *{transform-box:fill-box;}
-    @keyframes scan{ from{transform:translateX(0)} to{transform:translateX(200px)} }
-    @keyframes down{ 0%,55%{transform:translateY(0);opacity:1} 70%,100%{transform:translateY(120px);opacity:.9} }
-    @keyframes pass{ 0%,45%{transform:translateX(0);opacity:1} 75%,100%{transform:translateX(300px);opacity:0} }
-    @keyframes gateGlow{ 0%,100%{opacity:.25} 50%{opacity:1} }
-    @keyframes f1Fill{ from{stroke-dashoffset:440} to{stroke-dashoffset:80} }
-    .scan{animation:scan 2.6s ease-in-out infinite alternate}
-    .okdrop{animation:pass 2.6s linear infinite}
-    .baddrop{animation:down 2.6s linear infinite}
-    .gate{animation:gateGlow 1.4s ease-in-out infinite}
-    .ring{stroke-dasharray:440 440;animation:f1Fill 4s ease-in-out infinite alternate}
-    @media (prefers-reduced-motion: reduce){ *{animation:none!important; transition:none!important} }
+    @keyframes trackDrive {
+      0% { offset-distance: 0%; }
+      100% { offset-distance: 100%; }
+    }
+    .f1Car {
+      offset-path: path("M 60,180 C 60,80 180,60 300,60 C 420,60 480,120 540,120 C 600,120 660,60 720,110 C 770,150 750,280 660,300 C 560,320 450,240 320,280 C 180,320 60,260 60,180 Z");
+      animation: trackDrive 6s linear infinite;
+    }
+    @keyframes rpmPulse {
+      0%, 100% { transform: rotate(-110deg); }
+      50% { transform: rotate(50deg); }
+      70% { transform: rotate(30deg); }
+      85% { transform: rotate(65deg); }
+    }
+    .rpmNeedle {
+      transform-origin: 100px 100px;
+      animation: rpmPulse 3.5s ease-in-out infinite;
+    }
+    @keyframes waveDash {
+      from { stroke-dashoffset: 400; }
+      to { stroke-dashoffset: 0; }
+    }
+    .telemetryLine {
+      stroke-dasharray: 400;
+      animation: waveDash 2.5s linear infinite;
+    }
+    @keyframes drsBlink {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 1; }
+    }
+    .drsActive { animation: drsBlink 1s ease-in-out infinite; }
   </style>
-  <rect width="800" height="360" fill="var(--bg)"/>
-  <g transform="translate(40,60)">
-    <text x="0" y="-8" font-size="13" fill="var(--sub)" font-family="system-ui">telemetria de F1 (velocidade, RPM &amp; pneus)</text>
-    <path d="M0 40 Q25 10 50 40 T100 40 T150 40 T200 40 T250 40" fill="none" stroke="var(--ok)" stroke-width="4"/>
-    <g class="scan"><circle cx="250" cy="40" r="10" fill="var(--ok)" opacity=".9"/></g>
-    <g class="okdrop"><circle cx="60" cy="70" r="9" fill="var(--ok)"/></g>
-    <g class="baddrop" style="animation-delay:1.3s"><circle cx="120" cy="70" r="9" fill="var(--bad)"/></g>
+  <rect width="800" height="360" fill="var(--bg)" rx="12"/>
+  <g stroke="#27272a" stroke-width="1" opacity="0.4">
+    <line x1="0" y1="90" x2="800" y2="90"/>
+    <line x1="0" y1="180" x2="800" y2="180"/>
+    <line x1="0" y1="270" x2="800" y2="270"/>
+    <line x1="200" y1="0" x2="200" y2="360"/>
+    <line x1="400" y1="0" x2="400" y2="360"/>
+    <line x1="600" y1="0" x2="600" y2="360"/>
   </g>
-  <g transform="translate(300,40)">
-    <text x="0" y="-8" font-size="13" fill="var(--sub)" font-family="system-ui">arquitetura Medalhão DuckDB</text>
-    <g transform="translate(0,0)"><rect class="gate" x="-6" y="0" width="12" height="70" rx="4" fill="var(--gate)"/><text x="0" y="88" font-size="9" text-anchor="middle" fill="var(--ink)" font-family="system-ui">Bronze</text></g>
-    <g transform="translate(46,0)"><rect class="gate" style="animation-delay:.3s" x="-6" y="0" width="12" height="70" rx="4" fill="var(--gate)"/><text x="0" y="88" font-size="9" text-anchor="middle" fill="var(--ink)" font-family="system-ui">Silver</text></g>
-    <g transform="translate(92,0)"><rect class="gate" style="animation-delay:.6s" x="-6" y="0" width="12" height="70" rx="4" fill="var(--gate)"/><text x="0" y="88" font-size="9" text-anchor="middle" fill="var(--ink)" font-family="system-ui">Gold</text></g>
-    <g transform="translate(138,0)"><rect class="gate" style="animation-delay:.9s" x="-6" y="0" width="12" height="70" rx="4" fill="var(--gate)"/><text x="0" y="88" font-size="9" text-anchor="middle" fill="var(--ink)" font-family="system-ui">MLOps</text></g>
+  <path d="M 60,180 C 60,80 180,60 300,60 C 420,60 480,120 540,120 C 600,120 660,60 720,110 C 770,150 750,280 660,300 C 560,320 450,240 320,280 C 180,320 60,260 60,180 Z" fill="none" stroke="#27272a" stroke-width="28" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M 60,180 C 60,80 180,60 300,60 C 420,60 480,120 540,120 C 600,120 660,60 720,110 C 770,150 750,280 660,300 C 560,320 450,240 320,280 C 180,320 60,260 60,180 Z" fill="none" stroke="#3f3f46" stroke-width="20" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M 60,180 C 60,80 180,60 300,60 C 420,60 480,120 540,120 C 600,120 660,60 720,110 C 770,150 750,280 660,300 C 560,320 450,240 320,280 C 180,320 60,260 60,180 Z" fill="none" stroke="var(--red)" stroke-width="2" stroke-dasharray="10 10" opacity="0.6"/>
+  <g class="f1Car">
+    <circle r="10" fill="var(--red)"/>
+    <circle r="18" fill="var(--red)" opacity="0.3"/>
   </g>
-  <g transform="translate(60,260)">
-    <rect x="-70" y="-22" width="160" height="44" rx="10" fill="#7f1d1d"/>
-    <text x="10" y="3" font-size="12" text-anchor="middle" fill="#fecaca" font-family="system-ui" font-weight="700">anomalias &amp; perda de sinal</text>
+  <g transform="translate(620, 40)">
+    <rect x="0" y="0" width="150" height="130" rx="10" fill="#18181b" stroke="#3f3f46" stroke-width="1.5"/>
+    <text x="14" y="24" font-size="11" font-weight="700" fill="var(--sub)" font-family="system-ui">TELEMETRIA RPM</text>
+    <g transform="translate(-25, 10)">
+      <path d="M 60,100 A 40,40 0 1,1 140,100" fill="none" stroke="#27272a" stroke-width="10" stroke-linecap="round"/>
+      <path d="M 60,100 A 40,40 0 0,1 115,64" fill="none" stroke="var(--green)" stroke-width="10" stroke-linecap="round"/>
+      <path d="M 115,64 A 40,40 0 0,1 135,80" fill="none" stroke="var(--yellow)" stroke-width="10"/>
+      <path d="M 135,80 A 40,40 0 0,1 140,100" fill="none" stroke="var(--red)" stroke-width="10" stroke-linecap="round"/>
+      <line class="rpmNeedle" x1="100" y1="100" x2="72" y2="100" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="100" cy="100" r="6" fill="var(--ink)"/>
+    </g>
+    <rect class="drsActive" x="92" y="96" width="46" height="18" rx="4" fill="var(--green)"/>
+    <text x="115" y="109" font-size="10" font-weight="900" fill="#000" text-anchor="middle" font-family="system-ui">DRS</text>
   </g>
-  <g transform="translate(620,180)">
-    <circle r="86" fill="none" stroke="#262626" stroke-width="16"/>
-    <circle class="ring" r="86" fill="none" stroke="var(--ok)" stroke-width="16" transform="rotate(-90)"/>
-    <text x="0" y="-2" font-size="20" text-anchor="middle" fill="var(--ok)" font-family="system-ui" font-weight="700">100 Hz</text>
-    <text x="0" y="20" font-size="12" text-anchor="middle" fill="var(--sub)" font-family="system-ui">taxa de amostragem</text>
+  <g transform="translate(30, 230)">
+    <rect x="0" y="0" width="220" height="100" rx="10" fill="#18181b" stroke="#3f3f46" stroke-width="1.5"/>
+    <text x="16" y="24" font-size="11" font-weight="700" fill="var(--sub)" font-family="system-ui">VOLTA MAIS RÁPIDA (LAP 42)</text>
+    <text x="16" y="56" font-size="24" font-weight="900" fill="var(--green)" font-family="system-ui">1:14.321</text>
+    <rect x="16" y="68" width="60" height="18" rx="4" fill="#14532d"/>
+    <text x="46" y="81" font-size="10" font-weight="700" fill="#86efac" text-anchor="middle" font-family="system-ui">-0.428s</text>
+    <text x="90" y="81" font-size="11" fill="var(--sub)" font-family="system-ui">Motor DuckDB 100Hz</text>
+  </g>
+  <g transform="translate(540, 230)">
+    <rect x="0" y="0" width="230" height="100" rx="10" fill="#18181b" stroke="#3f3f46" stroke-width="1.5"/>
+    <text x="16" y="24" font-size="11" font-weight="700" fill="var(--sub)" font-family="system-ui">PERFIL DE VELOCIDADE (KM/H)</text>
+    <path class="telemetryLine" d="M 16,75 L 45,75 L 70,40 L 95,80 L 125,35 L 155,60 L 180,30 L 210,75" fill="none" stroke="var(--cyan)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="16" y="90" font-size="10" fill="var(--cyan)" font-family="system-ui">MAX: 342.8 KM/H</text>
   </g>
 </svg>
